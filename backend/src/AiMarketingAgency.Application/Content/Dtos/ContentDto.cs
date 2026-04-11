@@ -19,4 +19,7 @@ public class ContentDto
     public bool AutoApproved { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? ApprovedAt { get; set; }
+    public string? ImageUrl { get; set; }
+    public string? ImagePrompt { get; set; }
+    public string? VideoUrl { get; set; }
 }

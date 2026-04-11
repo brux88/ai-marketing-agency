@@ -42,7 +42,10 @@ public class GetContentQueryHandler : IRequestHandler<GetContentQuery, List<Cont
                 ScoreExplanation = c.ScoreExplanation,
                 AutoApproved = c.AutoApproved,
                 CreatedAt = c.CreatedAt,
-                ApprovedAt = c.ApprovedAt
+                ApprovedAt = c.ApprovedAt,
+                ImageUrl = c.ImageUrl,
+                ImagePrompt = c.ImagePrompt,
+                VideoUrl = c.VideoUrl
             })
             .OrderByDescending(c => c.CreatedAt)
             .ToListAsync(cancellationToken);
