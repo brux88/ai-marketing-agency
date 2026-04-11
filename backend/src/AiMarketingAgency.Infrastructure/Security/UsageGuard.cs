@@ -1,11 +1,13 @@
 using AiMarketingAgency.Application.Common.Interfaces;
 using AiMarketingAgency.Domain.Entities;
+using AiMarketingAgency.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace AiMarketingAgency.Infrastructure.Security;
 
 public class UsageGuard : IUsageGuard
 {
+    private const int FreeTrialJobsPerMonth = 50;
     private readonly IAppDbContext _context;
 
     public UsageGuard(IAppDbContext context)
@@ -22,16 +24,21 @@ public class UsageGuard : IUsageGuard
         // Calendar month start as universal fallback
         var monthStart = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc);
 
-        if (subscription == null)
+        // No subscription, or subscription cancelled/expired → free trial
+        var useFreeTrialLimits = subscription == null
+            || subscription.Status == SubscriptionStatus.Cancelled
+            || subscription.Status == SubscriptionStatus.Expired;
+
+        if (useFreeTrialLimits)
         {
-            // No subscription — treat as FreeTrial: 20 jobs per calendar month
             var freeJobs = await _context.AgentJobs
                 .IgnoreQueryFilters()
                 .CountAsync(j => j.TenantId == tenantId && j.CreatedAt >= monthStart, ct);
-            return freeJobs < 20;
+            return freeJobs < FreeTrialJobsPerMonth;
         }
 
-        var currentPeriodStart = subscription.CurrentPeriodEnd?.AddMonths(-1) ?? monthStart;
+        // Active, Trialing, or PastDue → use subscription limits
+        var currentPeriodStart = subscription!.CurrentPeriodEnd?.AddMonths(-1) ?? monthStart;
         var jobsThisPeriod = await _context.AgentJobs
             .IgnoreQueryFilters()
             .CountAsync(j => j.TenantId == tenantId && j.CreatedAt >= currentPeriodStart, ct);
