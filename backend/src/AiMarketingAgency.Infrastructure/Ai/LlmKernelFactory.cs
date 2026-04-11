@@ -66,7 +66,9 @@ public class LlmKernelFactory : ILlmKernelFactory
             case LlmProviderType.HiggField:
             case LlmProviderType.Custom:
                 // Use OpenAI-compatible HTTP client for non-natively-supported providers
-                var baseUrl = providerKey.BaseUrl ?? GetDefaultBaseUrl(providerKey.ProviderType);
+                var baseUrl = string.IsNullOrWhiteSpace(providerKey.BaseUrl)
+                    ? GetDefaultBaseUrl(providerKey.ProviderType)
+                    : providerKey.BaseUrl;
                 var httpClient = _httpClientFactory.CreateClient($"LlmProvider_{providerKey.Id}");
                 httpClient.BaseAddress = new Uri(baseUrl);
 
