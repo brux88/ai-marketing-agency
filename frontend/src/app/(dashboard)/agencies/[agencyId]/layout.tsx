@@ -1,0 +1,51 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname, useParams } from "next/navigation";
+import { PenLine, Share2, Mail, BarChart3, Settings, LayoutDashboard, FolderKanban, Calendar, ClipboardCheck } from "lucide-react";
+
+const tabs = [
+  { href: "", label: "Overview", icon: LayoutDashboard },
+  { href: "/projects", label: "Progetti", icon: FolderKanban },
+  { href: "/content", label: "Content & Blog", icon: PenLine },
+  { href: "/social", label: "Social Media", icon: Share2 },
+  { href: "/newsletter", label: "Newsletter", icon: Mail },
+  { href: "/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/schedules", label: "Programmazione", icon: Calendar },
+  { href: "/approvals", label: "Approvazioni", icon: ClipboardCheck },
+  { href: "/settings", label: "Impostazioni", icon: Settings },
+];
+
+export default function AgencyLayout({ children }: { children: React.ReactNode }) {
+  const { agencyId } = useParams();
+  const pathname = usePathname();
+  const basePath = `/agencies/${agencyId}`;
+
+  return (
+    <div>
+      <nav className="flex gap-1 border-b mb-6 -mt-2 overflow-x-auto">
+        {tabs.map((tab) => {
+          const fullPath = `${basePath}${tab.href}`;
+          const isActive = tab.href === ""
+            ? pathname === basePath
+            : pathname.startsWith(fullPath);
+          return (
+            <Link
+              key={tab.href}
+              href={fullPath}
+              className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                isActive
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground/30"
+              }`}
+            >
+              <tab.icon className="size-4" />
+              {tab.label}
+            </Link>
+          );
+        })}
+      </nav>
+      {children}
+    </div>
+  );
+}
