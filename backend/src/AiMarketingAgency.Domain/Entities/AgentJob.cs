@@ -18,6 +18,8 @@ public class AgentJob : BaseEntity, ITenantScoped
     public string? ErrorMessage { get; set; }
     public int RetryCount { get; set; }
     public Guid? ProjectId { get; set; }
+    public ImageGenerationMode ImageMode { get; set; } = ImageGenerationMode.Single;
+    public int ImageCount { get; set; } = 1;
 
     // Navigation
     public Agency Agency { get; set; } = null!;

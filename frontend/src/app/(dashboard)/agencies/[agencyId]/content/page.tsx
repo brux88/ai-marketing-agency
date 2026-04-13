@@ -9,9 +9,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PenLine, Loader2, FileText, Star, Search, TrendingUp, Sparkles, CheckCircle2, ImageIcon } from "lucide-react";
+import { PenLine, Loader2, FileText, Star, Search, TrendingUp, Sparkles, CheckCircle2, ImageIcon, X, Edit3, Calendar, Images } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { ContentEditDialog } from "@/components/agency/content-edit-dialog";
+import { GenerateContentDialog } from "@/components/agency/generate-content-dialog";
 
 const statusConfig: Record<number, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
   1: { label: "Bozza", variant: "outline" },
@@ -21,10 +23,22 @@ const statusConfig: Record<number, { label: string; variant: "default" | "second
   5: { label: "Rifiutato", variant: "destructive" },
 };
 
+const contentTypeLabels: Record<number, string> = {
+  1: "Blog",
+  2: "Social",
+  3: "Newsletter",
+  4: "Report",
+};
+
+type ContentFilter = "all" | 1 | 2 | 3 | 4;
+
 export default function ContentPage() {
   const { agencyId } = useParams();
   const queryClient = useQueryClient();
-  const [generating, setGenerating] = useState(false);
+  const [generateOpen, setGenerateOpen] = useState(false);
+  const [filter, setFilter] = useState<ContentFilter>("all");
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [editingContent, setEditingContent] = useState<GeneratedContent | null>(null);
 
   const { data: agencyData } = useQuery({
     queryKey: ["agency", agencyId],
@@ -38,25 +52,31 @@ export default function ContentPage() {
   });
 
   const agency = agencyData?.data;
-  const contents = data?.data || [];
+  const allContents = [...(data?.data || [])].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
+  const contents = filter === "all" ? allContents : allContents.filter((c) => c.contentType === filter);
 
-  const handleGenerate = async () => {
+  const handleOpenGenerate = () => {
     if (!agency?.defaultLlmProviderKeyId) {
       toast.error("Configura prima una chiave LLM nelle impostazioni dell'agenzia");
       return;
     }
-    setGenerating(true);
-    try {
-      await apiClient.post(`/api/v1/agencies/${agencyId}/agents/content-writer/run`, {});
-      toast.success("Generazione articolo avviata!");
-      refetch();
-    } catch (err: any) {
-      const message = err?.message || "Errore durante la generazione";
-      toast.error(message);
-    } finally {
-      setGenerating(false);
-    }
+    setGenerateOpen(true);
   };
+
+  const formatDate = (iso: string) => {
+    const d = new Date(iso);
+    return d.toLocaleString("it-IT", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  };
+
+  const filterButtons: { value: ContentFilter; label: string }[] = [
+    { value: "all", label: "Tutti" },
+    { value: 1, label: "Blog" },
+    { value: 2, label: "Social" },
+    { value: 3, label: "Newsletter" },
+    { value: 4, label: "Report" },
+  ];
 
   return (
     <div className="space-y-6">
@@ -64,16 +84,31 @@ export default function ContentPage() {
         <div>
           <h2 className="text-xl font-bold tracking-tight">Content & Blog</h2>
           <p className="text-muted-foreground text-sm mt-1">
-            {contents.length} contenuti generati
+            {allContents.length} contenuti generati
           </p>
         </div>
-        <Button onClick={handleGenerate} disabled={generating}>
-          {generating ? (
-            <><Loader2 className="size-4 animate-spin" /> Generazione...</>
-          ) : (
-            <><PenLine className="size-4" /> Genera nuovo articolo</>
-          )}
+        <Button onClick={handleOpenGenerate}>
+          <PenLine className="size-4" /> Genera nuovo articolo
         </Button>
+      </div>
+
+      {/* Filtri per tipo */}
+      <div className="flex gap-2 flex-wrap">
+        {filterButtons.map((fb) => (
+          <Button
+            key={String(fb.value)}
+            variant={filter === fb.value ? "default" : "outline"}
+            size="sm"
+            onClick={() => setFilter(fb.value)}
+          >
+            {fb.label}
+            {fb.value !== "all" && (
+              <span className="ml-1 text-xs opacity-70">
+                ({allContents.filter((c) => c.contentType === fb.value).length})
+              </span>
+            )}
+          </Button>
+        ))}
       </div>
 
       {isLoading ? (
@@ -105,7 +140,7 @@ export default function ContentPage() {
           {contents.map((content) => {
             const status = statusConfig[content.status] || statusConfig[1];
             return (
-              <Card key={content.id} className="hover:shadow-sm transition-shadow">
+              <Card key={content.id} className="hover:shadow-sm transition-shadow cursor-pointer" onClick={() => setEditingContent(content)}>
                 <CardContent className="pt-6">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-start gap-4 flex-1 min-w-0">
@@ -113,7 +148,8 @@ export default function ContentPage() {
                         <img
                           src={content.imageUrl}
                           alt={content.title}
-                          className="size-16 rounded-lg object-cover shrink-0"
+                          className="w-24 h-24 rounded-lg object-cover shrink-0 cursor-pointer hover:opacity-80 transition-opacity ring-1 ring-border"
+                          onClick={(e) => { e.stopPropagation(); setLightboxUrl(content.imageUrl!); }}
                         />
                       )}
                       <div className="flex-1 min-w-0">
@@ -121,10 +157,19 @@ export default function ContentPage() {
                         <p className="text-muted-foreground text-sm mt-1 line-clamp-2">
                           {content.body.slice(0, 200)}...
                         </p>
+                        <div className="flex items-center gap-1.5 mt-2 text-xs text-muted-foreground">
+                          <Calendar className="size-3" />
+                          <span>{formatDate(content.createdAt)}</span>
+                        </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      {content.imageUrl && (
+                      <Badge variant="outline">{contentTypeLabels[content.contentType] || "Altro"}</Badge>
+                      {content.imageUrls && content.imageUrls.length > 1 ? (
+                        <Badge variant="secondary">
+                          <Images className="size-3" /> {content.imageUrls.length} slide
+                        </Badge>
+                      ) : content.imageUrl && (
                         <Badge variant="secondary">
                           <ImageIcon className="size-3" /> Img
                         </Badge>
@@ -172,6 +217,45 @@ export default function ContentPage() {
               </Card>
             );
           })}
+        </div>
+      )}
+
+      {/* Generate Dialog */}
+      <GenerateContentDialog
+        open={generateOpen}
+        onOpenChange={setGenerateOpen}
+        agencyId={agencyId as string}
+        agentType="content-writer"
+        agentLabel="Content Writer"
+        onStarted={() => refetch()}
+      />
+
+      {/* Content Edit Dialog */}
+      <ContentEditDialog
+        content={editingContent}
+        agencyId={agencyId as string}
+        open={!!editingContent}
+        onOpenChange={(open) => { if (!open) setEditingContent(null); }}
+      />
+
+      {/* Lightbox per ingrandire immagini */}
+      {lightboxUrl && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+          onClick={() => setLightboxUrl(null)}
+        >
+          <button
+            onClick={() => setLightboxUrl(null)}
+            className="absolute top-4 right-4 text-white hover:text-gray-300"
+          >
+            <X className="size-8" />
+          </button>
+          <img
+            src={lightboxUrl}
+            alt="Immagine ingrandita"
+            className="max-w-full max-h-[90vh] rounded-lg object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
         </div>
       )}
     </div>

@@ -2,6 +2,7 @@ using AiMarketingAgency.Application.Agencies.Commands.CreateAgency;
 using AiMarketingAgency.Application.Agencies.Commands.UpdateApprovalMode;
 using AiMarketingAgency.Application.Agencies.Commands.UpdateBrandVoice;
 using AiMarketingAgency.Application.Agencies.Commands.UpdateDefaultLlm;
+using AiMarketingAgency.Application.Agencies.Commands.UpdateImageSettings;
 using AiMarketingAgency.Application.Agencies.Commands.UpdateTargetAudience;
 using AiMarketingAgency.Application.Agencies.Dtos;
 using AiMarketingAgency.Application.Agencies.Queries.GetAgencies;
@@ -76,9 +77,17 @@ public class AgenciesController : ControllerBase
         await _mediator.Send(new UpdateDefaultLlmCommand(id, request.DefaultLlmProviderKeyId, request.ImageLlmProviderKeyId), ct);
         return Ok(ApiResponse<object>.Ok(null));
     }
+
+    [HttpPut("{id:guid}/image-settings")]
+    public async Task<ActionResult<ApiResponse<object>>> UpdateImageSettings(Guid id, [FromBody] UpdateImageSettingsRequest request, CancellationToken ct)
+    {
+        await _mediator.Send(new UpdateImageSettingsCommand(id, request.EnableLogoOverlay, request.LogoOverlayPosition, request.LogoUrl), ct);
+        return Ok(ApiResponse<object>.Ok(null));
+    }
 }
 
 public record UpdateBrandVoiceRequest(BrandVoice BrandVoice);
 public record UpdateTargetAudienceRequest(TargetAudience TargetAudience);
 public record UpdateApprovalModeRequest(ApprovalMode ApprovalMode, int AutoApproveMinScore);
 public record UpdateDefaultLlmRequest(Guid? DefaultLlmProviderKeyId, Guid? ImageLlmProviderKeyId);
+public record UpdateImageSettingsRequest(bool EnableLogoOverlay, int LogoOverlayPosition, string? LogoUrl);

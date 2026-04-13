@@ -17,6 +17,8 @@ public class AgencyDto
     public Guid? ImageLlmProviderKeyId { get; set; }
     public ApprovalMode ApprovalMode { get; set; }
     public int AutoApproveMinScore { get; set; }
+    public bool EnableLogoOverlay { get; set; }
+    public int LogoOverlayPosition { get; set; }
     public bool IsActive { get; set; }
     public DateTime CreatedAt { get; set; }
     public int ContentSourcesCount { get; set; }

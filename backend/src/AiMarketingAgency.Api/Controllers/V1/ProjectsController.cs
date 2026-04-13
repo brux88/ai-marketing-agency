@@ -1,6 +1,7 @@
 using AiMarketingAgency.Application.Common.Models;
 using AiMarketingAgency.Application.Projects.Commands.CreateProject;
 using AiMarketingAgency.Application.Projects.Commands.DeleteProject;
+using AiMarketingAgency.Application.Projects.Commands.ExtractBrandFromWebsite;
 using AiMarketingAgency.Application.Projects.Commands.UpdateProject;
 using AiMarketingAgency.Application.Projects.Dtos;
 using AiMarketingAgency.Application.Projects.Queries.GetProjectById;
@@ -81,6 +82,13 @@ public class ProjectsController : ControllerBase
     {
         await _mediator.Send(new DeleteProjectCommand(agencyId, projectId), ct);
         return Ok(ApiResponse<object>.Ok(null));
+    }
+
+    [HttpPost("{projectId:guid}/extract-brand")]
+    public async Task<ActionResult<ApiResponse<ProjectDto>>> ExtractBrand(Guid agencyId, Guid projectId, CancellationToken ct)
+    {
+        var result = await _mediator.Send(new ExtractBrandFromWebsiteCommand(agencyId, projectId), ct);
+        return Ok(ApiResponse<ProjectDto>.Ok(result));
     }
 }
 

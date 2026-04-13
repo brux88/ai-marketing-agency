@@ -36,6 +36,21 @@ export interface Agency {
   createdAt: string;
   contentSourcesCount: number;
   generatedContentsCount: number;
+  enableLogoOverlay?: boolean;
+  logoOverlayPosition?: number;
+}
+
+export enum LogoPosition {
+  TopLeft = 0,
+  TopRight = 1,
+  BottomLeft = 2,
+  BottomRight = 3,
+}
+
+export enum ImageGenerationMode {
+  None = 0,
+  Single = 1,
+  Carousel = 2,
 }
 
 export interface BrandVoice {
@@ -95,6 +110,9 @@ export interface GeneratedContent {
   autoApproved: boolean;
   imageUrl?: string | null;
   imagePrompt?: string | null;
+  imageUrls?: string[] | null;
+  videoUrl?: string | null;
+  projectId?: string | null;
   createdAt: string;
   approvedAt?: string;
 }
@@ -145,6 +163,8 @@ export enum AgentType {
   SocialManager = 2,
   Newsletter = 3,
   Analytics = 4,
+  ContentStrategist = 5,
+  SeoOptimizer = 6,
 }
 
 export enum DayOfWeekFlag {

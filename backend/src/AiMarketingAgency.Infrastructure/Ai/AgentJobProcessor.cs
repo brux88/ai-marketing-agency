@@ -1,9 +1,12 @@
+using System.Text.Json;
 using AiMarketingAgency.Application.Agents;
 using AiMarketingAgency.Application.Common.Interfaces;
 using AiMarketingAgency.Domain.Entities;
 using AiMarketingAgency.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.SemanticKernel;
+using Microsoft.SemanticKernel.ChatCompletion;
 
 namespace AiMarketingAgency.Infrastructure.Ai;
 
@@ -14,6 +17,7 @@ public class AgentJobProcessor : IAgentJobProcessor
     private readonly IEnumerable<IMarketingAgent> _agents;
     private readonly IImageGenerationServiceFactory _imageGenerationServiceFactory;
     private readonly IVideoGenerationServiceFactory _videoGenerationServiceFactory;
+    private readonly IImageOverlayService _overlayService;
     private readonly ILlmKeyVault _keyVault;
     private readonly ILogger<AgentJobProcessor> _logger;
 
@@ -23,6 +27,7 @@ public class AgentJobProcessor : IAgentJobProcessor
         IEnumerable<IMarketingAgent> agents,
         IImageGenerationServiceFactory imageGenerationServiceFactory,
         IVideoGenerationServiceFactory videoGenerationServiceFactory,
+        IImageOverlayService overlayService,
         ILlmKeyVault keyVault,
         ILogger<AgentJobProcessor> logger)
     {
@@ -31,6 +36,7 @@ public class AgentJobProcessor : IAgentJobProcessor
         _agents = agents;
         _imageGenerationServiceFactory = imageGenerationServiceFactory;
         _videoGenerationServiceFactory = videoGenerationServiceFactory;
+        _overlayService = overlayService;
         _keyVault = keyVault;
         _logger = logger;
     }
@@ -114,19 +120,62 @@ public class AgentJobProcessor : IAgentJobProcessor
             {
                 string? imageUrl = content.ImageUrl;
                 string? imagePrompt = content.ImagePrompt;
+                List<string>? imageUrls = null;
 
-                // Generate image if service is available and no image was already provided
-                if (imageService != null && string.IsNullOrEmpty(imageUrl))
+                // Generate image(s) if service is available and no image was already provided
+                if (imageService != null && job.ImageMode != ImageGenerationMode.None && string.IsNullOrEmpty(imageUrl))
                 {
                     try
                     {
-                        var prompt = $"Create a professional marketing image for: {content.Title}";
-                        var imageResult = await imageService.GenerateImageAsync(
-                            prompt,
-                            new ImageGenerationOptions(),
-                            ct);
-                        imageUrl = imageResult.ImageUrl;
-                        imagePrompt = imageResult.RevisedPrompt;
+                        // Step 1: Derive contextual visual concept from the generated body
+                        var visualConcept = await BuildContextualVisualPromptAsync(kernel, agency, content, ct);
+
+                        // Step 2: Generate N images
+                        var count = job.ImageMode == ImageGenerationMode.Carousel
+                            ? Math.Clamp(job.ImageCount, 2, 10)
+                            : 1;
+
+                        var generated = new List<string>();
+                        for (int i = 0; i < count; i++)
+                        {
+                            var slidePrompt = count > 1
+                                ? $"{visualConcept}. Carousel slide {i + 1}/{count}, cohesive series, consistent style/palette/composition, variation {i + 1}"
+                                : visualConcept;
+
+                            var imageResult = await imageService.GenerateImageAsync(
+                                slidePrompt,
+                                new ImageGenerationOptions(),
+                                ct);
+
+                            var finalUrl = imageResult.ImageUrl;
+
+                            // Apply logo overlay if configured
+                            if (agency.EnableLogoOverlay && !string.IsNullOrWhiteSpace(agency.LogoUrl))
+                            {
+                                try
+                                {
+                                    finalUrl = await _overlayService.ApplyLogoOverlayAsync(
+                                        imageResult.ImageUrl,
+                                        agency.LogoUrl,
+                                        (LogoPosition)agency.LogoOverlayPosition,
+                                        ct);
+                                }
+                                catch (Exception ex)
+                                {
+                                    _logger.LogWarning(ex, "Failed to apply logo overlay for content '{Title}'", content.Title);
+                                }
+                            }
+
+                            generated.Add(finalUrl);
+                            if (i == 0)
+                            {
+                                imageUrl = finalUrl;
+                                imagePrompt = imageResult.RevisedPrompt;
+                            }
+                        }
+
+                        if (count > 1)
+                            imageUrls = generated;
                     }
                     catch (Exception ex)
                     {
@@ -182,6 +231,7 @@ public class AgentJobProcessor : IAgentJobProcessor
                     ScoreExplanation = content.ScoreExplanation,
                     ImageUrl = imageUrl,
                     ImagePrompt = imagePrompt,
+                    ImageUrls = imageUrls != null ? JsonSerializer.Serialize(imageUrls) : null,
                     VideoUrl = videoUrl,
                     VideoPrompt = videoPrompt,
                     VideoDurationSeconds = videoDuration,
@@ -218,6 +268,51 @@ public class AgentJobProcessor : IAgentJobProcessor
 
             await _context.SaveChangesAsync(ct);
             throw;
+        }
+    }
+
+    private async Task<string> BuildContextualVisualPromptAsync(
+        Kernel kernel, Agency agency, GeneratedContentResult content, CancellationToken ct)
+    {
+        try
+        {
+            var chat = kernel.GetRequiredService<IChatCompletionService>();
+            var brand = agency.BrandVoice;
+            var bodyExcerpt = content.Body.Length > 1500 ? content.Body[..1500] : content.Body;
+
+            var prompt = $"""
+                You convert blog content into a visual concept for an image generator.
+                Extract from the article below the main subject, setting, mood and key visual elements.
+                Then write ONE single rich visual prompt (max 60 words) in English that an image generator
+                can use to create an image that is specifically and clearly about the article's topic.
+
+                Rules:
+                - Mention the concrete subject(s), not abstract metaphors
+                - Reflect the article's tone/emotion
+                - Include lighting, composition and style hints
+                - Style must match brand: tone={brand.Tone}, style={brand.Style}
+                - Do NOT include any text or typography in the image
+                - Product/brand name: {agency.ProductName}
+
+                ARTICLE TITLE: {content.Title}
+                ARTICLE BODY:
+                {bodyExcerpt}
+
+                Return ONLY the visual prompt, no labels, no quotes, no explanations.
+                """;
+
+            var history = new ChatHistory();
+            history.AddUserMessage(prompt);
+            var response = await chat.GetChatMessageContentAsync(history, cancellationToken: ct);
+            var text = response.Content?.Trim().Trim('"', '\'') ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(text))
+                return $"Professional editorial photograph about \"{content.Title}\", {brand.Style} style, cinematic lighting, high detail";
+            return text;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to build contextual visual prompt for '{Title}', falling back", content.Title);
+            return $"Professional editorial photograph about \"{content.Title}\", cinematic lighting, high detail";
         }
     }
 

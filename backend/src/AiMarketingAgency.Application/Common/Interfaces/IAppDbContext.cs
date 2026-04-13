@@ -20,6 +20,9 @@ public interface IAppDbContext
     DbSet<SocialConnector> SocialConnectors { get; }
     DbSet<EmailConnector> EmailConnectors { get; }
     DbSet<NewsletterSubscriber> NewsletterSubscribers { get; }
+    DbSet<TeamInvitation> TeamInvitations { get; }
+    DbSet<TelegramConnection> TelegramConnections { get; }
+    DbSet<ContentChunk> ContentChunks { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

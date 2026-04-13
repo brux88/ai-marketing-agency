@@ -22,30 +22,43 @@ public class AgentsController : ControllerBase
     [HttpPost("content-writer/run")]
     public async Task<ActionResult<ApiResponse<object>>> RunContentWriter(Guid agencyId, [FromBody] RunAgentRequest? request, CancellationToken ct)
     {
-        var jobId = await _mediator.Send(new RunAgentCommand(agencyId, AgentType.ContentWriter, request?.Input, request?.ProjectId), ct);
+        var jobId = await _mediator.Send(BuildCommand(agencyId, AgentType.ContentWriter, request), ct);
         return Ok(ApiResponse<object>.Ok(new { jobId }));
     }
 
     [HttpPost("social-manager/run")]
     public async Task<ActionResult<ApiResponse<object>>> RunSocialManager(Guid agencyId, [FromBody] RunAgentRequest? request, CancellationToken ct)
     {
-        var jobId = await _mediator.Send(new RunAgentCommand(agencyId, AgentType.SocialManager, request?.Input, request?.ProjectId), ct);
+        var jobId = await _mediator.Send(BuildCommand(agencyId, AgentType.SocialManager, request), ct);
         return Ok(ApiResponse<object>.Ok(new { jobId }));
     }
 
     [HttpPost("newsletter/run")]
     public async Task<ActionResult<ApiResponse<object>>> RunNewsletter(Guid agencyId, [FromBody] RunAgentRequest? request, CancellationToken ct)
     {
-        var jobId = await _mediator.Send(new RunAgentCommand(agencyId, AgentType.Newsletter, request?.Input, request?.ProjectId), ct);
+        var jobId = await _mediator.Send(BuildCommand(agencyId, AgentType.Newsletter, request), ct);
         return Ok(ApiResponse<object>.Ok(new { jobId }));
     }
 
     [HttpPost("analytics/run")]
     public async Task<ActionResult<ApiResponse<object>>> RunAnalytics(Guid agencyId, [FromBody] RunAgentRequest? request, CancellationToken ct)
     {
-        var jobId = await _mediator.Send(new RunAgentCommand(agencyId, AgentType.Analytics, request?.Input, request?.ProjectId), ct);
+        var jobId = await _mediator.Send(BuildCommand(agencyId, AgentType.Analytics, request), ct);
         return Ok(ApiResponse<object>.Ok(new { jobId }));
     }
+
+    private static RunAgentCommand BuildCommand(Guid agencyId, AgentType type, RunAgentRequest? request) =>
+        new(
+            agencyId,
+            type,
+            request?.Input,
+            request?.ProjectId,
+            request?.ImageMode ?? ImageGenerationMode.Single,
+            request?.ImageCount ?? 1);
 }
 
-public record RunAgentRequest(string? Input, Guid? ProjectId = null);
+public record RunAgentRequest(
+    string? Input,
+    Guid? ProjectId = null,
+    ImageGenerationMode ImageMode = ImageGenerationMode.Single,
+    int ImageCount = 1);

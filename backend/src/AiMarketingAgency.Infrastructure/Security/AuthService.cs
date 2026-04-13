@@ -170,14 +170,19 @@ public class AuthService : IAuthService
 
     private static string HashPassword(string password)
     {
-        using var sha256 = SHA256.Create();
-        var hashedBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
-        return Convert.ToBase64String(hashedBytes);
+        return BCrypt.Net.BCrypt.HashPassword(password);
     }
 
     private static bool VerifyPassword(string password, string hash)
     {
-        return HashPassword(password) == hash;
+        // Support legacy SHA256 hashes during migration
+        if (!hash.StartsWith("$2"))
+        {
+            using var sha256 = System.Security.Cryptography.SHA256.Create();
+            var hashedBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
+            return Convert.ToBase64String(hashedBytes) == hash;
+        }
+        return BCrypt.Net.BCrypt.Verify(password, hash);
     }
 
     private static string GenerateSlug(string name)

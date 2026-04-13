@@ -2,17 +2,20 @@
 
 import Link from "next/link";
 import { usePathname, useParams } from "next/navigation";
-import { PenLine, Share2, Mail, BarChart3, Settings, LayoutDashboard, FolderKanban, Calendar, ClipboardCheck } from "lucide-react";
+import { PenLine, Share2, Mail, BarChart3, Settings, LayoutDashboard, FolderKanban, Calendar, CalendarDays, ClipboardCheck, Users, Send } from "lucide-react";
 
 const tabs = [
   { href: "", label: "Overview", icon: LayoutDashboard },
   { href: "/projects", label: "Progetti", icon: FolderKanban },
   { href: "/content", label: "Content & Blog", icon: PenLine },
   { href: "/social", label: "Social Media", icon: Share2 },
+  { href: "/calendar", label: "Calendario", icon: CalendarDays },
   { href: "/newsletter", label: "Newsletter", icon: Mail },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/schedules", label: "Programmazione", icon: Calendar },
   { href: "/approvals", label: "Approvazioni", icon: ClipboardCheck },
+  { href: "/telegram", label: "Telegram", icon: Send },
+  { href: "/team", label: "Team", icon: Users },
   { href: "/settings", label: "Impostazioni", icon: Settings },
 ];
 

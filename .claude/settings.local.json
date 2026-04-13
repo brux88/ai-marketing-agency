@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dotnet build:*)",
+      "Bash(taskkill /F /IM AiMarketingAgency.Api.exe)",
+      "Bash(taskkill /F /IM dotnet.exe)",
+      "Bash(powershell:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run:*)",
+      "Bash(dotnet ef:*)",
+      "Bash(dotnet run:*)",
+      "Bash(flutter --version)",
+      "Bash(flutter create:*)",
+      "Bash(flutter pub:*)",
+      "Bash(flutter analyze:*)",
+      "Bash(curl:*)",
+      "Bash(grep -E \"\\\\.\\(tsx?|jsx?\\)$\")",
+      "Bash(npx tsc:*)",
+      "Bash(wait %1)",
+      "Bash(cat:*)",
+      "Bash(tasklist //FI \"IMAGENAME eq dotnet.exe\")",
+      "Bash(netstat -ano)",
+      "Bash(wmic process:*)",
+      "Bash(taskkill //PID 91348 //F)",
+      "Bash(taskkill //PID 88896 //F)",
+      "Bash(taskkill //PID 75428 //F)"
+    ]
+  }
+}

@@ -7,12 +7,14 @@ import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PenLine, Share2, Mail, BarChart3, Rss, FileText, ArrowRight, Globe } from "lucide-react";
+import { PenLine, Share2, Mail, BarChart3, Rss, FileText, ArrowRight, Globe, Lightbulb, Search } from "lucide-react";
 
 const agents = [
   { type: "content-writer", label: "Content Writer", desc: "Genera articoli blog da fonti reali", icon: PenLine, route: "content", color: "text-blue-600 bg-blue-100 dark:bg-blue-950" },
   { type: "social-manager", label: "Social Manager", desc: "Crea post per tutti i social", icon: Share2, route: "social", color: "text-violet-600 bg-violet-100 dark:bg-violet-950" },
   { type: "newsletter", label: "Newsletter", desc: "Cura e genera newsletter", icon: Mail, route: "newsletter", color: "text-emerald-600 bg-emerald-100 dark:bg-emerald-950" },
+  { type: "content-strategist", label: "Content Strategist", desc: "Piano editoriale e strategia contenuti", icon: Lightbulb, route: "analytics", color: "text-pink-600 bg-pink-100 dark:bg-pink-950" },
+  { type: "seo-optimizer", label: "SEO Optimizer", desc: "Analisi SEO e ottimizzazione keyword", icon: Search, route: "analytics", color: "text-teal-600 bg-teal-100 dark:bg-teal-950" },
   { type: "analytics", label: "Analytics", desc: "Analizza performance e report", icon: BarChart3, route: "analytics", color: "text-amber-600 bg-amber-100 dark:bg-amber-950" },
 ];
 

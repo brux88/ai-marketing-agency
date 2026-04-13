@@ -33,4 +33,9 @@ export const agenciesApi = {
     const res = await apiClient.put<ApiResponse<null>>(`/api/v1/agencies/${id}/default-llm`, { defaultLlmProviderKeyId, imageLlmProviderKeyId });
     return res;
   },
+
+  updateImageSettings: async (id: string, enableLogoOverlay: boolean, logoOverlayPosition: number, logoUrl: string | null) => {
+    const res = await apiClient.put<ApiResponse<null>>(`/api/v1/agencies/${id}/image-settings`, { enableLogoOverlay, logoOverlayPosition, logoUrl });
+    return res;
+  },
 };

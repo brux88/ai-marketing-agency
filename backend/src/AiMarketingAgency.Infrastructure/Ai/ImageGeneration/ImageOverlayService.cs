@@ -11,20 +11,17 @@ public class ImageOverlayService : IImageOverlayService
 
     public async Task<string> ApplyLogoOverlayAsync(string sourceImageUrl, string logoUrl, LogoPosition position, CancellationToken ct)
     {
-        // Download both images
         var sourceBytes = await _httpClient.GetByteArrayAsync(sourceImageUrl, ct);
         var logoBytes = await _httpClient.GetByteArrayAsync(logoUrl, ct);
 
         using var sourceImage = Image.Load(sourceBytes);
         using var logoImage = Image.Load(logoBytes);
 
-        // Resize logo to ~12% of source width
-        var targetLogoWidth = (int)(sourceImage.Width * 0.12);
+        var targetLogoWidth = (int)(sourceImage.Width * 0.15);
         var targetLogoHeight = (int)((double)targetLogoWidth / logoImage.Width * logoImage.Height);
         logoImage.Mutate(x => x.Resize(targetLogoWidth, targetLogoHeight));
 
-        // Calculate position with padding
-        var padding = (int)(sourceImage.Width * 0.02);
+        var padding = (int)(sourceImage.Width * 0.025);
         var point = position switch
         {
             LogoPosition.TopLeft => new Point(padding, padding),
@@ -34,15 +31,15 @@ public class ImageOverlayService : IImageOverlayService
             _ => new Point(sourceImage.Width - targetLogoWidth - padding, sourceImage.Height - targetLogoHeight - padding)
         };
 
-        // Composite logo onto source
-        sourceImage.Mutate(x => x.DrawImage(logoImage, point, 0.85f));
+        sourceImage.Mutate(x => x.DrawImage(logoImage, point, 0.9f));
 
-        // Save to temp file and return path
-        var outputDir = Path.Combine(Path.GetTempPath(), "aimarketing", "images");
+        var webRoot = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+        var outputDir = Path.Combine(webRoot, "generated-images");
         Directory.CreateDirectory(outputDir);
-        var outputPath = Path.Combine(outputDir, $"{Guid.NewGuid()}.png");
+        var fileName = $"{Guid.NewGuid():N}.png";
+        var outputPath = Path.Combine(outputDir, fileName);
         await sourceImage.SaveAsPngAsync(outputPath, ct);
 
-        return outputPath;
+        return $"/generated-images/{fileName}";
     }
 }

@@ -25,4 +25,12 @@ export const projectsApi = {
   delete: async (agencyId: string, projectId: string) => {
     await apiClient.delete(`/api/v1/agencies/${agencyId}/projects/${projectId}`);
   },
+
+  extractBrand: async (agencyId: string, projectId: string) => {
+    const res = await apiClient.post<ApiResponse<Project>>(
+      `/api/v1/agencies/${agencyId}/projects/${projectId}/extract-brand`,
+      {}
+    );
+    return res.data;
+  },
 };

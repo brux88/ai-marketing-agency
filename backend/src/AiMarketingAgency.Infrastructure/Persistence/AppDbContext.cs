@@ -30,6 +30,9 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<SocialConnector> SocialConnectors => Set<SocialConnector>();
     public DbSet<EmailConnector> EmailConnectors => Set<EmailConnector>();
     public DbSet<NewsletterSubscriber> NewsletterSubscribers => Set<NewsletterSubscriber>();
+    public DbSet<TeamInvitation> TeamInvitations => Set<TeamInvitation>();
+    public DbSet<TelegramConnection> TelegramConnections => Set<TelegramConnection>();
+    public DbSet<ContentChunk> ContentChunks => Set<ContentChunk>();
 
     // EF Core evaluates this property per-instance for cached query filters
     private Guid CurrentTenantId => _tenantContext.TenantId;

@@ -26,10 +26,32 @@ public class ContentController : ControllerBase
         Guid agencyId,
         [FromQuery] ContentType? type,
         [FromQuery] ContentStatus? status,
+        [FromQuery] Guid? projectId,
         CancellationToken ct)
     {
-        var result = await _mediator.Send(new GetContentQuery(agencyId, type, status), ct);
+        var result = await _mediator.Send(new GetContentQuery(agencyId, type, status, projectId), ct);
         return Ok(ApiResponse<List<ContentDto>>.Ok(result));
+    }
+
+    [HttpGet("{contentId:guid}")]
+    public async Task<ActionResult<ApiResponse<ContentDto>>> GetById(
+        Guid agencyId, Guid contentId, CancellationToken ct)
+    {
+        var result = await _mediator.Send(new GetContentQuery(agencyId), ct);
+        var content = result.FirstOrDefault(c => c.Id == contentId);
+        if (content == null) return NotFound();
+        return Ok(ApiResponse<ContentDto>.Ok(content));
+    }
+
+    [HttpPut("{contentId:guid}")]
+    public async Task<ActionResult<ApiResponse<ContentDto>>> Update(
+        Guid agencyId, Guid contentId,
+        [FromBody] UpdateContentRequest request, CancellationToken ct)
+    {
+        var result = await _mediator.Send(
+            new AiMarketingAgency.Application.Content.Commands.UpdateContent.UpdateContentCommand(
+                agencyId, contentId, request.Title, request.Body), ct);
+        return Ok(ApiResponse<ContentDto>.Ok(result));
     }
 
     [HttpPost("{contentId:guid}/approve")]
@@ -40,3 +62,5 @@ public class ContentController : ControllerBase
         return Ok(new { success = true });
     }
 }
+
+public record UpdateContentRequest(string Title, string Body);

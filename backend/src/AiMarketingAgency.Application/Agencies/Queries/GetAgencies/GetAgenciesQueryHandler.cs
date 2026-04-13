@@ -33,6 +33,8 @@ public class GetAgenciesQueryHandler : IRequestHandler<GetAgenciesQuery, List<Ag
                 ImageLlmProviderKeyId = a.ImageLlmProviderKeyId,
                 ApprovalMode = a.ApprovalMode,
                 AutoApproveMinScore = a.AutoApproveMinScore,
+                EnableLogoOverlay = a.EnableLogoOverlay,
+                LogoOverlayPosition = a.LogoOverlayPosition,
                 IsActive = a.IsActive,
                 CreatedAt = a.CreatedAt,
                 ContentSourcesCount = a.ContentSources.Count(cs => cs.IsActive),

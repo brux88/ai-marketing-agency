@@ -44,7 +44,9 @@ public class RunAgentCommandHandler : IRequestHandler<RunAgentCommand, Guid>
             AgentType = request.AgentType,
             Status = JobStatus.Queued,
             Input = request.Input,
-            ProjectId = request.ProjectId
+            ProjectId = request.ProjectId,
+            ImageMode = request.ImageMode,
+            ImageCount = Math.Clamp(request.ImageCount, 1, 10)
         };
 
         _context.AgentJobs.Add(job);

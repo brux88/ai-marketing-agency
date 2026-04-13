@@ -122,6 +122,12 @@ namespace AiMarketingAgency.Infrastructure.Persistence.Migrations
                     b.Property<string>("ErrorMessage")
                         .HasColumnType("text");
 
+                    b.Property<int>("ImageCount")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ImageMode")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Input")
                         .HasColumnType("text");
 
@@ -156,6 +162,56 @@ namespace AiMarketingAgency.Infrastructure.Persistence.Migrations
                     b.HasIndex("ProjectId");
 
                     b.ToTable("agent_jobs", (string)null);
+                });
+
+            modelBuilder.Entity("AiMarketingAgency.Domain.Entities.ContentChunk", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AgencyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ChunkIndex")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ContentSourceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.PrimitiveCollection<float[]>("Embedding")
+                        .IsRequired()
+                        .HasColumnType("real[]");
+
+                    b.Property<DateTime>("FetchedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Url")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ContentSourceId");
+
+                    b.ToTable("ContentChunks");
                 });
 
             modelBuilder.Entity("AiMarketingAgency.Domain.Entities.ContentSchedule", b =>
@@ -747,6 +803,100 @@ namespace AiMarketingAgency.Infrastructure.Persistence.Migrations
                     b.ToTable("subscriptions", (string)null);
                 });
 
+            modelBuilder.Entity("AiMarketingAgency.Domain.Entities.TeamInvitation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("AcceptedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("InvitedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Role")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
+
+                    b.ToTable("TeamInvitations");
+                });
+
+            modelBuilder.Entity("AiMarketingAgency.Domain.Entities.TelegramConnection", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AgencyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("AllowCommands")
+                        .HasColumnType("boolean");
+
+                    b.Property<long>("ChatId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ChatTitle")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("NotifyOnApprovalNeeded")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("NotifyOnContentGenerated")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("NotifyOnPublished")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Username")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AgencyId");
+
+                    b.ToTable("TelegramConnections");
+                });
+
             modelBuilder.Entity("AiMarketingAgency.Domain.Entities.Tenant", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1025,6 +1175,17 @@ namespace AiMarketingAgency.Infrastructure.Persistence.Migrations
                     b.Navigation("Agency");
 
                     b.Navigation("Project");
+                });
+
+            modelBuilder.Entity("AiMarketingAgency.Domain.Entities.ContentChunk", b =>
+                {
+                    b.HasOne("AiMarketingAgency.Domain.Entities.ContentSource", "ContentSource")
+                        .WithMany()
+                        .HasForeignKey("ContentSourceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ContentSource");
                 });
 
             modelBuilder.Entity("AiMarketingAgency.Domain.Entities.ContentSchedule", b =>
@@ -1311,6 +1472,28 @@ namespace AiMarketingAgency.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("AiMarketingAgency.Domain.Entities.TeamInvitation", b =>
+                {
+                    b.HasOne("AiMarketingAgency.Domain.Entities.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("AiMarketingAgency.Domain.Entities.TelegramConnection", b =>
+                {
+                    b.HasOne("AiMarketingAgency.Domain.Entities.Agency", "Agency")
+                        .WithMany()
+                        .HasForeignKey("AgencyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Agency");
                 });
 
             modelBuilder.Entity("AiMarketingAgency.Domain.Entities.UsageRecord", b =>

@@ -21,5 +21,7 @@ public class ContentDto
     public DateTime? ApprovedAt { get; set; }
     public string? ImageUrl { get; set; }
     public string? ImagePrompt { get; set; }
+    public List<string>? ImageUrls { get; set; }
     public string? VideoUrl { get; set; }
+    public Guid? ProjectId { get; set; }
 }
