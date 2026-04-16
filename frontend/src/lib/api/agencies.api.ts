@@ -45,4 +45,9 @@ export const agenciesApi = {
     const res = await apiClient.postForm<ApiResponse<{ url: string }>>(`/api/v1/agencies/${id}/logo-upload`, form);
     return res;
   },
+
+  resetAnalytics: async (id: string, password: string) => {
+    const res = await apiClient.post<ApiResponse<{ reset: number }>>(`/api/v1/agencies/${id}/reset-analytics`, { password });
+    return res.data;
+  },
 };

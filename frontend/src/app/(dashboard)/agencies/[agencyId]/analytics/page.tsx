@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { agenciesApi } from "@/lib/api/agencies.api";
 import { projectsApi } from "@/lib/api/projects.api";
 import { apiClient } from "@/lib/api/client";
@@ -10,7 +10,7 @@ import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { BarChart3, Loader2, FileText, Star, Briefcase, TrendingUp, ImageIcon, CheckCircle2, DollarSign } from "lucide-react";
+import { BarChart3, Loader2, FileText, Star, Briefcase, TrendingUp, ImageIcon, CheckCircle2, DollarSign, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 const contentTypeLabels: Record<number, string> = {
@@ -23,6 +23,25 @@ const contentTypeLabels: Record<number, string> = {
 export default function AnalyticsPage() {
   const { agencyId } = useParams();
   const [generating, setGenerating] = useState(false);
+  const [resetPassword, setResetPassword] = useState("");
+  const [showResetDialog, setShowResetDialog] = useState(false);
+  const queryClient = useQueryClient();
+
+  const resetMutation = useMutation({
+    mutationFn: () => agenciesApi.resetAnalytics(agencyId as string, resetPassword),
+    onSuccess: (data) => {
+      toast.success(`Reset completato: ${data?.reset ?? 0} contenuti eliminati`);
+      setShowResetDialog(false);
+      setResetPassword("");
+      queryClient.invalidateQueries({ queryKey: ["content"] });
+      queryClient.invalidateQueries({ queryKey: ["agency-cost-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["jobs"] });
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.error || err?.message || "Password non valida");
+    },
+  });
 
   const { data: agencyData } = useQuery({
     queryKey: ["agency", agencyId],
@@ -237,6 +256,46 @@ export default function AnalyticsPage() {
             Clicca &quot;Genera report&quot; per far analizzare i trend e suggerire miglioramenti
             dall&apos;agente AI.
           </p>
+        </CardContent>
+      </Card>
+
+      {/* Reset analytics */}
+      <Card className="border-destructive/50">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2 text-destructive">
+            <Trash2 className="size-4" /> Reset Analytics Agenzia
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Elimina tutti i contenuti, calendar entries, notifiche e jobs dell&apos;agenzia. Richiede la password admin.
+          </p>
+          {!showResetDialog ? (
+            <Button variant="destructive" size="sm" onClick={() => setShowResetDialog(true)}>
+              <Trash2 className="size-4 mr-1" /> Reset completo
+            </Button>
+          ) : (
+            <div className="flex items-center gap-2">
+              <input
+                type="password"
+                placeholder="Password admin"
+                className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
+                value={resetPassword}
+                onChange={(e) => setResetPassword(e.target.value)}
+              />
+              <Button
+                variant="destructive"
+                size="sm"
+                disabled={!resetPassword || resetMutation.isPending}
+                onClick={() => resetMutation.mutate()}
+              >
+                {resetMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : "Conferma"}
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => { setShowResetDialog(false); setResetPassword(""); }}>
+                Annulla
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

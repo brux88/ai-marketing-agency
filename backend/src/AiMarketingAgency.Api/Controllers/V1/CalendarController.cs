@@ -69,6 +69,16 @@ public class CalendarController : ControllerBase
             .FirstOrDefaultAsync(c => c.Id == contentId && c.AgencyId == agencyId, ct)
             ?? throw new KeyNotFoundException("Content not found.");
 
+        if (request.Platform.HasValue)
+        {
+            var alreadyExists = await _context.CalendarEntries
+                .AnyAsync(e => e.ContentId == contentId
+                               && e.Platform == request.Platform.Value
+                               && e.Status != CalendarEntryStatus.Failed, ct);
+            if (alreadyExists)
+                return BadRequest(ApiResponse<object>.Fail($"Esiste già un evento per {request.Platform.Value}."));
+        }
+
         var entry = new EditorialCalendarEntry
         {
             AgencyId = agencyId,

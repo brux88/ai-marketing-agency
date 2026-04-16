@@ -132,6 +132,55 @@ public class AgenciesController : ControllerBase
         }));
     }
 
+    [HttpPost("{id:guid}/reset-analytics")]
+    public async Task<ActionResult<ApiResponse<object>>> ResetAnalytics(
+        Guid id, [FromBody] ResetAnalyticsRequest request, CancellationToken ct)
+    {
+        var agency = await _context.Agencies.FirstOrDefaultAsync(a => a.Id == id, ct);
+        if (agency == null) return NotFound();
+
+        const string adminPassword = "admin2026!";
+        if (request.Password != adminPassword)
+            return BadRequest(ApiResponse<object>.Fail("Password admin non valida."));
+
+        var contentIds = await _context.GeneratedContents
+            .IgnoreQueryFilters()
+            .Where(c => c.AgencyId == id)
+            .Select(c => c.Id)
+            .ToListAsync(ct);
+
+        if (contentIds.Count > 0)
+        {
+            var calendarEntries = await _context.CalendarEntries
+                .IgnoreQueryFilters()
+                .Where(e => contentIds.Contains(e.ContentId))
+                .ToListAsync(ct);
+            _context.CalendarEntries.RemoveRange(calendarEntries);
+
+            var notifications = await _context.Notifications
+                .IgnoreQueryFilters()
+                .Where(n => n.AgencyId == id)
+                .ToListAsync(ct);
+            _context.Notifications.RemoveRange(notifications);
+
+            var contents = await _context.GeneratedContents
+                .IgnoreQueryFilters()
+                .Where(c => c.AgencyId == id)
+                .ToListAsync(ct);
+            _context.GeneratedContents.RemoveRange(contents);
+
+            var jobs = await _context.AgentJobs
+                .IgnoreQueryFilters()
+                .Where(j => j.AgencyId == id)
+                .ToListAsync(ct);
+            _context.AgentJobs.RemoveRange(jobs);
+
+            await _context.SaveChangesAsync(ct);
+        }
+
+        return Ok(ApiResponse<object>.Ok(new { reset = contentIds.Count }));
+    }
+
     [HttpPost("{id:guid}/logo-upload")]
     [RequestSizeLimit(5 * 1024 * 1024)]
     public async Task<ActionResult<ApiResponse<object>>> UploadLogo(
@@ -169,6 +218,7 @@ public record UpdateTargetAudienceRequest(TargetAudience TargetAudience);
 public record UpdateApprovalModeRequest(ApprovalMode ApprovalMode, int AutoApproveMinScore, bool AutoScheduleOnApproval = true);
 public record UpdateDefaultLlmRequest(Guid? DefaultLlmProviderKeyId, Guid? ImageLlmProviderKeyId);
 public record UpdateImageSettingsRequest(bool EnableLogoOverlay, int LogoOverlayPosition, string? LogoUrl, int LogoOverlayMode = 0, string? BrandBannerColor = null);
+public record ResetAnalyticsRequest(string Password);
 
 public class AgencyCostStatsDto
 {

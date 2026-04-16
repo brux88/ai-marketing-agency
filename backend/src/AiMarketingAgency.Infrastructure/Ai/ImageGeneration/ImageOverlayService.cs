@@ -35,11 +35,11 @@ public class ImageOverlayService : IImageOverlayService
         using var sourceImage = Image.Load<Rgba32>(sourceBytes);
         using var logoImage = Image.Load<Rgba32>(logoBytes);
 
-        var targetLogoWidth = (int)(sourceImage.Width * 0.15);
+        var targetLogoWidth = (int)(sourceImage.Width * 0.22);
         var targetLogoHeight = (int)((double)targetLogoWidth / logoImage.Width * logoImage.Height);
         logoImage.Mutate(x => x.Resize(targetLogoWidth, targetLogoHeight));
 
-        var padding = (int)(sourceImage.Width * 0.025);
+        var padding = (int)(sourceImage.Width * 0.03);
         var point = position switch
         {
             LogoPosition.TopLeft => new Point(padding, padding),
@@ -49,8 +49,8 @@ public class ImageOverlayService : IImageOverlayService
             _ => new Point(sourceImage.Width - targetLogoWidth - padding, sourceImage.Height - targetLogoHeight - padding)
         };
 
-        var pillPadding = (int)(targetLogoWidth * 0.12);
-        var cornerRadius = Math.Max(4, pillPadding);
+        var pillPadding = (int)(targetLogoWidth * 0.15);
+        var cornerRadius = Math.Max(8, pillPadding);
         var pillPath = BuildRoundedRect(
             point.X - pillPadding,
             point.Y - pillPadding,
@@ -60,11 +60,11 @@ public class ImageOverlayService : IImageOverlayService
 
         var avgBrightness = SampleAverageBrightness(sourceImage, point, targetLogoWidth, targetLogoHeight);
         var pillColor = avgBrightness > 128
-            ? new Rgba32(0, 0, 0, 80)
-            : new Rgba32(255, 255, 255, 80);
+            ? new Rgba32(0, 0, 0, 120)
+            : new Rgba32(255, 255, 255, 120);
 
         sourceImage.Mutate(x => x.Fill(pillColor, pillPath));
-        sourceImage.Mutate(x => x.DrawImage(logoImage, point, 0.95f));
+        sourceImage.Mutate(x => x.DrawImage(logoImage, point, 1f));
 
         return await SaveOverlayResult(sourceImage, ct);
     }

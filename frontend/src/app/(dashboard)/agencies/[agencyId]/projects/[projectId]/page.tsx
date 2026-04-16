@@ -2630,6 +2630,10 @@ function ProjectNotificationsSection({ agencyId, projectId }: { agencyId: string
     },
   });
 
+  const publishNotifications = (data ?? []).filter(
+    (n) => n.type.includes("publish")
+  );
+
   const markRead = useMutation({
     mutationFn: (id: string) => notificationsApi.markRead(id),
     onSuccess: () => {
@@ -2730,7 +2734,11 @@ function ProjectNotificationsSection({ agencyId, projectId }: { agencyId: string
                           <span className="font-medium text-sm">{n.title}</span>
                           {typeIcon(n.type)}
                         </div>
-                        {n.body && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{n.body}</p>}
+                        {n.body && (
+                          <p className={`text-xs mt-1 line-clamp-3 ${n.type.includes("failed") ? "text-destructive font-medium" : "text-muted-foreground"}`}>
+                            {n.body}
+                          </p>
+                        )}
                         <p className="text-[10px] text-muted-foreground mt-1">
                           {new Date(n.createdAt).toLocaleString("it-IT")}
                         </p>
@@ -2751,11 +2759,11 @@ function ProjectNotificationsSection({ agencyId, projectId }: { agencyId: string
 
       {/* Jobs tab content */}
       {activeTab === "jobs" && (
-        <div>
-          {jobsLoading ? <Skeleton className="h-32" /> : jobs.length === 0 ? (
-            <Card><CardContent className="pt-5 text-sm text-muted-foreground">Nessun job per questo progetto.</CardContent></Card>
-          ) : (
+        <div className="space-y-4">
+          {/* Agent Jobs */}
+          {jobsLoading ? <Skeleton className="h-32" /> : jobs.length > 0 && (
             <div className="space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase">Generazione</p>
               {jobs.map((j) => (
                 <Card key={j.id}>
                   <CardContent className="pt-4 pb-4">
@@ -2777,6 +2785,39 @@ function ProjectNotificationsSection({ agencyId, projectId }: { agencyId: string
                 </Card>
               ))}
             </div>
+          )}
+
+          {/* Publish results */}
+          {publishNotifications.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase">Pubblicazione</p>
+              {publishNotifications.map((n) => (
+                <Card key={n.id} className={n.read ? "opacity-60" : ""}>
+                  <CardContent className="pt-4 pb-4">
+                    <div className="flex items-start gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium text-sm">{n.title}</span>
+                          {typeIcon(n.type)}
+                        </div>
+                        {n.body && (
+                          <p className={`text-xs mt-1 line-clamp-3 ${n.type.includes("failed") ? "text-destructive" : "text-muted-foreground"}`}>
+                            {n.body}
+                          </p>
+                        )}
+                        <p className="text-[10px] text-muted-foreground mt-1">
+                          {new Date(n.createdAt).toLocaleString("it-IT")}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+
+          {jobs.length === 0 && publishNotifications.length === 0 && (
+            <Card><CardContent className="pt-5 text-sm text-muted-foreground">Nessun job per questo progetto.</CardContent></Card>
           )}
         </div>
       )}
