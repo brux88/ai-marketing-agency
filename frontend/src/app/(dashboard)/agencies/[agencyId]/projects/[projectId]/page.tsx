@@ -1100,6 +1100,7 @@ function MonthCalendarGrid({
   onRemove: (id: string) => void;
 }) {
   const [selected, setSelected] = useState<string | null>(null);
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const year = cursor.getFullYear();
   const month = cursor.getMonth();
   const firstDay = new Date(year, month, 1);
@@ -1165,13 +1166,19 @@ function MonthCalendarGrid({
             >
               {inMonth && (
                 <>
-                  <div className="text-[10px] font-medium text-muted-foreground">{dayNum}</div>
+                  <button
+                    type="button"
+                    className="text-[10px] font-medium text-muted-foreground hover:text-primary"
+                    onClick={() => { setSelectedDay(selectedDay === dayNum ? null : dayNum); setSelected(null); }}
+                  >
+                    {dayNum}
+                  </button>
                   <div className="space-y-0.5 mt-1">
                     {dayEntries.slice(0, 3).map((e) => (
                       <button
                         key={e.id}
                         type="button"
-                        onClick={() => setSelected(e.id)}
+                        onClick={() => { setSelected(e.id); setSelectedDay(null); }}
                         className="w-full text-left flex items-center gap-1 truncate hover:underline"
                       >
                         <span className={`size-1.5 rounded-full ${dotColor(e.status)} shrink-0`} />
@@ -1179,9 +1186,13 @@ function MonthCalendarGrid({
                       </button>
                     ))}
                     {dayEntries.length > 3 && (
-                      <div className="text-[10px] text-muted-foreground">
+                      <button
+                        type="button"
+                        className="text-[10px] text-primary hover:underline"
+                        onClick={() => { setSelectedDay(dayNum); setSelected(null); }}
+                      >
                         +{dayEntries.length - 3} altri
-                      </div>
+                      </button>
                     )}
                   </div>
                 </>
@@ -1190,6 +1201,27 @@ function MonthCalendarGrid({
           );
         })}
       </div>
+      {selectedDay && (entriesByDay.get(selectedDay) ?? []).length > 0 && (
+        <div className="p-3 rounded-md border space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="font-medium text-sm">
+              {selectedDay} {cursor.toLocaleDateString("it-IT", { month: "long" })} — {(entriesByDay.get(selectedDay) ?? []).length} post
+            </span>
+            <button type="button" className="text-xs text-muted-foreground hover:text-foreground" onClick={() => setSelectedDay(null)}>✕</button>
+          </div>
+          <div className="space-y-2 max-h-64 overflow-auto">
+            {(entriesByDay.get(selectedDay) ?? []).map((e) => (
+              <div key={e.id} className="flex items-center gap-2 p-2 rounded hover:bg-muted/50 cursor-pointer" onClick={() => { setSelected(e.id); setSelectedDay(null); }}>
+                <span className={`size-2 rounded-full ${dotColor(e.status)} shrink-0`} />
+                <span className="text-xs flex-1 truncate">{e.contentTitle}</span>
+                {e.platform && <Badge variant="outline" className="text-[10px]">{e.platform}</Badge>}
+                <Badge variant="outline" className="text-[10px]">{e.status}</Badge>
+                <span className="text-[10px] text-muted-foreground shrink-0">{new Date(e.scheduledAt).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" })}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       {selectedEntry && (
         <div className="p-3 rounded-md border space-y-2">
           <div className="flex items-start gap-3">

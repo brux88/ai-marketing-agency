@@ -13,17 +13,20 @@ public class ApproveContentCommandHandler : IRequestHandler<ApproveContentComman
     private readonly IAppDbContext _context;
     private readonly ITenantContext _tenantContext;
     private readonly INotificationService _notificationService;
+    private readonly ITelegramBotService _telegramBot;
     private readonly ILogger<ApproveContentCommandHandler> _logger;
 
     public ApproveContentCommandHandler(
         IAppDbContext context,
         ITenantContext tenantContext,
         INotificationService notificationService,
+        ITelegramBotService telegramBot,
         ILogger<ApproveContentCommandHandler> logger)
     {
         _context = context;
         _tenantContext = tenantContext;
         _notificationService = notificationService;
+        _telegramBot = telegramBot;
         _logger = logger;
     }
 
@@ -49,6 +52,8 @@ public class ApproveContentCommandHandler : IRequestHandler<ApproveContentComman
         {
             await _notificationService.NotifyContentApproved(
                 content.TenantId, content.AgencyId, content.Id, content.Title);
+            await _telegramBot.NotifyAgencyAsync(content.AgencyId, content.ProjectId,
+                $"✅ <b>Contenuto approvato</b>\n{content.Title}", cancellationToken);
         }
         catch (Exception ex)
         {

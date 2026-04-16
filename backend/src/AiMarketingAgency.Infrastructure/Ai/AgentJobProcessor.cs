@@ -21,6 +21,7 @@ public class AgentJobProcessor : IAgentJobProcessor
     private readonly IImageOverlayService _overlayService;
     private readonly ILlmKeyVault _keyVault;
     private readonly INotificationService _notificationService;
+    private readonly ITelegramBotService _telegramBot;
     private readonly ILogger<AgentJobProcessor> _logger;
 
     public AgentJobProcessor(
@@ -32,6 +33,7 @@ public class AgentJobProcessor : IAgentJobProcessor
         IImageOverlayService overlayService,
         ILlmKeyVault keyVault,
         INotificationService notificationService,
+        ITelegramBotService telegramBot,
         ILogger<AgentJobProcessor> logger)
     {
         _context = context;
@@ -42,6 +44,7 @@ public class AgentJobProcessor : IAgentJobProcessor
         _overlayService = overlayService;
         _keyVault = keyVault;
         _notificationService = notificationService;
+        _telegramBot = telegramBot;
         _logger = logger;
     }
 
@@ -340,10 +343,28 @@ public class AgentJobProcessor : IAgentJobProcessor
                 }
                 await _notificationService.NotifyJobStatusChanged(
                     job.TenantId, job.AgencyId, job.Id, job.Status.ToString(), job.AgentType.ToString());
+
+                // Telegram notifications — send each content with photo + inline buttons
+                if (result.Success && createdContents.Count > 0)
+                {
+                    foreach (var c in createdContents)
+                    {
+                        var caption = $"📝 <b>{c.Title}</b>\n\n{Truncate(c.Body, 800)}\n\n<i>Stato: {c.Status}</i>";
+                        var buttons = new List<TelegramInlineButton>();
+                        if (c.Status == ContentStatus.InReview)
+                        {
+                            buttons.Add(new TelegramInlineButton("✅ Approva", $"approve_{c.Id}"));
+                            buttons.Add(new TelegramInlineButton("❌ Rifiuta", $"reject_{c.Id}"));
+                        }
+                        await _telegramBot.NotifyAgencyWithContentAsync(
+                            job.AgencyId, job.ProjectId, caption, c.ImageUrl,
+                            buttons.Count > 0 ? buttons : null, ct);
+                    }
+                }
             }
             catch (Exception notifyEx)
             {
-                _logger.LogWarning(notifyEx, "Failed to send SignalR notification for job {JobId}", jobId);
+                _logger.LogWarning(notifyEx, "Failed to send notification for job {JobId}", jobId);
             }
 
             _logger.LogInformation(
@@ -480,5 +501,11 @@ public class AgentJobProcessor : IAgentJobProcessor
             _ => 0.005m
         };
         return Math.Round(tokens / 1000m * pricePerK, 6);
+    }
+
+    private static string Truncate(string? text, int maxLen)
+    {
+        if (string.IsNullOrEmpty(text)) return "";
+        return text.Length <= maxLen ? text : text[..maxLen] + "…";
     }
 }

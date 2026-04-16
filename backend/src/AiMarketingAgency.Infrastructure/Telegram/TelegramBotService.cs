@@ -1,4 +1,6 @@
 using System.Net.Http.Json;
+using System.Text;
+using System.Text.Json;
 using AiMarketingAgency.Application.Common.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -53,11 +55,7 @@ public class TelegramBotService : ITelegramBotService
     public async Task SendMessageAsync(Guid agencyId, Guid? projectId, long chatId, string message, CancellationToken ct = default)
     {
         var token = await ResolveTokenAsync(agencyId, projectId, ct);
-        if (string.IsNullOrEmpty(token))
-        {
-            _logger.LogWarning("No Telegram bot token configured for agency {AgencyId} project {ProjectId}.", agencyId, projectId);
-            return;
-        }
+        if (string.IsNullOrEmpty(token)) return;
 
         try
         {
@@ -71,7 +69,111 @@ public class TelegramBotService : ITelegramBotService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to send Telegram message to chat {ChatId} for agency {AgencyId}", chatId, agencyId);
+            _logger.LogWarning(ex, "Failed to send Telegram message to chat {ChatId}", chatId);
+        }
+    }
+
+    private static string BuildKeyboardJson(IEnumerable<TelegramInlineButton> buttons)
+    {
+        var rows = buttons.Select(b =>
+            $"[{{\"text\":{JsonSerializer.Serialize(b.Text)},\"callback_data\":{JsonSerializer.Serialize(b.CallbackData)}}}]");
+        return "{\"inline_keyboard\":[" + string.Join(",", rows) + "]}";
+    }
+
+    private async Task<bool> PostTelegramJsonAsync(string token, string method, string json, CancellationToken ct)
+    {
+        var client = _httpClientFactory.CreateClient();
+        var content = new StringContent(json, Encoding.UTF8, "application/json");
+        var resp = await client.PostAsync($"https://api.telegram.org/bot{token}/{method}", content, ct);
+        if (!resp.IsSuccessStatusCode)
+        {
+            var body = await resp.Content.ReadAsStringAsync(ct);
+            _logger.LogWarning("Telegram API {Method} failed: {Status} {Body}", method, resp.StatusCode, body);
+        }
+        return resp.IsSuccessStatusCode;
+    }
+
+    public async Task SendMessageWithButtonsAsync(Guid agencyId, Guid? projectId, long chatId, string message, IEnumerable<TelegramInlineButton> buttons, CancellationToken ct = default)
+    {
+        var token = await ResolveTokenAsync(agencyId, projectId, ct);
+        if (string.IsNullOrEmpty(token)) return;
+
+        try
+        {
+            var json = $"{{\"chat_id\":{chatId},\"text\":{JsonSerializer.Serialize(message)},\"parse_mode\":\"HTML\",\"reply_markup\":{BuildKeyboardJson(buttons)}}}";
+            await PostTelegramJsonAsync(token, "sendMessage", json, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to send Telegram message with buttons to chat {ChatId}", chatId);
+        }
+    }
+
+    public async Task SendPhotoAsync(Guid agencyId, Guid? projectId, long chatId, string photoUrl, string? caption, IEnumerable<TelegramInlineButton>? buttons = null, CancellationToken ct = default)
+    {
+        var token = await ResolveTokenAsync(agencyId, projectId, ct);
+        if (string.IsNullOrEmpty(token)) return;
+
+        try
+        {
+            var client = _httpClientFactory.CreateClient();
+            var replyMarkupJson = buttons?.Any() == true ? BuildKeyboardJson(buttons) : null;
+            bool ok;
+
+            if (photoUrl.StartsWith("/"))
+            {
+                var webRoot = _configuration["WebRootPath"] ?? Path.Combine(AppContext.BaseDirectory, "wwwroot");
+                var filePath = Path.Combine(webRoot, photoUrl.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
+                if (File.Exists(filePath))
+                {
+                    using var form = new MultipartFormDataContent();
+                    form.Add(new StringContent(chatId.ToString()), "chat_id");
+                    form.Add(new StringContent(caption ?? ""), "caption");
+                    form.Add(new StringContent("HTML"), "parse_mode");
+                    if (replyMarkupJson != null)
+                        form.Add(new StringContent(replyMarkupJson), "reply_markup");
+                    var fileBytes = await File.ReadAllBytesAsync(filePath, ct);
+                    var fileContent = new ByteArrayContent(fileBytes);
+                    fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("image/png");
+                    form.Add(fileContent, "photo", Path.GetFileName(filePath));
+                    var resp = await client.PostAsync($"https://api.telegram.org/bot{token}/sendPhoto", form, ct);
+                    ok = resp.IsSuccessStatusCode;
+                    if (!ok)
+                    {
+                        var body = await resp.Content.ReadAsStringAsync(ct);
+                        _logger.LogWarning("Telegram sendPhoto (upload) failed: {Status} {Body}", resp.StatusCode, body);
+                    }
+                }
+                else
+                {
+                    _logger.LogWarning("Local image not found: {Path}", filePath);
+                    ok = false;
+                }
+            }
+            else
+            {
+                var json = $"{{\"chat_id\":{chatId},\"photo\":{JsonSerializer.Serialize(photoUrl)},\"caption\":{JsonSerializer.Serialize(caption ?? "")},\"parse_mode\":\"HTML\"{(replyMarkupJson != null ? $",\"reply_markup\":{replyMarkupJson}" : "")}}}";
+                ok = await PostTelegramJsonAsync(token, "sendPhoto", json, ct);
+            }
+
+            if (!ok && !string.IsNullOrEmpty(caption))
+            {
+                if (buttons?.Any() == true)
+                    await SendMessageWithButtonsAsync(agencyId, projectId, chatId, caption, buttons, ct);
+                else
+                    await SendMessageAsync(agencyId, projectId, chatId, caption, ct);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to send Telegram photo to chat {ChatId}", chatId);
+            if (!string.IsNullOrEmpty(caption))
+            {
+                if (buttons?.Any() == true)
+                    await SendMessageWithButtonsAsync(agencyId, projectId, chatId, caption, buttons, ct);
+                else
+                    await SendMessageAsync(agencyId, projectId, chatId, caption, ct);
+            }
         }
     }
 
@@ -124,22 +226,36 @@ public class TelegramBotService : ITelegramBotService
         public string? FirstName { get; set; }
     }
 
-    public async Task NotifyAgencyAsync(Guid agencyId, Guid? projectId, string message, CancellationToken ct = default)
+    private async Task<List<Domain.Entities.TelegramConnection>> GetEffectiveConnectionsAsync(Guid agencyId, Guid? projectId, CancellationToken ct)
     {
-        // Per-project first with agency-default fallback (same pattern as newsletter/social)
         var connections = await _context.TelegramConnections
             .IgnoreQueryFilters()
             .Where(c => c.AgencyId == agencyId && c.IsActive
                         && (c.ProjectId == projectId || c.ProjectId == null))
             .ToListAsync(ct);
 
-        // If we have any project-specific matches, drop the agency defaults
         var projectSpecific = connections.Where(c => c.ProjectId == projectId && projectId != null).ToList();
-        var effective = projectSpecific.Any() ? projectSpecific : connections.Where(c => c.ProjectId == null).ToList();
+        return projectSpecific.Any() ? projectSpecific : connections.Where(c => c.ProjectId == null).ToList();
+    }
 
+    public async Task NotifyAgencyAsync(Guid agencyId, Guid? projectId, string message, CancellationToken ct = default)
+    {
+        var effective = await GetEffectiveConnectionsAsync(agencyId, projectId, ct);
+        foreach (var conn in effective)
+            await SendMessageAsync(agencyId, projectId, conn.ChatId, message, ct);
+    }
+
+    public async Task NotifyAgencyWithContentAsync(Guid agencyId, Guid? projectId, string message, string? imageUrl, IEnumerable<TelegramInlineButton>? buttons = null, CancellationToken ct = default)
+    {
+        var effective = await GetEffectiveConnectionsAsync(agencyId, projectId, ct);
         foreach (var conn in effective)
         {
-            await SendMessageAsync(agencyId, projectId, conn.ChatId, message, ct);
+            if (!string.IsNullOrEmpty(imageUrl))
+                await SendPhotoAsync(agencyId, projectId, conn.ChatId, imageUrl, message, buttons, ct);
+            else if (buttons?.Any() == true)
+                await SendMessageWithButtonsAsync(agencyId, projectId, conn.ChatId, message, buttons, ct);
+            else
+                await SendMessageAsync(agencyId, projectId, conn.ChatId, message, ct);
         }
     }
 }

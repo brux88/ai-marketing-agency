@@ -104,6 +104,12 @@ public class CalendarPublishBackgroundService : BackgroundService
                         await notifier.NotifyPublishResult(
                             entry.TenantId, entry.AgencyId, entry.ContentId,
                             entry.Platform.Value.ToString(), result.Success, result.PostUrl);
+
+                        var telegram = scope.ServiceProvider.GetRequiredService<ITelegramBotService>();
+                        var msg = result.Success
+                            ? $"📢 <b>Pubblicato su {entry.Platform.Value}</b>\n{contentTitle}\n{result.PostUrl}"
+                            : $"❌ <b>Pubblicazione fallita su {entry.Platform.Value}</b>\n{contentTitle}\n{result.Error}";
+                        await telegram.NotifyAgencyAsync(entry.AgencyId, projectId, msg, ct);
                     }
                     catch (Exception notifyEx)
                     {
