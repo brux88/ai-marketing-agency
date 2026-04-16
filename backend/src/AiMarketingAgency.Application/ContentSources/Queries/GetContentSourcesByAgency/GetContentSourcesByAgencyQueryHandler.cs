@@ -16,9 +16,14 @@ public class GetContentSourcesByAgencyQueryHandler : IRequestHandler<GetContentS
 
     public async Task<List<ContentSourceDto>> Handle(GetContentSourcesByAgencyQuery request, CancellationToken cancellationToken)
     {
-        return await _context.ContentSources
+        var query = _context.ContentSources
             .AsNoTracking()
-            .Where(cs => cs.AgencyId == request.AgencyId && cs.IsActive)
+            .Where(cs => cs.AgencyId == request.AgencyId && cs.IsActive);
+
+        if (request.ProjectId.HasValue)
+            query = query.Where(cs => cs.ProjectId == request.ProjectId.Value);
+
+        return await query
             .Select(cs => new ContentSourceDto
             {
                 Id = cs.Id,

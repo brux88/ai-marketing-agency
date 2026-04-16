@@ -47,7 +47,7 @@ public class TwitterPublisher : ISocialPublishingService
 
     private static string BuildTweetText(GeneratedContent content)
     {
-        var text = !string.IsNullOrEmpty(content.Title) ? $"{content.Title}\n\n{content.Body}" : content.Body;
+        var text = SocialPostTextBuilder.Build(content);
         return text.Length > 280 ? text[..277] + "..." : text;
     }
 }

@@ -61,6 +61,17 @@ public class ContentController : ControllerBase
         if (!result) return NotFound();
         return Ok(new { success = true });
     }
+
+    [HttpDelete("{contentId:guid}")]
+    public async Task<ActionResult<ApiResponse<object>>> Delete(
+        Guid agencyId, Guid contentId, CancellationToken ct)
+    {
+        var result = await _mediator.Send(
+            new AiMarketingAgency.Application.Content.Commands.DeleteContent.DeleteContentCommand(
+                agencyId, contentId), ct);
+        if (!result) return NotFound();
+        return Ok(ApiResponse<object>.Ok(null));
+    }
 }
 
 public record UpdateContentRequest(string Title, string Body);

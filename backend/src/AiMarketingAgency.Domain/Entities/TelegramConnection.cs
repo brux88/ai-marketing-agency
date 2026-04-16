@@ -6,6 +6,7 @@ public class TelegramConnection : BaseEntity, ITenantScoped
 {
     public Guid TenantId { get; set; }
     public Guid AgencyId { get; set; }
+    public Guid? ProjectId { get; set; }
     public long ChatId { get; set; }
     public string? ChatTitle { get; set; }
     public string? Username { get; set; }
@@ -17,4 +18,5 @@ public class TelegramConnection : BaseEntity, ITenantScoped
 
     // Navigation
     public Agency Agency { get; set; } = null!;
+    public Project? Project { get; set; }
 }

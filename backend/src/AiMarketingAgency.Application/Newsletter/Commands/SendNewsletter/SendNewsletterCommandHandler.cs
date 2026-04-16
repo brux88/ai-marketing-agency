@@ -1,4 +1,5 @@
 using AiMarketingAgency.Application.Common.Interfaces;
+using AiMarketingAgency.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -17,13 +18,27 @@ public class SendNewsletterCommandHandler : IRequestHandler<SendNewsletterComman
 
     public async Task<EmailSendResult> Handle(SendNewsletterCommand request, CancellationToken cancellationToken)
     {
-        var emailConnector = await _context.EmailConnectors
-            .FirstOrDefaultAsync(c => c.AgencyId == request.AgencyId && c.IsActive, cancellationToken)
-            ?? throw new InvalidOperationException("No email connector configured for this agency.");
-
         var content = await _context.GeneratedContents
             .FirstOrDefaultAsync(c => c.Id == request.ContentId && c.AgencyId == request.AgencyId, cancellationToken)
             ?? throw new KeyNotFoundException("Content not found.");
+
+        // Prefer project-specific connector, fall back to agency default (ProjectId == null)
+        EmailConnector? emailConnector = null;
+        if (content.ProjectId.HasValue)
+        {
+            emailConnector = await _context.EmailConnectors
+                .FirstOrDefaultAsync(
+                    c => c.AgencyId == request.AgencyId
+                         && c.ProjectId == content.ProjectId
+                         && c.IsActive,
+                    cancellationToken);
+        }
+
+        emailConnector ??= await _context.EmailConnectors
+            .FirstOrDefaultAsync(
+                c => c.AgencyId == request.AgencyId && c.ProjectId == null && c.IsActive,
+                cancellationToken)
+            ?? throw new InvalidOperationException("No email connector configured for this agency or project.");
 
         var subscribers = await _context.NewsletterSubscribers
             .Where(s => s.AgencyId == request.AgencyId && s.IsActive)

@@ -7,6 +7,7 @@ public class EmailConnector : BaseEntity, ITenantScoped
 {
     public Guid TenantId { get; set; }
     public Guid AgencyId { get; set; }
+    public Guid? ProjectId { get; set; }
     public EmailProviderType ProviderType { get; set; }
     public string? SmtpHost { get; set; }
     public int? SmtpPort { get; set; }
@@ -19,5 +20,6 @@ public class EmailConnector : BaseEntity, ITenantScoped
 
     // Navigation
     public Agency Agency { get; set; } = null!;
+    public Project? Project { get; set; }
     public Tenant Tenant { get; set; } = null!;
 }

@@ -12,6 +12,8 @@ public class EditorialCalendarEntry : BaseEntity, ITenantScoped
     public DateTime ScheduledAt { get; set; }
     public CalendarEntryStatus Status { get; set; } = CalendarEntryStatus.Draft;
     public DateTime? PublishedAt { get; set; }
+    public string? ErrorMessage { get; set; }
+    public string? PostUrl { get; set; }
 
     // Navigation
     public Agency Agency { get; set; } = null!;

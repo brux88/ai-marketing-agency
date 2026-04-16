@@ -14,6 +14,7 @@ public class ProjectConfiguration : IEntityTypeConfiguration<Project>
         builder.Property(p => p.Description).HasMaxLength(2000);
         builder.Property(p => p.WebsiteUrl).HasMaxLength(500);
         builder.Property(p => p.LogoUrl).HasMaxLength(500);
+        builder.Property(p => p.ApprovalMode).HasConversion<int?>();
 
         builder.OwnsOne(p => p.BrandVoice, bv =>
         {

@@ -29,8 +29,15 @@ public class CreateScheduleCommandHandler : IRequestHandler<CreateScheduleComman
             Days = request.Days,
             TimeOfDay = time,
             TimeZone = request.TimeZone,
+            ScheduleType = request.ScheduleType,
             AgentType = request.AgentType,
+            PublishContentType = request.PublishContentType,
+            MaxPostsPerPlatform = request.MaxPostsPerPlatform,
             Input = request.Input,
+            EnabledSocialPlatforms = request.EnabledSocialPlatforms,
+            ApprovalMode = request.ApprovalMode,
+            AutoApproveMinScore = request.AutoApproveMinScore,
+            AutoScheduleOnApproval = request.AutoScheduleOnApproval,
             NextRunAt = CalculateNextRun(request.Days, time, request.TimeZone)
         };
 
@@ -46,11 +53,18 @@ public class CreateScheduleCommandHandler : IRequestHandler<CreateScheduleComman
             Days = schedule.Days,
             TimeOfDay = schedule.TimeOfDay.ToString("HH:mm"),
             TimeZone = schedule.TimeZone,
+            ScheduleType = schedule.ScheduleType,
             AgentType = schedule.AgentType,
+            PublishContentType = schedule.PublishContentType,
+            MaxPostsPerPlatform = schedule.MaxPostsPerPlatform,
             Input = schedule.Input,
             IsActive = schedule.IsActive,
             NextRunAt = schedule.NextRunAt,
-            CreatedAt = schedule.CreatedAt
+            CreatedAt = schedule.CreatedAt,
+            EnabledSocialPlatforms = schedule.EnabledSocialPlatforms,
+            ApprovalMode = schedule.ApprovalMode,
+            AutoApproveMinScore = schedule.AutoApproveMinScore,
+            AutoScheduleOnApproval = schedule.AutoScheduleOnApproval
         };
     }
 

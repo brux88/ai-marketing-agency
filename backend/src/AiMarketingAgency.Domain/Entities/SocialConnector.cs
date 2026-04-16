@@ -7,6 +7,7 @@ public class SocialConnector : BaseEntity, ITenantScoped, ISoftDeletable
 {
     public Guid TenantId { get; set; }
     public Guid AgencyId { get; set; }
+    public Guid? ProjectId { get; set; }
     public SocialPlatform Platform { get; set; }
     public string AccessToken { get; set; } = string.Empty;
     public string? RefreshToken { get; set; }
@@ -18,5 +19,6 @@ public class SocialConnector : BaseEntity, ITenantScoped, ISoftDeletable
 
     // Navigation
     public Agency Agency { get; set; } = null!;
+    public Project? Project { get; set; }
     public Tenant Tenant { get; set; } = null!;
 }

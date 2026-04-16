@@ -21,49 +21,73 @@ public class ContentWriterAgent : IMarketingAgent
     {
         var chatCompletion = context.Kernel.GetRequiredService<IChatCompletionService>();
         var agency = context.Agency;
-        var brandVoice = agency.BrandVoice;
-        var targetAudience = agency.TargetAudience;
+        var project = context.Project;
+        // Prefer project brand voice/audience when project is set
+        var brandVoice = project?.BrandVoice ?? agency.BrandVoice;
+        var targetAudience = project?.TargetAudience ?? agency.TargetAudience;
+        var productName = project?.Name ?? agency.ProductName;
 
-        // Step 1: Build generation prompt
         var sourcesContext = string.Join("\n", context.Sources.Select(s =>
             $"- [{s.Name ?? s.Type.ToString()}] {s.Url}"));
 
-        var generatePrompt = $"""
-            You are an expert content writer for "{agency.ProductName}".
+        var projectContext = !string.IsNullOrWhiteSpace(project?.ExtractedContext)
+            ? $"\n\nPROJECT CONTEXT (extracted from website):\n{project!.ExtractedContext}\n"
+            : string.Empty;
 
-            BRAND VOICE:
-            - Tone: {brandVoice.Tone}
-            - Style: {brandVoice.Style}
-            - Keywords to include: {string.Join(", ", brandVoice.Keywords)}
-            - Example phrases: {string.Join("; ", brandVoice.ExamplePhrases)}
-            - Forbidden words: {string.Join(", ", brandVoice.ForbiddenWords)}
-            - Language: {brandVoice.Language}
+        // If a custom per-project template is set, use it (with placeholders substituted)
+        string generatePrompt;
+        if (!string.IsNullOrWhiteSpace(project?.BlogPromptTemplate))
+        {
+            generatePrompt = project!.BlogPromptTemplate!
+                .Replace("{product}", productName)
+                .Replace("{brandVoice}", $"{brandVoice.Tone}, {brandVoice.Style}, language {brandVoice.Language}")
+                .Replace("{keywords}", string.Join(", ", brandVoice.Keywords))
+                .Replace("{audience}", targetAudience.Description)
+                .Replace("{sources}", sourcesContext)
+                .Replace("{projectContext}", project.ExtractedContext ?? string.Empty)
+                .Replace("{task}", context.Input ?? "Scrivi un articolo blog di alta qualità rilevante per questo progetto.");
+            generatePrompt += "\n\nFORMAT YOUR RESPONSE AS:\nTITLE: [article title]\nMETA_DESCRIPTION: [150-160 char meta description]\n---\n[article body in markdown]";
+        }
+        else
+        {
+            generatePrompt = $"""
+                You are an expert content writer for "{productName}".
+                {projectContext}
+                BRAND VOICE:
+                - Tone: {brandVoice.Tone}
+                - Style: {brandVoice.Style}
+                - Keywords to include: {string.Join(", ", brandVoice.Keywords)}
+                - Example phrases: {string.Join("; ", brandVoice.ExamplePhrases)}
+                - Forbidden words: {string.Join(", ", brandVoice.ForbiddenWords)}
+                - Language: {brandVoice.Language}
 
-            TARGET AUDIENCE:
-            - Description: {targetAudience.Description}
-            - Age range: {targetAudience.AgeRange ?? "Not specified"}
-            - Interests: {string.Join(", ", targetAudience.Interests)}
-            - Pain points: {string.Join(", ", targetAudience.PainPoints)}
+                TARGET AUDIENCE:
+                - Description: {targetAudience.Description}
+                - Age range: {targetAudience.AgeRange ?? "Not specified"}
+                - Interests: {string.Join(", ", targetAudience.Interests)}
+                - Pain points: {string.Join(", ", targetAudience.PainPoints)}
 
-            CONTENT SOURCES (for context and inspiration):
-            {sourcesContext}
+                CONTENT SOURCES (for context and inspiration):
+                {sourcesContext}
 
-            TASK: {context.Input ?? "Write a high-quality blog post about a relevant topic for our audience."}
+                TASK: {context.Input ?? "Write a high-quality blog post about a relevant topic for our audience. Stay strictly within the project's domain and expertise as described above — do NOT write generic marketing/AI content unless that is the actual topic of the project."}
 
-            REQUIREMENTS:
-            - Write in {brandVoice.Language} language
-            - Optimize for SEO with proper headings (H2, H3), meta description, and keyword placement
-            - Include a compelling title
-            - Make it engaging and valuable for the target audience
-            - Follow the brand voice guidelines strictly
-            - Length: 800-1500 words
+                REQUIREMENTS:
+                - Write in {brandVoice.Language} language
+                - Ground the article in the PROJECT CONTEXT above when available. Do not invent features or topics outside the project's actual scope.
+                - Optimize for SEO with proper headings (H2, H3), meta description, and keyword placement
+                - Include a compelling title
+                - Make it engaging and valuable for the target audience
+                - Follow the brand voice guidelines strictly
+                - Length: 800-1500 words
 
-            FORMAT YOUR RESPONSE AS:
-            TITLE: [article title]
-            META_DESCRIPTION: [150-160 char meta description]
-            ---
-            [article body in markdown]
-            """;
+                FORMAT YOUR RESPONSE AS:
+                TITLE: [article title]
+                META_DESCRIPTION: [150-160 char meta description]
+                ---
+                [article body in markdown]
+                """;
+        }
 
         _logger.LogInformation("Generating content for agency {AgencyId}", agency.Id);
 

@@ -5,7 +5,7 @@ const base = (agencyId: string) => `/api/v1/agencies/${agencyId}/newsletter`;
 
 export const newsletterApi = {
   getConfig: (agencyId: string) =>
-    apiClient.get<ApiResponse<EmailConnectorDto | null>>(`${base(agencyId)}/config`),
+    apiClient.get<ApiResponse<EmailConnectorDto[]>>(`${base(agencyId)}/config`),
 
   saveConfig: (agencyId: string, data: {
     providerType: number;
@@ -16,6 +16,7 @@ export const newsletterApi = {
     apiKey?: string;
     fromEmail: string;
     fromName: string;
+    projectId?: string | null;
   }) =>
     apiClient.post<ApiResponse<EmailConnectorDto>>(`${base(agencyId)}/config`, data),
 

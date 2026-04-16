@@ -17,10 +17,15 @@ public class Agency : BaseEntity, ITenantScoped, ISoftDeletable
     public Guid? DefaultLlmProviderKeyId { get; set; }
     public ApprovalMode ApprovalMode { get; set; } = ApprovalMode.Manual;
     public int AutoApproveMinScore { get; set; } = 7;
+    public bool AutoScheduleOnApproval { get; set; } = true;
     public Guid? ImageLlmProviderKeyId { get; set; }
     public Guid? VideoLlmProviderKeyId { get; set; }
     public bool EnableLogoOverlay { get; set; }
     public int LogoOverlayPosition { get; set; } = 3; // BottomRight
+    public int LogoOverlayMode { get; set; } // 0=Overlay, 1=Banner
+    public string? BrandBannerColor { get; set; } // hex like "#003366"
+    public string? TelegramBotToken { get; set; }
+    public string? TelegramBotUsername { get; set; }
     public bool IsActive { get; set; } = true;
 
     // Navigation

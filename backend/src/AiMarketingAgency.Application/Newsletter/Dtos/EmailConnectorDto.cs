@@ -5,6 +5,8 @@ namespace AiMarketingAgency.Application.Newsletter.Dtos;
 public class EmailConnectorDto
 {
     public Guid Id { get; set; }
+    public Guid? ProjectId { get; set; }
+    public string? ProjectName { get; set; }
     public EmailProviderType ProviderType { get; set; }
     public string? SmtpHost { get; set; }
     public int? SmtpPort { get; set; }

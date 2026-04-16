@@ -30,11 +30,14 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
             toast.error(`Job ${event.data.agentType ?? ""} fallito`);
           }
           queryClient.invalidateQueries({ queryKey: ["content", event.data.agencyId] });
+          queryClient.invalidateQueries({ queryKey: ["jobs"] });
+          queryClient.invalidateQueries({ queryKey: ["notifications"] });
           break;
         case "ContentGenerated":
           toast.success(`Nuovo contenuto: ${event.data.title}`);
           queryClient.invalidateQueries({ queryKey: ["content", event.data.agencyId] });
           queryClient.invalidateQueries({ queryKey: ["approvals", event.data.agencyId] });
+          queryClient.invalidateQueries({ queryKey: ["notifications"] });
           break;
         case "ContentApproved":
           toast.success(`Contenuto approvato: ${event.data.title}`);
@@ -52,6 +55,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
           } else {
             toast.error(`Pubblicazione su ${event.data.platform} fallita`);
           }
+          queryClient.invalidateQueries({ queryKey: ["project-calendar"] });
+          queryClient.invalidateQueries({ queryKey: ["notifications"] });
           break;
       }
     },

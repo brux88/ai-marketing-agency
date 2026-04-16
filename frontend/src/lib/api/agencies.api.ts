@@ -24,8 +24,8 @@ export const agenciesApi = {
     return res;
   },
 
-  updateApprovalMode: async (id: string, approvalMode: number, autoApproveMinScore: number) => {
-    const res = await apiClient.put<ApiResponse<null>>(`/api/v1/agencies/${id}/approval-mode`, { approvalMode, autoApproveMinScore });
+  updateApprovalMode: async (id: string, approvalMode: number, autoApproveMinScore: number, autoScheduleOnApproval: boolean = true) => {
+    const res = await apiClient.put<ApiResponse<null>>(`/api/v1/agencies/${id}/approval-mode`, { approvalMode, autoApproveMinScore, autoScheduleOnApproval });
     return res;
   },
 
@@ -34,8 +34,15 @@ export const agenciesApi = {
     return res;
   },
 
-  updateImageSettings: async (id: string, enableLogoOverlay: boolean, logoOverlayPosition: number, logoUrl: string | null) => {
-    const res = await apiClient.put<ApiResponse<null>>(`/api/v1/agencies/${id}/image-settings`, { enableLogoOverlay, logoOverlayPosition, logoUrl });
+  updateImageSettings: async (id: string, enableLogoOverlay: boolean, logoOverlayPosition: number, logoUrl: string | null, logoOverlayMode: number = 0, brandBannerColor: string | null = null) => {
+    const res = await apiClient.put<ApiResponse<null>>(`/api/v1/agencies/${id}/image-settings`, { enableLogoOverlay, logoOverlayPosition, logoUrl, logoOverlayMode, brandBannerColor });
+    return res;
+  },
+
+  uploadLogo: async (id: string, file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    const res = await apiClient.postForm<ApiResponse<{ url: string }>>(`/api/v1/agencies/${id}/logo-upload`, form);
     return res;
   },
 };

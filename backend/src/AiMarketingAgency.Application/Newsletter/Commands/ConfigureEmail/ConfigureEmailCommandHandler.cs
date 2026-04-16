@@ -18,7 +18,9 @@ public class ConfigureEmailCommandHandler : IRequestHandler<ConfigureEmailComman
     public async Task<EmailConnectorDto> Handle(ConfigureEmailCommand request, CancellationToken cancellationToken)
     {
         var existing = await _context.EmailConnectors
-            .FirstOrDefaultAsync(c => c.AgencyId == request.AgencyId, cancellationToken);
+            .FirstOrDefaultAsync(
+                c => c.AgencyId == request.AgencyId && c.ProjectId == request.ProjectId,
+                cancellationToken);
 
         if (existing != null)
         {
@@ -39,6 +41,7 @@ public class ConfigureEmailCommandHandler : IRequestHandler<ConfigureEmailComman
             existing = new EmailConnector
             {
                 AgencyId = request.AgencyId,
+                ProjectId = request.ProjectId,
                 ProviderType = request.ProviderType,
                 SmtpHost = request.SmtpHost,
                 SmtpPort = request.SmtpPort,
@@ -57,6 +60,7 @@ public class ConfigureEmailCommandHandler : IRequestHandler<ConfigureEmailComman
         return new EmailConnectorDto
         {
             Id = existing.Id,
+            ProjectId = existing.ProjectId,
             ProviderType = existing.ProviderType,
             SmtpHost = existing.SmtpHost,
             SmtpPort = existing.SmtpPort,

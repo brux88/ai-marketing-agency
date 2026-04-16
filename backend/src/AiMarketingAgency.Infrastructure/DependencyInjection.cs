@@ -2,6 +2,7 @@ using AiMarketingAgency.Application.Agents;
 using AiMarketingAgency.Application.Common.Interfaces;
 using AiMarketingAgency.Infrastructure.Ai;
 using AiMarketingAgency.Infrastructure.Ai.Agents;
+using AiMarketingAgency.Infrastructure.BackgroundJobs;
 using AiMarketingAgency.Infrastructure.Ai.ImageGeneration;
 using AiMarketingAgency.Infrastructure.Ai.Rag;
 using AiMarketingAgency.Infrastructure.Ai.VideoGeneration;
@@ -63,8 +64,13 @@ public static class DependencyInjection
         // Telegram bot
         services.AddScoped<ITelegramBotService, TelegramBotService>();
 
+        // Background job queue + worker
+        services.AddSingleton<IBackgroundJobQueue, BackgroundJobQueue>();
+        services.AddHostedService<AgentJobsBackgroundService>();
+
         // Scheduler background service
         services.AddHostedService<SchedulerBackgroundService>();
+        services.AddHostedService<CalendarPublishBackgroundService>();
 
         // Marketing agents
         services.AddScoped<IMarketingAgent, ContentWriterAgent>();

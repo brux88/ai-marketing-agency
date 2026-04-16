@@ -22,6 +22,8 @@ public class UpdateImageSettingsCommandHandler : IRequestHandler<UpdateImageSett
         agency.EnableLogoOverlay = request.EnableLogoOverlay;
         agency.LogoOverlayPosition = Math.Clamp(request.LogoOverlayPosition, 0, 3);
         agency.LogoUrl = request.LogoUrl;
+        agency.LogoOverlayMode = Math.Clamp(request.LogoOverlayMode, 0, 1);
+        agency.BrandBannerColor = request.BrandBannerColor;
         await _context.SaveChangesAsync(cancellationToken);
     }
 }

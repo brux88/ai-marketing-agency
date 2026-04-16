@@ -3,6 +3,8 @@ using System.Text.Json;
 using AiMarketingAgency.Application.Common.Interfaces;
 using AiMarketingAgency.Domain.Entities;
 using AiMarketingAgency.Domain.Enums;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace AiMarketingAgency.Infrastructure.Social;
 
@@ -10,11 +12,44 @@ public class MetaPublisher : ISocialPublishingService
 {
     private readonly HttpClient _httpClient;
     private readonly SocialPlatform _platform;
+    private readonly IConfiguration? _configuration;
+    private readonly ILogger<MetaPublisher>? _logger;
 
-    public MetaPublisher(HttpClient httpClient, SocialPlatform platform)
+    public MetaPublisher(HttpClient httpClient, SocialPlatform platform, IConfiguration? configuration = null, ILogger<MetaPublisher>? logger = null)
     {
         _httpClient = httpClient;
         _platform = platform;
+        _configuration = configuration;
+        _logger = logger;
+    }
+
+    private string? ResolveAbsoluteImageUrl(string? imageUrl)
+    {
+        if (string.IsNullOrEmpty(imageUrl)) return null;
+        if (Uri.TryCreate(imageUrl, UriKind.Absolute, out var abs) && (abs.Scheme == "http" || abs.Scheme == "https"))
+            return imageUrl;
+        var publicBaseUrl = _configuration?["PublicBaseUrl"]?.TrimEnd('/');
+        if (string.IsNullOrWhiteSpace(publicBaseUrl))
+        {
+            _logger?.LogWarning(
+                "Image URL '{Url}' is relative and PublicBaseUrl is not configured. Meta requires publicly reachable URLs. Falling back to text-only post. Set 'PublicBaseUrl' in appsettings.json (e.g. ngrok URL) to enable image publishing.",
+                imageUrl);
+            return null;
+        }
+        var slash = imageUrl.StartsWith('/') ? "" : "/";
+        return $"{publicBaseUrl}{slash}{imageUrl}";
+    }
+
+    private static string? ResolveLocalImagePath(string? imageUrl)
+    {
+        if (string.IsNullOrEmpty(imageUrl)) return null;
+        if (imageUrl.StartsWith("/generated-images/") || imageUrl.StartsWith("generated-images/"))
+        {
+            var webRoot = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+            var localPath = Path.Combine(webRoot, imageUrl.TrimStart('/'));
+            return localPath;
+        }
+        return null;
     }
 
     public async Task<PublishResult> PublishAsync(SocialConnector connector, GeneratedContent content, CancellationToken ct)
@@ -43,12 +78,18 @@ public class MetaPublisher : ISocialPublishingService
         var createUrl = $"https://graph.facebook.com/v19.0/{igUserId}/media";
         var createParams = new Dictionary<string, string>
         {
-            ["caption"] = $"{content.Title}\n\n{content.Body}",
+            ["caption"] = SocialPostTextBuilder.Build(content),
             ["access_token"] = accessToken
         };
 
-        if (!string.IsNullOrEmpty(content.ImageUrl))
-            createParams["image_url"] = content.ImageUrl;
+        var resolvedIgImageUrl = ResolveAbsoluteImageUrl(content.ImageUrl);
+        if (string.IsNullOrEmpty(resolvedIgImageUrl))
+        {
+            return new PublishResult(false, null, null,
+                "Instagram richiede un'immagine con URL pubblico. L'immagine generata è locale e 'PublicBaseUrl' non è configurato. " +
+                "Imposta 'PublicBaseUrl' in appsettings.json (es. URL ngrok) per abilitare la pubblicazione di immagini su Instagram.");
+        }
+        createParams["image_url"] = resolvedIgImageUrl;
 
         var createResponse = await _httpClient.PostAsync(createUrl,
             new FormUrlEncodedContent(createParams), ct);
@@ -59,6 +100,11 @@ public class MetaPublisher : ISocialPublishingService
 
         using var createDoc = JsonDocument.Parse(createBody);
         var containerId = createDoc.RootElement.GetProperty("id").GetString();
+
+        // Step 1b: Poll container status until FINISHED (Meta API requires media to be ready before publish)
+        var waitResult = await WaitForContainerReadyAsync(containerId!, accessToken, ct);
+        if (!waitResult.Ready)
+            return new PublishResult(false, null, null, $"Instagram container not ready: {waitResult.Error}");
 
         // Step 2: Publish the container
         var publishUrl = $"https://graph.facebook.com/v19.0/{igUserId}/media_publish";
@@ -85,18 +131,31 @@ public class MetaPublisher : ISocialPublishingService
     {
         var pageId = connector.AccountId;
         var accessToken = connector.AccessToken;
+        var message = SocialPostTextBuilder.Build(content);
+
+        var resolvedFbImageUrl = ResolveAbsoluteImageUrl(content.ImageUrl);
+
+        // Try binary upload from local file when image is local and PublicBaseUrl is missing
+        if (string.IsNullOrEmpty(resolvedFbImageUrl) && !string.IsNullOrEmpty(content.ImageUrl))
+        {
+            var localPath = ResolveLocalImagePath(content.ImageUrl);
+            if (localPath != null && File.Exists(localPath))
+            {
+                return await PublishFacebookWithBinaryUploadAsync(pageId, accessToken, message, localPath, ct);
+            }
+        }
 
         var url = $"https://graph.facebook.com/v19.0/{pageId}/feed";
         var postParams = new Dictionary<string, string>
         {
-            ["message"] = $"{content.Title}\n\n{content.Body}",
+            ["message"] = message,
             ["access_token"] = accessToken
         };
 
-        if (!string.IsNullOrEmpty(content.ImageUrl))
+        if (!string.IsNullOrEmpty(resolvedFbImageUrl))
         {
             url = $"https://graph.facebook.com/v19.0/{pageId}/photos";
-            postParams["url"] = content.ImageUrl;
+            postParams["url"] = resolvedFbImageUrl;
         }
 
         var response = await _httpClient.PostAsync(url, new FormUrlEncodedContent(postParams), ct);
@@ -109,5 +168,69 @@ public class MetaPublisher : ISocialPublishingService
         var postId = doc.RootElement.GetProperty("id").GetString();
 
         return new PublishResult(true, postId, $"https://www.facebook.com/{postId}", null);
+    }
+
+    private async Task<PublishResult> PublishFacebookWithBinaryUploadAsync(
+        string pageId, string accessToken, string message, string localPath, CancellationToken ct)
+    {
+        var url = $"https://graph.facebook.com/v19.0/{pageId}/photos";
+        using var form = new MultipartFormDataContent();
+        form.Add(new StringContent(message), "message");
+        form.Add(new StringContent(accessToken), "access_token");
+
+        var imageBytes = await File.ReadAllBytesAsync(localPath, ct);
+        var imageContent = new ByteArrayContent(imageBytes);
+        imageContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("image/png");
+        form.Add(imageContent, "source", Path.GetFileName(localPath));
+
+        var response = await _httpClient.PostAsync(url, form, ct);
+        var responseBody = await response.Content.ReadAsStringAsync(ct);
+
+        if (!response.IsSuccessStatusCode)
+            return new PublishResult(false, null, null, $"Facebook API error: {responseBody}");
+
+        using var doc = JsonDocument.Parse(responseBody);
+        var postId = doc.RootElement.GetProperty("id").GetString();
+        return new PublishResult(true, postId, $"https://www.facebook.com/{postId}", null);
+    }
+
+    private async Task<(bool Ready, string? Error)> WaitForContainerReadyAsync(
+        string containerId, string accessToken, CancellationToken ct)
+    {
+        // Meta docs: poll every ~3s, finished when status_code == FINISHED.
+        // IN_PROGRESS/PUBLISHED/ERROR/EXPIRED are other possible states.
+        const int maxAttempts = 15;
+        const int delayMs = 3000;
+        var statusUrl = $"https://graph.facebook.com/v19.0/{containerId}?fields=status_code,status&access_token={accessToken}";
+
+        for (var attempt = 0; attempt < maxAttempts; attempt++)
+        {
+            try
+            {
+                var response = await _httpClient.GetAsync(statusUrl, ct);
+                var body = await response.Content.ReadAsStringAsync(ct);
+                if (response.IsSuccessStatusCode)
+                {
+                    using var doc = JsonDocument.Parse(body);
+                    var code = doc.RootElement.TryGetProperty("status_code", out var sc) ? sc.GetString() : null;
+                    if (string.Equals(code, "FINISHED", StringComparison.OrdinalIgnoreCase))
+                        return (true, null);
+                    if (string.Equals(code, "ERROR", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(code, "EXPIRED", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var status = doc.RootElement.TryGetProperty("status", out var s) ? s.GetString() : code;
+                        return (false, status ?? code);
+                    }
+                }
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // transient — keep polling
+            }
+
+            await Task.Delay(delayMs, ct);
+        }
+
+        return (false, "timed out after 45s waiting for FINISHED status");
     }
 }

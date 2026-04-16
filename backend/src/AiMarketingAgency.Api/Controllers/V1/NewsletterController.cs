@@ -25,12 +25,12 @@ public class NewsletterController : ControllerBase
         _mediator = mediator;
     }
 
-    // Email connector config
+    // Email connector config (list of connectors — one agency default + optional per-project)
     [HttpGet("config")]
-    public async Task<ActionResult<ApiResponse<EmailConnectorDto?>>> GetConfig(Guid agencyId, CancellationToken ct)
+    public async Task<ActionResult<ApiResponse<List<EmailConnectorDto>>>> GetConfig(Guid agencyId, CancellationToken ct)
     {
         var result = await _mediator.Send(new GetEmailConnectorQuery(agencyId), ct);
-        return Ok(ApiResponse<EmailConnectorDto?>.Ok(result));
+        return Ok(ApiResponse<List<EmailConnectorDto>>.Ok(result));
     }
 
     [HttpPost("config")]

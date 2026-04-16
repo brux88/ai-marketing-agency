@@ -23,6 +23,7 @@ public interface IAppDbContext
     DbSet<TeamInvitation> TeamInvitations { get; }
     DbSet<TelegramConnection> TelegramConnections { get; }
     DbSet<ContentChunk> ContentChunks { get; }
+    DbSet<Notification> Notifications { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

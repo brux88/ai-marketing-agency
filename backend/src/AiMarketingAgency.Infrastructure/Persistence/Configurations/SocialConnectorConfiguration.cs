@@ -23,11 +23,16 @@ public class SocialConnectorConfiguration : IEntityTypeConfiguration<SocialConne
             .HasForeignKey(c => c.AgencyId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        builder.HasOne(c => c.Project)
+            .WithMany()
+            .HasForeignKey(c => c.ProjectId)
+            .OnDelete(DeleteBehavior.Cascade);
+
         builder.HasOne(c => c.Tenant)
             .WithMany()
             .HasForeignKey(c => c.TenantId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        builder.HasIndex(c => new { c.AgencyId, c.Platform });
+        builder.HasIndex(c => new { c.AgencyId, c.ProjectId, c.Platform }).IsUnique();
     }
 }

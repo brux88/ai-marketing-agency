@@ -1,3 +1,4 @@
+using AiMarketingAgency.Domain.Enums;
 using AiMarketingAgency.Domain.ValueObjects;
 
 namespace AiMarketingAgency.Application.Projects.Dtos;
@@ -16,4 +17,20 @@ public class ProjectDto
     public DateTime CreatedAt { get; set; }
     public int ContentSourcesCount { get; set; }
     public int GeneratedContentsCount { get; set; }
+
+    public string? BlogPromptTemplate { get; set; }
+    public string? SocialPromptTemplate { get; set; }
+    public string? NewsletterPromptTemplate { get; set; }
+    public string? ExtractedContext { get; set; }
+    public DateTime? ExtractedContextAt { get; set; }
+
+    public ApprovalMode? ApprovalMode { get; set; }
+    public int? AutoApproveMinScore { get; set; }
+    public bool? AutoScheduleOnApproval { get; set; }
+
+    public bool? EnableLogoOverlay { get; set; }
+    public int? LogoOverlayPosition { get; set; }
+    public int? LogoOverlayMode { get; set; }
+    public string? BrandBannerColor { get; set; }
+    public string? EnabledSocialPlatforms { get; set; }
 }

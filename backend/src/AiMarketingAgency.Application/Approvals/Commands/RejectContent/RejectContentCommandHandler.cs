@@ -2,16 +2,24 @@ using AiMarketingAgency.Application.Common.Interfaces;
 using AiMarketingAgency.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace AiMarketingAgency.Application.Approvals.Commands.RejectContent;
 
 public class RejectContentCommandHandler : IRequestHandler<RejectContentCommand>
 {
     private readonly IAppDbContext _context;
+    private readonly INotificationService _notificationService;
+    private readonly ILogger<RejectContentCommandHandler> _logger;
 
-    public RejectContentCommandHandler(IAppDbContext context)
+    public RejectContentCommandHandler(
+        IAppDbContext context,
+        INotificationService notificationService,
+        ILogger<RejectContentCommandHandler> logger)
     {
         _context = context;
+        _notificationService = notificationService;
+        _logger = logger;
     }
 
     public async Task Handle(RejectContentCommand request, CancellationToken cancellationToken)
@@ -25,5 +33,15 @@ public class RejectContentCommandHandler : IRequestHandler<RejectContentCommand>
 
         content.Status = ContentStatus.Rejected;
         await _context.SaveChangesAsync(cancellationToken);
+
+        try
+        {
+            await _notificationService.NotifyContentRejected(
+                content.TenantId, content.AgencyId, content.Id, content.Title);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to send reject notification for content {ContentId}", content.Id);
+        }
     }
 }

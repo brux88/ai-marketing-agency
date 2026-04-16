@@ -4,6 +4,7 @@ import { useParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { agenciesApi } from "@/lib/api/agencies.api";
 import { apiClient } from "@/lib/api/client";
+import { resolveImageUrl } from "@/lib/utils";
 import type { ApiResponse, GeneratedContent } from "@/types/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -146,10 +147,10 @@ export default function ContentPage() {
                     <div className="flex items-start gap-4 flex-1 min-w-0">
                       {content.imageUrl && (
                         <img
-                          src={content.imageUrl}
+                          src={resolveImageUrl(content.imageUrl)}
                           alt={content.title}
                           className="w-24 h-24 rounded-lg object-cover shrink-0 cursor-pointer hover:opacity-80 transition-opacity ring-1 ring-border"
-                          onClick={(e) => { e.stopPropagation(); setLightboxUrl(content.imageUrl!); }}
+                          onClick={(e) => { e.stopPropagation(); setLightboxUrl(resolveImageUrl(content.imageUrl)!); }}
                         />
                       )}
                       <div className="flex-1 min-w-0">

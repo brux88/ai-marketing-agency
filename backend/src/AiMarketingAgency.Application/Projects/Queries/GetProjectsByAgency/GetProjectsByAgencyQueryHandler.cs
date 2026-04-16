@@ -30,9 +30,16 @@ public class GetProjectsByAgencyQueryHandler : IRequestHandler<GetProjectsByAgen
                 BrandVoice = p.BrandVoice,
                 TargetAudience = p.TargetAudience,
                 IsActive = p.IsActive,
+                BlogPromptTemplate = p.BlogPromptTemplate,
+                SocialPromptTemplate = p.SocialPromptTemplate,
+                NewsletterPromptTemplate = p.NewsletterPromptTemplate,
+                ExtractedContext = p.ExtractedContext,
+                ExtractedContextAt = p.ExtractedContextAt,
                 CreatedAt = p.CreatedAt,
                 ContentSourcesCount = p.ContentSources.Count(cs => cs.IsActive),
-                GeneratedContentsCount = p.GeneratedContents.Count
+                GeneratedContentsCount = p.GeneratedContents.Count,
+                ApprovalMode = p.ApprovalMode,
+                AutoApproveMinScore = p.AutoApproveMinScore
             })
             .OrderByDescending(p => p.CreatedAt)
             .ToListAsync(cancellationToken);

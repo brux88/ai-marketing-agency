@@ -1,4 +1,5 @@
 using AiMarketingAgency.Application.Projects.Dtos;
+using AiMarketingAgency.Domain.Enums;
 using AiMarketingAgency.Domain.ValueObjects;
 using MediatR;
 
@@ -14,4 +15,6 @@ public record UpdateProjectCommand : IRequest<ProjectDto>
     public string? LogoUrl { get; init; }
     public BrandVoice? BrandVoice { get; init; }
     public TargetAudience? TargetAudience { get; init; }
+    public ApprovalMode? ApprovalMode { get; init; }
+    public int? AutoApproveMinScore { get; init; }
 }

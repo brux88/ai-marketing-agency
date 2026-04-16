@@ -21,6 +21,7 @@ public class UpdateApprovalModeCommandHandler : IRequestHandler<UpdateApprovalMo
 
         agency.ApprovalMode = request.ApprovalMode;
         agency.AutoApproveMinScore = request.AutoApproveMinScore;
+        agency.AutoScheduleOnApproval = request.AutoScheduleOnApproval;
         await _context.SaveChangesAsync(cancellationToken);
     }
 }

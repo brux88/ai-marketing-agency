@@ -7,6 +7,7 @@ namespace AiMarketingAgency.Application.SocialConnectors.Commands.ConnectPlatfor
 public record ConnectPlatformCommand : IRequest<SocialConnectorDto>
 {
     public Guid AgencyId { get; init; }
+    public Guid? ProjectId { get; init; }
     public SocialPlatform Platform { get; init; }
     public string AccessToken { get; init; } = string.Empty;
     public string? RefreshToken { get; init; }

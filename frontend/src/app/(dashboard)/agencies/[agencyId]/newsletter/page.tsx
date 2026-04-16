@@ -4,6 +4,7 @@ import { useParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { agenciesApi } from "@/lib/api/agencies.api";
 import { newsletterApi } from "@/lib/api/newsletter.api";
+import { projectsApi } from "@/lib/api/projects.api";
 import { apiClient } from "@/lib/api/client";
 import { EmailProviderType } from "@/types/api";
 import type { NewsletterSubscriber, EmailConnectorDto } from "@/types/api";
@@ -24,6 +25,7 @@ export default function NewsletterPage() {
 
   // Config form state
   const [showConfig, setShowConfig] = useState(false);
+  const [configProjectId, setConfigProjectId] = useState<string>("");
   const [providerType, setProviderType] = useState<number>(EmailProviderType.Smtp);
   const [smtpHost, setSmtpHost] = useState("");
   const [smtpPort, setSmtpPort] = useState("587");
@@ -32,6 +34,31 @@ export default function NewsletterPage() {
   const [apiKey, setApiKey] = useState("");
   const [fromEmail, setFromEmail] = useState("");
   const [fromName, setFromName] = useState("");
+
+  const resetConfigForm = () => {
+    setConfigProjectId("");
+    setProviderType(EmailProviderType.Smtp);
+    setSmtpHost("");
+    setSmtpPort("587");
+    setSmtpUsername("");
+    setSmtpPassword("");
+    setApiKey("");
+    setFromEmail("");
+    setFromName("");
+  };
+
+  const loadConfigIntoForm = (c: EmailConnectorDto) => {
+    setConfigProjectId(c.projectId ?? "");
+    setProviderType(c.providerType);
+    setSmtpHost(c.smtpHost ?? "");
+    setSmtpPort(c.smtpPort?.toString() ?? "587");
+    setSmtpUsername(c.smtpUsername ?? "");
+    setSmtpPassword("");
+    setApiKey("");
+    setFromEmail(c.fromEmail);
+    setFromName(c.fromName);
+    setShowConfig(true);
+  };
 
   // Subscriber form state
   const [showAddSub, setShowAddSub] = useState(false);
@@ -48,13 +75,19 @@ export default function NewsletterPage() {
     queryFn: () => newsletterApi.getConfig(agencyId),
   });
 
+  const { data: projects } = useQuery({
+    queryKey: ["projects", agencyId],
+    queryFn: () => projectsApi.list(agencyId),
+  });
+
   const { data: subsData, isLoading: subsLoading } = useQuery({
     queryKey: ["newsletter-subscribers", agencyId],
     queryFn: () => newsletterApi.getSubscribers(agencyId),
   });
 
   const agency = agencyData?.data;
-  const config: EmailConnectorDto | null = configData?.data ?? null;
+  const configs: EmailConnectorDto[] = configData?.data ?? [];
+  const agencyDefaultConfig = configs.find((c) => !c.projectId) ?? null;
   const subscribers: NewsletterSubscriber[] = subsData?.data ?? [];
   const activeSubscribers = subscribers.filter((s) => s.isActive);
 
@@ -69,11 +102,13 @@ export default function NewsletterPage() {
         apiKey: providerType === EmailProviderType.SendGrid ? apiKey : undefined,
         fromEmail,
         fromName,
+        projectId: configProjectId || null,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["newsletter-config", agencyId] });
       toast.success("Configurazione email salvata!");
       setShowConfig(false);
+      resetConfigForm();
     },
     onError: () => toast.error("Errore nel salvataggio."),
   });
@@ -171,17 +206,54 @@ export default function NewsletterPage() {
               <Settings2 className="size-4" /> Configurazione Email
             </CardTitle>
             <CardDescription>
-              {configLoading ? "Caricamento..." : config
-                ? `${config.providerType === EmailProviderType.Smtp ? "SMTP" : "SendGrid"} — ${config.fromEmail}`
-                : "Non configurato. Configura per inviare newsletter."}
+              {configLoading
+                ? "Caricamento..."
+                : `Default agency${agencyDefaultConfig ? " configurato" : " non configurato"} · ${configs.filter((c) => c.projectId).length} override per progetto`}
             </CardDescription>
           </div>
-          <Button variant="outline" size="sm" onClick={() => setShowConfig(!showConfig)}>
-            {config ? "Modifica" : "Configura"}
+          <Button variant="outline" size="sm" onClick={() => { resetConfigForm(); setShowConfig(!showConfig); }}>
+            <Plus className="size-4 mr-1" /> Nuova configurazione
           </Button>
         </CardHeader>
+
+        {configs.length > 0 && (
+          <CardContent className="space-y-2 border-t pt-4">
+            {configs.map((c) => (
+              <div key={c.id} className="flex items-center justify-between p-3 border rounded-lg">
+                <div>
+                  <p className="text-sm font-medium">
+                    {c.projectId ? (c.projectName || "Progetto") : "Default agency"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {c.providerType === EmailProviderType.Smtp ? "SMTP" : "SendGrid"} — {c.fromEmail}
+                  </p>
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => loadConfigIntoForm(c)}>
+                  Modifica
+                </Button>
+              </div>
+            ))}
+          </CardContent>
+        )}
+
         {showConfig && (
           <CardContent className="space-y-4 border-t pt-4">
+            <div className="space-y-2">
+              <Label>Ambito</Label>
+              <select
+                className="w-full border rounded-md px-3 py-2 text-sm bg-background"
+                value={configProjectId}
+                onChange={(e) => setConfigProjectId(e.target.value)}
+              >
+                <option value="">Default agency (fallback per tutti i progetti)</option>
+                {projects?.map((p) => (
+                  <option key={p.id} value={p.id}>Progetto: {p.name}</option>
+                ))}
+              </select>
+              <p className="text-xs text-muted-foreground">
+                Se un progetto ha una sua configurazione, verrà usata al posto di quella dell&apos;agency.
+              </p>
+            </div>
             <div className="space-y-2">
               <Label>Provider</Label>
               <select
@@ -303,7 +375,7 @@ export default function NewsletterPage() {
         </CardContent>
       </Card>
 
-      {config && activeSubscribers.length > 0 && (
+      {agencyDefaultConfig && activeSubscribers.length > 0 && (
         <Card className="border-green-500/20 bg-green-50/50 dark:bg-green-950/20">
           <CardContent className="flex items-center gap-4 py-4">
             <Send className="size-5 text-green-600" />

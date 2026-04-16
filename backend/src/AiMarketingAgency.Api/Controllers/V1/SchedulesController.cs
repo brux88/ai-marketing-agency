@@ -1,3 +1,4 @@
+using AiMarketingAgency.Application.Common.Interfaces;
 using AiMarketingAgency.Application.Common.Models;
 using AiMarketingAgency.Application.Schedules.Commands.CreateSchedule;
 using AiMarketingAgency.Application.Schedules.Commands.DeleteSchedule;
@@ -7,6 +8,7 @@ using AiMarketingAgency.Application.Schedules.Queries.GetSchedulesByAgency;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace AiMarketingAgency.Api.Controllers.V1;
 
@@ -16,10 +18,12 @@ namespace AiMarketingAgency.Api.Controllers.V1;
 public class SchedulesController : ControllerBase
 {
     private readonly IMediator _mediator;
+    private readonly IAppDbContext _context;
 
-    public SchedulesController(IMediator mediator)
+    public SchedulesController(IMediator mediator, IAppDbContext context)
     {
         _mediator = mediator;
+        _context = context;
     }
 
     [HttpGet]
@@ -53,4 +57,66 @@ public class SchedulesController : ControllerBase
         await _mediator.Send(new DeleteScheduleCommand(id, agencyId), ct);
         return Ok(ApiResponse<object>.Ok(null));
     }
+
+    [HttpPost("{id:guid}/run-now")]
+    public async Task<ActionResult<ApiResponse<object>>> RunNow(Guid agencyId, Guid id, CancellationToken ct)
+    {
+        var schedule = await _context.ContentSchedules
+            .FirstOrDefaultAsync(s => s.Id == id && s.AgencyId == agencyId, ct);
+        if (schedule == null) return NotFound();
+
+        schedule.NextRunAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync(ct);
+
+        return Ok(ApiResponse<object>.Ok(new { triggered = true }));
+    }
+
+    [HttpGet("{id:guid}/executions")]
+    public async Task<ActionResult<ApiResponse<List<ScheduleExecutionDto>>>> GetExecutions(
+        Guid agencyId, Guid id, CancellationToken ct)
+    {
+        var executions = await _context.AgentJobs
+            .Where(j => j.AgencyId == agencyId && j.ScheduleId == id)
+            .OrderByDescending(j => j.CreatedAt)
+            .Take(20)
+            .Select(j => new ScheduleExecutionDto
+            {
+                Id = j.Id,
+                Status = j.Status.ToString(),
+                StartedAt = j.StartedAt,
+                CompletedAt = j.CompletedAt,
+                CreatedAt = j.CreatedAt,
+                ErrorMessage = j.ErrorMessage,
+                Output = j.Output,
+                GeneratedContents = j.GeneratedContents
+                    .Select(c => new ScheduleExecutionContentDto
+                    {
+                        Id = c.Id,
+                        Title = c.Title,
+                        Status = c.Status.ToString()
+                    }).ToList()
+            })
+            .ToListAsync(ct);
+
+        return Ok(ApiResponse<List<ScheduleExecutionDto>>.Ok(executions));
+    }
+}
+
+public class ScheduleExecutionDto
+{
+    public Guid Id { get; set; }
+    public string Status { get; set; } = string.Empty;
+    public DateTime? StartedAt { get; set; }
+    public DateTime? CompletedAt { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public string? ErrorMessage { get; set; }
+    public string? Output { get; set; }
+    public List<ScheduleExecutionContentDto> GeneratedContents { get; set; } = new();
+}
+
+public class ScheduleExecutionContentDto
+{
+    public Guid Id { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
 }

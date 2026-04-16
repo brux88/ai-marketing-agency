@@ -23,5 +23,12 @@ public class AgentJobConfiguration : IEntityTypeConfiguration<AgentJob>
             .WithMany(p => p.AgentJobs)
             .HasForeignKey(j => j.ProjectId)
             .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasOne(j => j.Schedule)
+            .WithMany()
+            .HasForeignKey(j => j.ScheduleId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasIndex(j => j.ScheduleId);
     }
 }

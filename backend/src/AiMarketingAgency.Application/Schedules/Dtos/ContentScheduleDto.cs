@@ -12,10 +12,17 @@ public class ContentScheduleDto
     public DayOfWeekFlag Days { get; set; }
     public string TimeOfDay { get; set; } = string.Empty;
     public string TimeZone { get; set; } = string.Empty;
+    public ScheduleType ScheduleType { get; set; }
     public AgentType AgentType { get; set; }
+    public int? PublishContentType { get; set; }
+    public int? MaxPostsPerPlatform { get; set; }
     public string? Input { get; set; }
     public bool IsActive { get; set; }
     public DateTime? LastRunAt { get; set; }
     public DateTime? NextRunAt { get; set; }
     public DateTime CreatedAt { get; set; }
+    public string? EnabledSocialPlatforms { get; set; }
+    public ApprovalMode? ApprovalMode { get; set; }
+    public int? AutoApproveMinScore { get; set; }
+    public bool? AutoScheduleOnApproval { get; set; }
 }

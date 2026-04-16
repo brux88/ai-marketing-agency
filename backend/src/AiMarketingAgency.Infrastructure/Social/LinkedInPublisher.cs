@@ -24,7 +24,7 @@ public class LinkedInPublisher : ISocialPublishingService
             _httpClient.DefaultRequestHeaders.Add("X-Restli-Protocol-Version", "2.0.0");
 
             var authorUrn = $"urn:li:person:{connector.AccountId}";
-            var postText = $"{content.Title}\n\n{content.Body}";
+            var postText = SocialPostTextBuilder.Build(content);
 
             object payload;
             if (!string.IsNullOrEmpty(content.ImageUrl))

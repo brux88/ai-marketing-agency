@@ -5,6 +5,7 @@ using AiMarketingAgency.Application.SocialConnectors.Commands.DisconnectPlatform
 using AiMarketingAgency.Application.SocialConnectors.Commands.PublishContent;
 using AiMarketingAgency.Application.SocialConnectors.Dtos;
 using AiMarketingAgency.Application.SocialConnectors.Queries.GetConnectors;
+using AiMarketingAgency.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -46,11 +47,12 @@ public class SocialConnectorsController : ControllerBase
         return Ok(ApiResponse<object>.Ok(null));
     }
 
-    [HttpPost("{connectorId:guid}/publish/{contentId:guid}")]
+    // Auto-resolves the connector by content.ProjectId (project-specific first, agency default fallback)
+    [HttpPost("publish/{contentId:guid}/{platform}")]
     public async Task<ActionResult<ApiResponse<PublishResult>>> Publish(
-        Guid agencyId, Guid connectorId, Guid contentId, CancellationToken ct)
+        Guid agencyId, Guid contentId, SocialPlatform platform, CancellationToken ct)
     {
-        var result = await _mediator.Send(new PublishContentCommand(agencyId, connectorId, contentId), ct);
+        var result = await _mediator.Send(new PublishContentCommand(agencyId, contentId, platform), ct);
         return Ok(ApiResponse<PublishResult>.Ok(result));
     }
 }

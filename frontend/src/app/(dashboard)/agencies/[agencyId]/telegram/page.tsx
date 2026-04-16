@@ -3,20 +3,22 @@
 import { useParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
+import { projectsApi } from "@/lib/api/projects.api";
 import type { ApiResponse } from "@/types/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Send, Plus, Trash2, Loader2, MessageCircle, Bell, CheckCircle2, Zap } from "lucide-react";
+import { Send, Plus, Trash2, Loader2, MessageCircle, Bell, CheckCircle2, Zap, Bot, Copy, KeyRound, Webhook } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 interface TelegramConnection {
   id: string;
+  projectId?: string | null;
+  projectName?: string | null;
   chatId: number;
   chatTitle?: string;
   username?: string;
@@ -27,17 +29,77 @@ interface TelegramConnection {
   isActive: boolean;
 }
 
+interface TelegramBotInfo {
+  hasToken: boolean;
+  botUsername?: string | null;
+  webhookUrl: string;
+}
+
 export default function TelegramPage() {
-  const { agencyId } = useParams();
+  const { agencyId } = useParams<{ agencyId: string }>();
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [chatId, setChatId] = useState("");
   const [chatTitle, setChatTitle] = useState("");
   const [username, setUsername] = useState("");
+  const [formProjectId, setFormProjectId] = useState("");
+  const [botToken, setBotToken] = useState("");
+  const [botUsernameInput, setBotUsernameInput] = useState("");
 
   const { data, isLoading } = useQuery({
     queryKey: ["telegram", agencyId],
     queryFn: () => apiClient.get<ApiResponse<TelegramConnection[]>>(`/api/v1/agencies/${agencyId}/telegram`),
+  });
+
+  const { data: projects } = useQuery({
+    queryKey: ["projects", agencyId],
+    queryFn: () => projectsApi.list(agencyId),
+  });
+
+  const { data: botInfoRes } = useQuery({
+    queryKey: ["telegram-bot", agencyId],
+    queryFn: () => apiClient.get<ApiResponse<TelegramBotInfo>>(`/api/v1/agencies/${agencyId}/telegram/bot`),
+  });
+
+  const botInfo = botInfoRes?.data;
+
+  const saveBotMutation = useMutation({
+    mutationFn: () =>
+      apiClient.put<ApiResponse<TelegramBotInfo>>(`/api/v1/agencies/${agencyId}/telegram/bot`, {
+        token: botToken || null,
+        botUsername: botUsernameInput || null,
+      }),
+    onSuccess: () => {
+      toast.success("Bot salvato");
+      setBotToken("");
+      queryClient.invalidateQueries({ queryKey: ["telegram-bot", agencyId] });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const registerWebhookMutation = useMutation({
+    mutationFn: () =>
+      apiClient.post<ApiResponse<{ ok: boolean; description?: string; botUsername?: string; webhookUrl: string }>>(
+        `/api/v1/agencies/${agencyId}/telegram/register-webhook`
+      ),
+    onSuccess: (res) => {
+      if (res.data?.ok) {
+        toast.success(`Webhook registrato${res.data.botUsername ? ` su @${res.data.botUsername}` : ""}`);
+      } else {
+        toast.error(res.data?.description || "Registrazione webhook fallita");
+      }
+      queryClient.invalidateQueries({ queryKey: ["telegram-bot", agencyId] });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const clearBotMutation = useMutation({
+    mutationFn: () => apiClient.delete(`/api/v1/agencies/${agencyId}/telegram/bot`),
+    onSuccess: () => {
+      toast.success("Bot rimosso");
+      setBotUsernameInput("");
+      queryClient.invalidateQueries({ queryKey: ["telegram-bot", agencyId] });
+    },
   });
 
   const connectMutation = useMutation({
@@ -46,6 +108,7 @@ export default function TelegramPage() {
         chatId: parseInt(chatId),
         chatTitle: chatTitle || null,
         username: username || null,
+        projectId: formProjectId || null,
         notifyOnContentGenerated: true,
         notifyOnApprovalNeeded: true,
         notifyOnPublished: true,
@@ -56,6 +119,7 @@ export default function TelegramPage() {
       setChatId("");
       setChatTitle("");
       setUsername("");
+      setFormProjectId("");
       setShowForm(false);
       queryClient.invalidateQueries({ queryKey: ["telegram", agencyId] });
     },
@@ -79,6 +143,52 @@ export default function TelegramPage() {
   });
 
   const connections = data?.data || [];
+  const defaultConnections = connections.filter((c) => !c.projectId);
+  const projectGroups = connections.reduce<Record<string, { name: string; items: TelegramConnection[] }>>((acc, c) => {
+    if (!c.projectId) return acc;
+    if (!acc[c.projectId]) acc[c.projectId] = { name: c.projectName || "Progetto", items: [] };
+    acc[c.projectId].items.push(c);
+    return acc;
+  }, {});
+
+  const renderConnectionCard = (conn: TelegramConnection) => (
+    <Card key={conn.id}>
+      <CardContent className="pt-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="size-10 rounded-full bg-blue-500/10 flex items-center justify-center">
+              <Send className="size-5 text-blue-500" />
+            </div>
+            <div>
+              <p className="font-medium">{conn.chatTitle || `Chat ${conn.chatId}`}</p>
+              <p className="text-xs text-muted-foreground">
+                {conn.username ? `@${conn.username}` : `ID: ${conn.chatId}`}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge variant={conn.isActive ? "default" : "secondary"}>
+              {conn.isActive ? "Attivo" : "Disattivo"}
+            </Badge>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => disconnectMutation.mutate(conn.id)}
+              className="text-destructive"
+            >
+              <Trash2 className="size-4" />
+            </Button>
+          </div>
+        </div>
+        <div className="flex gap-4 mt-3 pt-3 border-t text-xs text-muted-foreground">
+          <span>Contenuti: {conn.notifyOnContentGenerated ? "Si" : "No"}</span>
+          <span>Approvazioni: {conn.notifyOnApprovalNeeded ? "Si" : "No"}</span>
+          <span>Pubblicazioni: {conn.notifyOnPublished ? "Si" : "No"}</span>
+          <span>Comandi: {conn.allowCommands ? "Si" : "No"}</span>
+        </div>
+      </CardContent>
+    </Card>
+  );
 
   return (
     <div className="space-y-6">
@@ -101,6 +211,104 @@ export default function TelegramPage() {
           </Button>
         </div>
       </div>
+
+      {/* Bot credentials (white-label) */}
+      <Card>
+        <CardContent className="pt-6 space-y-4">
+          <div className="flex items-start gap-3">
+            <div className="size-10 rounded-lg bg-violet-500/10 flex items-center justify-center shrink-0">
+              <Bot className="size-5 text-violet-500" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold">Bot dell'agency</h3>
+              <p className="text-sm text-muted-foreground">
+                Default per tutta l'agenzia. I progetti possono avere un bot dedicato (configurabile dalla pagina del progetto).
+              </p>
+            </div>
+            {botInfo?.hasToken && (
+              <Badge variant="default" className="gap-1">
+                <CheckCircle2 className="size-3" /> Configurato
+              </Badge>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Bot token {botInfo?.hasToken && <span className="text-xs text-muted-foreground">(lascia vuoto per mantenere)</span>}</Label>
+              <Input
+                type="password"
+                placeholder="123456:ABC-DEF..."
+                value={botToken}
+                onChange={(e) => setBotToken(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Bot username</Label>
+              <Input
+                placeholder="mio_marketing_bot"
+                value={botUsernameInput || botInfo?.botUsername || ""}
+                onChange={(e) => setBotUsernameInput(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {botInfo?.webhookUrl && (
+            <div className="space-y-1.5">
+              <Label className="text-xs flex items-center gap-1">
+                <KeyRound className="size-3" /> Webhook URL
+              </Label>
+              <div className="flex gap-2">
+                <Input readOnly value={botInfo.webhookUrl} className="font-mono text-xs" />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => {
+                    navigator.clipboard.writeText(botInfo.webhookUrl);
+                    toast.success("Copiato!");
+                  }}
+                >
+                  <Copy className="size-4" />
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Clicca "Registra webhook" per configurare automaticamente il bot (richiama Telegram setWebhook).
+              </p>
+            </div>
+          )}
+
+          <div className="flex gap-2">
+            <Button
+              onClick={() => saveBotMutation.mutate()}
+              disabled={saveBotMutation.isPending || (!botToken && !botUsernameInput)}
+            >
+              {saveBotMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <Bot className="size-4" />}
+              Salva bot
+            </Button>
+            {botInfo?.hasToken && (
+              <Button
+                variant="default"
+                onClick={() => registerWebhookMutation.mutate()}
+                disabled={registerWebhookMutation.isPending}
+              >
+                {registerWebhookMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <Webhook className="size-4" />}
+                Registra webhook
+              </Button>
+            )}
+            {botInfo?.hasToken && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  if (confirm("Rimuovere il bot dell'agency?")) clearBotMutation.mutate();
+                }}
+                disabled={clearBotMutation.isPending}
+              >
+                <Trash2 className="size-4" /> Rimuovi
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* How it works */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -139,11 +347,22 @@ export default function TelegramPage() {
           <CardContent className="pt-6 space-y-4">
             <h3 className="font-semibold">Nuova connessione Telegram</h3>
             <p className="text-sm text-muted-foreground">
-              1. Cerca il bot <code>@AiMarketingAgencyBot</code> su Telegram<br/>
-              2. Avvia una chat e invia /start<br/>
-              3. Il bot ti dara il Chat ID da inserire qui
+              Seleziona l'ambito (agenzia o progetto), cerca il bot {botInfo?.botUsername ? <code>@{botInfo.botUsername}</code> : <code>@{"<bot-username>"}</code>} su Telegram e incolla il Chat ID qui sotto.
             </p>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Ambito</Label>
+                <select
+                  value={formProjectId}
+                  onChange={(e) => setFormProjectId(e.target.value)}
+                  className="flex h-9 w-full rounded-lg border border-input bg-transparent px-3 py-1 text-sm"
+                >
+                  <option value="">Tutta l'agenzia (default)</option>
+                  {projects?.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
               <div className="space-y-1.5">
                 <Label>Chat ID *</Label>
                 <Input
@@ -199,44 +418,18 @@ export default function TelegramPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-3">
-          {connections.map((conn) => (
-            <Card key={conn.id}>
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="size-10 rounded-full bg-blue-500/10 flex items-center justify-center">
-                      <Send className="size-5 text-blue-500" />
-                    </div>
-                    <div>
-                      <p className="font-medium">{conn.chatTitle || `Chat ${conn.chatId}`}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {conn.username ? `@${conn.username}` : `ID: ${conn.chatId}`}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant={conn.isActive ? "default" : "secondary"}>
-                      {conn.isActive ? "Attivo" : "Disattivo"}
-                    </Badge>
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      onClick={() => disconnectMutation.mutate(conn.id)}
-                      className="text-destructive"
-                    >
-                      <Trash2 className="size-4" />
-                    </Button>
-                  </div>
-                </div>
-                <div className="flex gap-4 mt-3 pt-3 border-t text-xs text-muted-foreground">
-                  <span>Contenuti: {conn.notifyOnContentGenerated ? "Si" : "No"}</span>
-                  <span>Approvazioni: {conn.notifyOnApprovalNeeded ? "Si" : "No"}</span>
-                  <span>Pubblicazioni: {conn.notifyOnPublished ? "Si" : "No"}</span>
-                  <span>Comandi: {conn.allowCommands ? "Si" : "No"}</span>
-                </div>
-              </CardContent>
-            </Card>
+        <div className="space-y-6">
+          {defaultConnections.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Default agenzia</h3>
+              {defaultConnections.map(renderConnectionCard)}
+            </div>
+          )}
+          {Object.entries(projectGroups).map(([pid, group]) => (
+            <div key={pid} className="space-y-3">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Progetto: {group.name}</h3>
+              {group.items.map(renderConnectionCard)}
+            </div>
           ))}
         </div>
       )}

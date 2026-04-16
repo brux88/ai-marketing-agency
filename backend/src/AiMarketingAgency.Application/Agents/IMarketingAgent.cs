@@ -15,7 +15,8 @@ public record AgentJobContext(
     Agency Agency,
     string? Input,
     IReadOnlyList<ContentSource> Sources,
-    Project? Project = null);
+    Project? Project = null,
+    ContentSchedule? Schedule = null);
 
 public record AgentJobResult(
     bool Success,

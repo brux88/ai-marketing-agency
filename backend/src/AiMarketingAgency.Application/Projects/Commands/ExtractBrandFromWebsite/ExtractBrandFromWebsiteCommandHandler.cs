@@ -56,21 +56,32 @@ public class ExtractBrandFromWebsiteCommandHandler : IRequestHandler<ExtractBran
 
         var excerpt = ExtractTextContent(html);
         var meta = ExtractMetaTags(html);
+        var logoUrl = ExtractLogoUrl(html, project.WebsiteUrl);
+
+        // Try to fetch a few inner pages (blog, guides, features) for richer context
+        var extraPages = await FetchExtraPagesAsync(project.WebsiteUrl, html, ct);
+        var combinedExcerpt = excerpt;
+        if (extraPages.Count > 0)
+        {
+            var joined = string.Join("\n\n--- PAGE BREAK ---\n\n", extraPages);
+            combinedExcerpt = excerpt + "\n\n--- PAGE BREAK ---\n\n" + joined;
+            if (combinedExcerpt.Length > 8000) combinedExcerpt = combinedExcerpt[..8000];
+        }
 
         var kernel = await _kernelFactory.CreateKernelAsync(project.AgencyId, ct);
         var chat = kernel.GetRequiredService<IChatCompletionService>();
 
         var prompt = $$"""
-            You are a brand strategist analyzing a company website to extract its brand voice.
+            You are a brand strategist analyzing a company website. Your job is to deeply understand what this product/service ACTUALLY does, then build brand voice AND content-generation prompts tuned for this specific domain.
             Website URL: {{project.WebsiteUrl}}
 
             META TAGS:
             {{meta}}
 
-            VISIBLE TEXT EXCERPT (first ~3000 chars):
-            {{excerpt}}
+            VISIBLE TEXT EXCERPT (may include multiple pages separated by PAGE BREAK, ~8000 chars):
+            {{combinedExcerpt}}
 
-            Return ONLY a JSON object with this exact shape (no markdown, no explanations):
+            Return ONLY a JSON object with this exact shape (no markdown, no explanations, no trailing commas):
             {
               "tone": "one word like Professional, Friendly, Playful, Authoritative, Inspirational",
               "style": "short description (max 10 words) of writing style",
@@ -78,9 +89,13 @@ public class ExtractBrandFromWebsiteCommandHandler : IRequestHandler<ExtractBran
               "examplePhrases": ["2-3 short slogan-like phrases typical of this brand"],
               "forbiddenWords": [],
               "language": "it or en or detected ISO code",
-              "audienceDescription": "short description (max 15 words) of ideal audience",
+              "audienceDescription": "short description (max 15 words) of the ideal audience",
               "audienceInterests": ["3-5 interests"],
-              "audiencePainPoints": ["2-3 pain points the brand addresses"]
+              "audiencePainPoints": ["2-3 pain points the brand addresses"],
+              "projectContext": "200-400 words describing what this project/product/service IS, what it does, who it serves, what problems it solves, and what topics are relevant for blog/social content. This will be injected into every future content-generation prompt to keep content on-domain.",
+              "blogPromptTemplate": "A template prompt for generating a blog article specifically for this project. Use placeholders: {product}, {brandVoice}, {audience}, {projectContext}, {sources}, {task}. Should instruct the LLM to stay within the project's domain, use terminology from the site, and target the actual audience. Write in {{project.WebsiteUrl}} native language. ~300 words.",
+              "socialPromptTemplate": "A template prompt for generating social media posts (Twitter/LinkedIn/Instagram/Facebook) specifically for this project. Use the same placeholders as blog. ~250 words.",
+              "newsletterPromptTemplate": "A template prompt for generating a newsletter specifically for this project. Use the same placeholders. ~250 words."
             }
             """;
 
@@ -131,6 +146,20 @@ public class ExtractBrandFromWebsiteCommandHandler : IRequestHandler<ExtractBran
             PainPoints = extracted.AudiencePainPoints ?? project.TargetAudience.PainPoints,
             Personas = project.TargetAudience.Personas,
         };
+
+        if (!string.IsNullOrWhiteSpace(extracted.ProjectContext))
+        {
+            project.ExtractedContext = extracted.ProjectContext;
+            project.ExtractedContextAt = DateTime.UtcNow;
+        }
+        if (!string.IsNullOrWhiteSpace(extracted.BlogPromptTemplate))
+            project.BlogPromptTemplate = extracted.BlogPromptTemplate;
+        if (!string.IsNullOrWhiteSpace(extracted.SocialPromptTemplate))
+            project.SocialPromptTemplate = extracted.SocialPromptTemplate;
+        if (!string.IsNullOrWhiteSpace(extracted.NewsletterPromptTemplate))
+            project.NewsletterPromptTemplate = extracted.NewsletterPromptTemplate;
+        if (!string.IsNullOrWhiteSpace(logoUrl) && string.IsNullOrWhiteSpace(project.LogoUrl))
+            project.LogoUrl = logoUrl;
 
         await _context.SaveChangesAsync(ct);
 
@@ -188,6 +217,77 @@ public class ExtractBrandFromWebsiteCommandHandler : IRequestHandler<ExtractBran
         return string.Join("\n", parts);
     }
 
+    private static string? ExtractLogoUrl(string html, string pageUrl)
+    {
+        var doc = new HtmlAgilityPack.HtmlDocument();
+        doc.LoadHtml(html);
+
+        var ogImg = doc.DocumentNode.SelectSingleNode("//meta[@property='og:image']")?.GetAttributeValue("content", null);
+        if (!string.IsNullOrWhiteSpace(ogImg)) return MakeAbsolute(ogImg, pageUrl);
+
+        var iconLink = doc.DocumentNode.SelectSingleNode("//link[@rel='icon' or @rel='shortcut icon' or @rel='apple-touch-icon']")?.GetAttributeValue("href", null);
+        if (!string.IsNullOrWhiteSpace(iconLink)) return MakeAbsolute(iconLink, pageUrl);
+
+        return null;
+    }
+
+    private static string? MakeAbsolute(string url, string baseUrl)
+    {
+        if (Uri.TryCreate(url, UriKind.Absolute, out var abs)) return abs.ToString();
+        if (Uri.TryCreate(new Uri(baseUrl), url, out var rel)) return rel.ToString();
+        return null;
+    }
+
+    private static async Task<List<string>> FetchExtraPagesAsync(string baseUrl, string indexHtml, CancellationToken ct)
+    {
+        var results = new List<string>();
+        try
+        {
+            var doc = new HtmlAgilityPack.HtmlDocument();
+            doc.LoadHtml(indexHtml);
+            var baseUri = new Uri(baseUrl);
+            var candidates = new List<string>();
+
+            var nav = doc.DocumentNode.SelectNodes("//a[@href]");
+            if (nav != null)
+            {
+                foreach (var a in nav)
+                {
+                    var href = a.GetAttributeValue("href", null);
+                    if (string.IsNullOrWhiteSpace(href) || href.StartsWith("#") || href.StartsWith("mailto:") || href.StartsWith("tel:")) continue;
+                    if (!Uri.TryCreate(baseUri, href, out var abs)) continue;
+                    if (abs.Host != baseUri.Host) continue;
+                    var path = abs.AbsolutePath.ToLowerInvariant();
+                    if (path.Contains("blog") || path.Contains("guide") || path.Contains("feature") ||
+                        path.Contains("product") || path.Contains("soluzioni") || path.Contains("servizi") ||
+                        path.Contains("about") || path.Contains("chi-siamo"))
+                    {
+                        candidates.Add(abs.ToString());
+                        if (candidates.Count >= 3) break;
+                    }
+                }
+            }
+
+            foreach (var url in candidates.Distinct().Take(3))
+            {
+                try
+                {
+                    using var req = new HttpRequestMessage(HttpMethod.Get, url);
+                    req.Headers.UserAgent.ParseAdd("Mozilla/5.0 (compatible; AiMarketingAgencyBot/1.0)");
+                    using var resp = await _http.SendAsync(req, ct);
+                    if (!resp.IsSuccessStatusCode) continue;
+                    var pageHtml = await resp.Content.ReadAsStringAsync(ct);
+                    var text = ExtractTextContent(pageHtml);
+                    if (text.Length > 2000) text = text[..2000];
+                    results.Add($"[{url}]\n{text}");
+                }
+                catch { /* skip failures */ }
+            }
+        }
+        catch { /* best-effort */ }
+        return results;
+    }
+
     private class ExtractedBrand
     {
         public string? Tone { get; set; }
@@ -198,5 +298,9 @@ public class ExtractBrandFromWebsiteCommandHandler : IRequestHandler<ExtractBran
         public string? AudienceDescription { get; set; }
         public List<string>? AudienceInterests { get; set; }
         public List<string>? AudiencePainPoints { get; set; }
+        public string? ProjectContext { get; set; }
+        public string? BlogPromptTemplate { get; set; }
+        public string? SocialPromptTemplate { get; set; }
+        public string? NewsletterPromptTemplate { get; set; }
     }
 }

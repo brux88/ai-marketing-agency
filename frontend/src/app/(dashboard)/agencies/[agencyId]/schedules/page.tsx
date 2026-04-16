@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { schedulesApi } from "@/lib/api/schedules.api";
+import { projectsApi } from "@/lib/api/projects.api";
 import type { ContentSchedule } from "@/types/api";
 import { DayOfWeekFlag } from "@/types/api";
 import { Button } from "@/components/ui/button";
@@ -13,8 +14,88 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Calendar, Plus, Trash2, X, Loader2, Pause, Play } from "lucide-react";
+import { Calendar, Plus, Trash2, X, Loader2, Pause, Play, History, ChevronUp, CheckCircle2, AlertCircle, Clock, Pencil, Zap } from "lucide-react";
 import { toast } from "sonner";
+import { apiClient } from "@/lib/api/client";
+import type { ApiResponse } from "@/types/api";
+
+interface ScheduleExecution {
+  id: string;
+  status: string;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  createdAt: string;
+  errorMessage?: string | null;
+  output?: string | null;
+  generatedContents: Array<{ id: string; title: string; status: string }>;
+}
+
+function ExecutionsPanel({ agencyId, scheduleId }: { agencyId: string; scheduleId: string }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["schedule-executions", agencyId, scheduleId],
+    queryFn: () =>
+      apiClient.get<ApiResponse<ScheduleExecution[]>>(
+        `/api/v1/agencies/${agencyId}/schedules/${scheduleId}/executions`
+      ),
+    refetchInterval: 15000,
+  });
+
+  if (isLoading) return <Skeleton className="h-20 mt-3" />;
+  const executions = data?.data || [];
+  if (executions.length === 0) {
+    return <p className="text-xs text-muted-foreground mt-3">Nessuna esecuzione ancora.</p>;
+  }
+
+  const statusIcon = (s: string) => {
+    const v = s.toLowerCase();
+    if (v.includes("completed") || v.includes("succeeded")) return <CheckCircle2 className="size-3.5 text-green-500" />;
+    if (v.includes("fail") || v.includes("error")) return <AlertCircle className="size-3.5 text-red-500" />;
+    if (v.includes("running") || v.includes("progress")) return <Loader2 className="size-3.5 text-blue-500 animate-spin" />;
+    return <Clock className="size-3.5 text-muted-foreground" />;
+  };
+
+  return (
+    <div className="mt-4 pt-4 border-t space-y-2">
+      <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Ultime esecuzioni</h5>
+      {executions.map((ex) => (
+        <div key={ex.id} className="rounded-lg border p-3 text-sm space-y-1">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              {statusIcon(ex.status)}
+              <span className="font-medium text-xs">{ex.status}</span>
+              <span className="text-xs text-muted-foreground">
+                {new Date(ex.startedAt || ex.createdAt).toLocaleString("it-IT")}
+              </span>
+            </div>
+            {ex.completedAt && ex.startedAt && (
+              <span className="text-xs text-muted-foreground">
+                {Math.round((new Date(ex.completedAt).getTime() - new Date(ex.startedAt).getTime()) / 1000)}s
+              </span>
+            )}
+          </div>
+          {ex.errorMessage && (
+            <p className="text-xs text-red-600 dark:text-red-400 whitespace-pre-wrap break-words">{ex.errorMessage}</p>
+          )}
+          {ex.generatedContents.length > 0 && (
+            <div className="flex flex-wrap gap-1 pt-1">
+              {ex.generatedContents.map((c) => (
+                <Badge key={c.id} variant="outline" className="text-[10px]">
+                  {c.title} · {c.status}
+                </Badge>
+              ))}
+            </div>
+          )}
+          {ex.output && !ex.errorMessage && (
+            <details className="text-xs text-muted-foreground">
+              <summary className="cursor-pointer hover:text-foreground">Output</summary>
+              <pre className="whitespace-pre-wrap break-words mt-1 text-[11px]">{ex.output.slice(0, 800)}{ex.output.length > 800 ? "…" : ""}</pre>
+            </details>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
 
 const agentTypeLabels: Record<number, string> = {
   1: "Content Writer",
@@ -40,6 +121,7 @@ type FormState = {
   timeZone: string;
   agentType: number;
   input: string;
+  projectId: string;
 };
 
 const defaultForm: FormState = {
@@ -49,6 +131,7 @@ const defaultForm: FormState = {
   timeZone: "Europe/Rome",
   agentType: 1,
   input: "",
+  projectId: "",
 };
 
 export default function SchedulesPage() {
@@ -56,17 +139,29 @@ export default function SchedulesPage() {
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<FormState>(defaultForm);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["schedules", agencyId],
     queryFn: () => schedulesApi.list(agencyId),
   });
 
+  const { data: projects } = useQuery({
+    queryKey: ["projects", agencyId],
+    queryFn: () => projectsApi.list(agencyId),
+  });
+
   const createSchedule = useMutation({
     mutationFn: (data: FormState) =>
       schedulesApi.create(agencyId, {
-        ...data,
+        name: data.name,
+        days: data.days,
+        timeOfDay: data.timeOfDay,
+        timeZone: data.timeZone,
+        agentType: data.agentType,
         input: data.input || null,
+        projectId: data.projectId || null,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["schedules", agencyId] });
@@ -77,6 +172,63 @@ export default function SchedulesPage() {
     onError: (err: any) => toast.error(err?.message || "Errore"),
   });
 
+  const updateSchedule = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: FormState }) =>
+      schedulesApi.update(agencyId, id, {
+        name: data.name,
+        days: data.days,
+        timeOfDay: data.timeOfDay,
+        timeZone: data.timeZone,
+        agentType: data.agentType,
+        input: data.input || null,
+        projectId: data.projectId || null,
+        isActive: true,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["schedules", agencyId] });
+      setShowForm(false);
+      setEditingId(null);
+      setForm(defaultForm);
+      toast.success("Programmazione aggiornata");
+    },
+    onError: (err: any) => toast.error(err?.message || "Errore"),
+  });
+
+  const runNowMutation = useMutation({
+    mutationFn: (id: string) =>
+      apiClient.post(`/api/v1/agencies/${agencyId}/schedules/${id}/run-now`),
+    onSuccess: () => {
+      toast.success("Esecuzione avviata (entro 1 minuto)");
+      queryClient.invalidateQueries({ queryKey: ["schedules", agencyId] });
+    },
+    onError: (err: any) => toast.error(err?.message || "Errore"),
+  });
+
+  const startEdit = (schedule: ContentSchedule) => {
+    setEditingId(schedule.id);
+    setForm({
+      name: schedule.name,
+      days: schedule.days,
+      timeOfDay: schedule.timeOfDay.slice(0, 5),
+      timeZone: schedule.timeZone,
+      agentType: schedule.agentType,
+      input: schedule.input || "",
+      projectId: schedule.projectId || "",
+    });
+    setShowForm(true);
+  };
+
+  const cancelForm = () => {
+    setShowForm(false);
+    setEditingId(null);
+    setForm(defaultForm);
+  };
+
+  const submitForm = () => {
+    if (editingId) updateSchedule.mutate({ id: editingId, data: form });
+    else createSchedule.mutate(form);
+  };
+
   const toggleSchedule = useMutation({
     mutationFn: (schedule: ContentSchedule) =>
       schedulesApi.update(agencyId, schedule.id, {
@@ -86,6 +238,7 @@ export default function SchedulesPage() {
         timeZone: schedule.timeZone,
         agentType: schedule.agentType,
         input: schedule.input,
+        projectId: schedule.projectId ?? null,
         isActive: !schedule.isActive,
       }),
     onSuccess: () => {
@@ -119,7 +272,7 @@ export default function SchedulesPage() {
             Configura la generazione automatica di contenuti
           </p>
         </div>
-        <Button onClick={() => setShowForm(!showForm)}>
+        <Button onClick={() => { if (showForm) cancelForm(); else setShowForm(true); }}>
           {showForm ? (
             <>
               <X className="size-4" /> Chiudi
@@ -135,7 +288,7 @@ export default function SchedulesPage() {
       {showForm && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Nuova programmazione</CardTitle>
+            <CardTitle className="text-base">{editingId ? "Modifica programmazione" : "Nuova programmazione"}</CardTitle>
             <CardDescription>
               Configura quando e cosa generare automaticamente
             </CardDescription>
@@ -165,6 +318,27 @@ export default function SchedulesPage() {
                   </option>
                 ))}
               </select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Progetto</Label>
+              <select
+                value={form.projectId}
+                onChange={(e) =>
+                  setForm({ ...form, projectId: e.target.value })
+                }
+                className="flex h-9 w-full rounded-lg border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <option value="">Tutti i progetti dell'agency</option>
+                {projects?.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-muted-foreground">
+                Seleziona un progetto specifico oppure lascia vuoto per usare il contesto dell'agency
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -228,20 +402,20 @@ export default function SchedulesPage() {
             <Separator />
             <div className="flex gap-2">
               <Button
-                onClick={() => createSchedule.mutate(form)}
-                disabled={createSchedule.isPending || !form.name}
+                onClick={submitForm}
+                disabled={createSchedule.isPending || updateSchedule.isPending || !form.name}
               >
-                {createSchedule.isPending ? (
+                {(createSchedule.isPending || updateSchedule.isPending) ? (
                   <>
                     <Loader2 className="size-4 animate-spin" /> Salvataggio...
                   </>
                 ) : (
                   <>
-                    <Calendar className="size-4" /> Crea programmazione
+                    <Calendar className="size-4" /> {editingId ? "Aggiorna" : "Crea programmazione"}
                   </>
                 )}
               </Button>
-              <Button variant="ghost" onClick={() => setShowForm(false)}>
+              <Button variant="ghost" onClick={cancelForm}>
                 Annulla
               </Button>
             </div>
@@ -314,6 +488,31 @@ export default function SchedulesPage() {
                     <Button
                       variant="ghost"
                       size="icon-sm"
+                      onClick={() => runNowMutation.mutate(schedule.id)}
+                      disabled={runNowMutation.isPending}
+                      title="Esegui ora"
+                    >
+                      <Zap className="size-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={() => startEdit(schedule)}
+                      title="Modifica"
+                    >
+                      <Pencil className="size-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={() => setExpandedId(expandedId === schedule.id ? null : schedule.id)}
+                      title="Esecuzioni"
+                    >
+                      {expandedId === schedule.id ? <ChevronUp className="size-4" /> : <History className="size-4" />}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
                       onClick={() => toggleSchedule.mutate(schedule)}
                       disabled={toggleSchedule.isPending}
                     >
@@ -334,6 +533,9 @@ export default function SchedulesPage() {
                     </Button>
                   </div>
                 </div>
+                {expandedId === schedule.id && (
+                  <ExecutionsPanel agencyId={agencyId} scheduleId={schedule.id} />
+                )}
               </CardContent>
             </Card>
           ))}

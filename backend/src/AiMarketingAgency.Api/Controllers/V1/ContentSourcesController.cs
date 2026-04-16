@@ -23,9 +23,12 @@ public class ContentSourcesController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<ApiResponse<List<ContentSourceDto>>>> GetAll(Guid agencyId, CancellationToken ct)
+    public async Task<ActionResult<ApiResponse<List<ContentSourceDto>>>> GetAll(
+        Guid agencyId,
+        [FromQuery] Guid? projectId,
+        CancellationToken ct)
     {
-        var result = await _mediator.Send(new GetContentSourcesByAgencyQuery(agencyId), ct);
+        var result = await _mediator.Send(new GetContentSourcesByAgencyQuery(agencyId, projectId), ct);
         return Ok(ApiResponse<List<ContentSourceDto>>.Ok(result));
     }
 

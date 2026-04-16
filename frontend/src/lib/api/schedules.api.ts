@@ -12,9 +12,16 @@ export const schedulesApi = {
     days: number;
     timeOfDay: string;
     timeZone: string;
+    scheduleType?: number;
     agentType: number;
+    publishContentType?: number | null;
+    maxPostsPerPlatform?: number | null;
     projectId?: string | null;
     input?: string | null;
+    enabledSocialPlatforms?: string | null;
+    approvalMode?: number | null;
+    autoApproveMinScore?: number | null;
+    autoScheduleOnApproval?: boolean | null;
   }) => apiClient.post<ApiResponse<ContentSchedule>>(base(agencyId), data),
 
   update: (agencyId: string, id: string, data: {
@@ -22,10 +29,17 @@ export const schedulesApi = {
     days: number;
     timeOfDay: string;
     timeZone: string;
+    scheduleType?: number;
     agentType: number;
+    publishContentType?: number | null;
+    maxPostsPerPlatform?: number | null;
     projectId?: string | null;
     input?: string | null;
     isActive: boolean;
+    enabledSocialPlatforms?: string | null;
+    approvalMode?: number | null;
+    autoApproveMinScore?: number | null;
+    autoScheduleOnApproval?: boolean | null;
   }) => apiClient.put<ApiResponse<ContentSchedule>>(`${base(agencyId)}/${id}`, data),
 
   delete: (agencyId: string, id: string) =>

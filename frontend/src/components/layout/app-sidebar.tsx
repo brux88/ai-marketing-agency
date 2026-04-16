@@ -16,6 +16,7 @@ import {
   Shield,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
+import { NotificationBell } from "@/components/layout/notification-bell";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -59,6 +60,7 @@ export function AppSidebar() {
             </Link>
           );
         })}
+        <NotificationBell />
       </nav>
 
       <Separator className="bg-sidebar-border" />

@@ -17,8 +17,14 @@ public class ContentScheduleConfiguration : IEntityTypeConfiguration<ContentSche
         builder.Property(s => s.Days).HasConversion<int>();
         builder.Property(s => s.TimeOfDay).IsRequired();
         builder.Property(s => s.TimeZone).HasMaxLength(100).IsRequired();
+        builder.Property(s => s.ScheduleType).HasConversion<int>().HasDefaultValue(ScheduleType.Generation);
         builder.Property(s => s.AgentType).HasConversion<int>();
+        builder.Property(s => s.PublishContentType);
+        builder.Property(s => s.MaxPostsPerPlatform);
         builder.Property(s => s.Input).HasMaxLength(2000);
+
+        builder.Property(s => s.EnabledSocialPlatforms).HasMaxLength(200);
+        builder.Property(s => s.ApprovalMode).HasConversion<int?>();
 
         builder.HasOne(s => s.Agency)
             .WithMany(a => a.Schedules)

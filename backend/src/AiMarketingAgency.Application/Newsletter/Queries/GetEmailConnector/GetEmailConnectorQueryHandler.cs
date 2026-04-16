@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AiMarketingAgency.Application.Newsletter.Queries.GetEmailConnector;
 
-public class GetEmailConnectorQueryHandler : IRequestHandler<GetEmailConnectorQuery, EmailConnectorDto?>
+public class GetEmailConnectorQueryHandler : IRequestHandler<GetEmailConnectorQuery, List<EmailConnectorDto>>
 {
     private readonly IAppDbContext _context;
 
@@ -14,25 +14,31 @@ public class GetEmailConnectorQueryHandler : IRequestHandler<GetEmailConnectorQu
         _context = context;
     }
 
-    public async Task<EmailConnectorDto?> Handle(GetEmailConnectorQuery request, CancellationToken cancellationToken)
+    public async Task<List<EmailConnectorDto>> Handle(GetEmailConnectorQuery request, CancellationToken cancellationToken)
     {
-        var connector = await _context.EmailConnectors
-            .FirstOrDefaultAsync(c => c.AgencyId == request.AgencyId, cancellationToken);
+        var connectors = await _context.EmailConnectors
+            .Where(c => c.AgencyId == request.AgencyId)
+            .Select(c => new EmailConnectorDto
+            {
+                Id = c.Id,
+                ProjectId = c.ProjectId,
+                ProjectName = c.Project != null ? c.Project.Name : null,
+                ProviderType = c.ProviderType,
+                SmtpHost = c.SmtpHost,
+                SmtpPort = c.SmtpPort,
+                SmtpUsername = c.SmtpUsername,
+                HasSmtpPassword = !string.IsNullOrEmpty(c.SmtpPassword),
+                HasApiKey = !string.IsNullOrEmpty(c.ApiKey),
+                FromEmail = c.FromEmail,
+                FromName = c.FromName,
+                IsActive = c.IsActive
+            })
+            .ToListAsync(cancellationToken);
 
-        if (connector == null) return null;
-
-        return new EmailConnectorDto
-        {
-            Id = connector.Id,
-            ProviderType = connector.ProviderType,
-            SmtpHost = connector.SmtpHost,
-            SmtpPort = connector.SmtpPort,
-            SmtpUsername = connector.SmtpUsername,
-            HasSmtpPassword = !string.IsNullOrEmpty(connector.SmtpPassword),
-            HasApiKey = !string.IsNullOrEmpty(connector.ApiKey),
-            FromEmail = connector.FromEmail,
-            FromName = connector.FromName,
-            IsActive = connector.IsActive
-        };
+        // Default (agency-level, ProjectId == null) first, then per-project alphabetical
+        return connectors
+            .OrderBy(c => c.ProjectId == null ? 0 : 1)
+            .ThenBy(c => c.ProjectName)
+            .ToList();
     }
 }

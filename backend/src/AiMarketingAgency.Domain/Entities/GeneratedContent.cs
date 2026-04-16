@@ -22,6 +22,9 @@ public class GeneratedContent : BaseEntity, ITenantScoped
     public DateTime? ApprovedAt { get; set; }
     public Guid? ApprovedBy { get; set; }
     public bool AutoApproved { get; set; }
+    public DateTime? PublishedAt { get; set; }
+    public decimal? AiGenerationCostUsd { get; set; }
+    public decimal? AiImageCostUsd { get; set; }
     public string? ImageUrl { get; set; }
     public string? ImagePrompt { get; set; }
     public string? ImageUrls { get; set; } // JSON array for carousel
@@ -29,6 +32,10 @@ public class GeneratedContent : BaseEntity, ITenantScoped
     public string? VideoPrompt { get; set; }
     public int? VideoDurationSeconds { get; set; }
     public Guid? ProjectId { get; set; }
+
+    // Soft delete: when true, content is hidden from listings but cost stats are preserved.
+    public bool IsDeleted { get; set; }
+    public DateTime? DeletedAt { get; set; }
 
     // Navigation
     public Agency Agency { get; set; } = null!;

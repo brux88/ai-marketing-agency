@@ -18,10 +18,14 @@ public class GetConnectorsQueryHandler : IRequestHandler<GetConnectorsQuery, Lis
     {
         return await _context.SocialConnectors
             .Where(c => c.AgencyId == request.AgencyId)
-            .OrderBy(c => c.Platform)
+            .OrderBy(c => c.ProjectId == null ? 0 : 1)
+            .ThenBy(c => c.Project!.Name)
+            .ThenBy(c => c.Platform)
             .Select(c => new SocialConnectorDto
             {
                 Id = c.Id,
+                ProjectId = c.ProjectId,
+                ProjectName = c.Project != null ? c.Project.Name : null,
                 Platform = c.Platform,
                 AccountId = c.AccountId,
                 AccountName = c.AccountName,

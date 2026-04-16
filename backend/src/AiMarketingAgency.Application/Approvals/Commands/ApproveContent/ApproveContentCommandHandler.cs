@@ -1,4 +1,6 @@
+using AiMarketingAgency.Application.Common;
 using AiMarketingAgency.Application.Common.Interfaces;
+using AiMarketingAgency.Domain.Entities;
 using AiMarketingAgency.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -10,18 +12,18 @@ public class ApproveContentCommandHandler : IRequestHandler<ApproveContentComman
 {
     private readonly IAppDbContext _context;
     private readonly ITenantContext _tenantContext;
-    private readonly ISocialPublishingServiceFactory _socialFactory;
+    private readonly INotificationService _notificationService;
     private readonly ILogger<ApproveContentCommandHandler> _logger;
 
     public ApproveContentCommandHandler(
         IAppDbContext context,
         ITenantContext tenantContext,
-        ISocialPublishingServiceFactory socialFactory,
+        INotificationService notificationService,
         ILogger<ApproveContentCommandHandler> logger)
     {
         _context = context;
         _tenantContext = tenantContext;
-        _socialFactory = socialFactory;
+        _notificationService = notificationService;
         _logger = logger;
     }
 
@@ -41,29 +43,16 @@ public class ApproveContentCommandHandler : IRequestHandler<ApproveContentComman
 
         await _context.SaveChangesAsync(cancellationToken);
 
-        // Auto-publish to connected social platforms
-        var connectors = await _context.SocialConnectors
-            .Where(c => c.AgencyId == request.AgencyId && c.IsActive)
-            .ToListAsync(cancellationToken);
+        await CalendarAutoScheduler.TryScheduleAsync(_context, content, _logger, cancellationToken);
 
-        foreach (var connector in connectors)
+        try
         {
-            try
-            {
-                var publisher = _socialFactory.Create(connector.Platform);
-                var result = await publisher.PublishAsync(connector, content, cancellationToken);
-                if (result.Success)
-                    _logger.LogInformation("Auto-published content {ContentId} to {Platform}: {PostUrl}",
-                        content.Id, connector.Platform, result.PostUrl);
-                else
-                    _logger.LogWarning("Failed to auto-publish content {ContentId} to {Platform}: {Error}",
-                        content.Id, connector.Platform, result.Error);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error auto-publishing content {ContentId} to {Platform}",
-                    content.Id, connector.Platform);
-            }
+            await _notificationService.NotifyContentApproved(
+                content.TenantId, content.AgencyId, content.Id, content.Title);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to send approve notification for content {ContentId}", content.Id);
         }
     }
 }

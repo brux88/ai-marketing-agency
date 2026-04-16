@@ -29,12 +29,19 @@ public class GetSchedulesByAgencyQueryHandler : IRequestHandler<GetSchedulesByAg
                 Days = s.Days,
                 TimeOfDay = s.TimeOfDay.ToString("HH:mm"),
                 TimeZone = s.TimeZone,
+                ScheduleType = s.ScheduleType,
                 AgentType = s.AgentType,
+                PublishContentType = s.PublishContentType,
+                MaxPostsPerPlatform = s.MaxPostsPerPlatform,
                 Input = s.Input,
                 IsActive = s.IsActive,
                 LastRunAt = s.LastRunAt,
                 NextRunAt = s.NextRunAt,
-                CreatedAt = s.CreatedAt
+                CreatedAt = s.CreatedAt,
+                EnabledSocialPlatforms = s.EnabledSocialPlatforms,
+                ApprovalMode = s.ApprovalMode,
+                AutoApproveMinScore = s.AutoApproveMinScore,
+                AutoScheduleOnApproval = s.AutoScheduleOnApproval
             })
             .OrderBy(s => s.Name)
             .ToListAsync(cancellationToken);

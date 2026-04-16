@@ -2,18 +2,14 @@
 
 import Link from "next/link";
 import { usePathname, useParams } from "next/navigation";
-import { PenLine, Share2, Mail, BarChart3, Settings, LayoutDashboard, FolderKanban, Calendar, CalendarDays, ClipboardCheck, Users, Send } from "lucide-react";
+import { useEffect } from "react";
+import { Settings, LayoutDashboard, FolderKanban, Users, Send, BarChart3 } from "lucide-react";
+import { useNotifications } from "@/lib/providers/notification-provider";
 
 const tabs = [
   { href: "", label: "Overview", icon: LayoutDashboard },
   { href: "/projects", label: "Progetti", icon: FolderKanban },
-  { href: "/content", label: "Content & Blog", icon: PenLine },
-  { href: "/social", label: "Social Media", icon: Share2 },
-  { href: "/calendar", label: "Calendario", icon: CalendarDays },
-  { href: "/newsletter", label: "Newsletter", icon: Mail },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
-  { href: "/schedules", label: "Programmazione", icon: Calendar },
-  { href: "/approvals", label: "Approvazioni", icon: ClipboardCheck },
   { href: "/telegram", label: "Telegram", icon: Send },
   { href: "/team", label: "Team", icon: Users },
   { href: "/settings", label: "Impostazioni", icon: Settings },
@@ -23,6 +19,14 @@ export default function AgencyLayout({ children }: { children: React.ReactNode }
   const { agencyId } = useParams();
   const pathname = usePathname();
   const basePath = `/agencies/${agencyId}`;
+  const { joinAgency, leaveAgency } = useNotifications();
+
+  useEffect(() => {
+    if (!agencyId) return;
+    const id = agencyId as string;
+    joinAgency(id);
+    return () => { leaveAgency(id); };
+  }, [agencyId, joinAgency, leaveAgency]);
 
   return (
     <div>

@@ -17,9 +17,13 @@ public class ConnectPlatformCommandHandler : IRequestHandler<ConnectPlatformComm
 
     public async Task<SocialConnectorDto> Handle(ConnectPlatformCommand request, CancellationToken cancellationToken)
     {
-        // Check if connector already exists for this agency+platform, update it
+        // Check if connector already exists for this agency+project+platform, update it
         var existing = await _context.SocialConnectors
-            .FirstOrDefaultAsync(c => c.AgencyId == request.AgencyId && c.Platform == request.Platform, cancellationToken);
+            .FirstOrDefaultAsync(
+                c => c.AgencyId == request.AgencyId
+                     && c.ProjectId == request.ProjectId
+                     && c.Platform == request.Platform,
+                cancellationToken);
 
         if (existing != null)
         {
@@ -36,6 +40,7 @@ public class ConnectPlatformCommandHandler : IRequestHandler<ConnectPlatformComm
             existing = new SocialConnector
             {
                 AgencyId = request.AgencyId,
+                ProjectId = request.ProjectId,
                 Platform = request.Platform,
                 AccessToken = request.AccessToken,
                 RefreshToken = request.RefreshToken,
@@ -50,9 +55,20 @@ public class ConnectPlatformCommandHandler : IRequestHandler<ConnectPlatformComm
 
         await _context.SaveChangesAsync(cancellationToken);
 
+        string? projectName = null;
+        if (existing.ProjectId.HasValue)
+        {
+            projectName = await _context.Projects
+                .Where(p => p.Id == existing.ProjectId.Value)
+                .Select(p => p.Name)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+
         return new SocialConnectorDto
         {
             Id = existing.Id,
+            ProjectId = existing.ProjectId,
+            ProjectName = projectName,
             Platform = existing.Platform,
             AccountId = existing.AccountId,
             AccountName = existing.AccountName,

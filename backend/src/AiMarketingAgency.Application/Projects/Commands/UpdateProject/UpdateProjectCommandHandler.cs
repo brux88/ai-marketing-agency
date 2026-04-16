@@ -28,6 +28,8 @@ public class UpdateProjectCommandHandler : IRequestHandler<UpdateProjectCommand,
         project.LogoUrl = request.LogoUrl;
         project.BrandVoice = request.BrandVoice ?? project.BrandVoice;
         project.TargetAudience = request.TargetAudience ?? project.TargetAudience;
+        project.ApprovalMode = request.ApprovalMode;
+        project.AutoApproveMinScore = request.AutoApproveMinScore;
 
         await _context.SaveChangesAsync(cancellationToken);
 
@@ -44,7 +46,9 @@ public class UpdateProjectCommandHandler : IRequestHandler<UpdateProjectCommand,
             IsActive = project.IsActive,
             CreatedAt = project.CreatedAt,
             ContentSourcesCount = project.ContentSources.Count(cs => cs.IsActive),
-            GeneratedContentsCount = project.GeneratedContents.Count
+            GeneratedContentsCount = project.GeneratedContents.Count,
+            ApprovalMode = project.ApprovalMode,
+            AutoApproveMinScore = project.AutoApproveMinScore
         };
     }
 }

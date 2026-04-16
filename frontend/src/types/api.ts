@@ -32,12 +32,15 @@ export interface Agency {
   imageLlmProviderKeyId?: string | null;
   approvalMode: ApprovalMode;
   autoApproveMinScore: number;
+  autoScheduleOnApproval?: boolean;
   isActive: boolean;
   createdAt: string;
   contentSourcesCount: number;
   generatedContentsCount: number;
   enableLogoOverlay?: boolean;
   logoOverlayPosition?: number;
+  logoOverlayMode?: number;
+  brandBannerColor?: string | null;
 }
 
 export enum LogoPosition {
@@ -115,6 +118,9 @@ export interface GeneratedContent {
   projectId?: string | null;
   createdAt: string;
   approvedAt?: string;
+  publishedAt?: string | null;
+  aiGenerationCostUsd?: number | null;
+  aiImageCostUsd?: number | null;
 }
 
 export enum ApprovalMode {
@@ -167,6 +173,11 @@ export enum AgentType {
   SeoOptimizer = 6,
 }
 
+export enum ScheduleType {
+  Generation = 1,
+  Publication = 2,
+}
+
 export enum DayOfWeekFlag {
   None = 0,
   Monday = 1,
@@ -190,12 +201,19 @@ export interface ContentSchedule {
   days: number;
   timeOfDay: string;
   timeZone: string;
+  scheduleType: number;
   agentType: number;
+  publishContentType?: number | null;
+  maxPostsPerPlatform?: number | null;
   input?: string | null;
   isActive: boolean;
   lastRunAt?: string | null;
   nextRunAt?: string | null;
   createdAt: string;
+  enabledSocialPlatforms?: string | null;
+  approvalMode?: ApprovalMode | null;
+  autoApproveMinScore?: number | null;
+  autoScheduleOnApproval?: boolean | null;
 }
 
 export interface PendingApproval {
@@ -226,6 +244,14 @@ export interface Project {
   createdAt: string;
   contentSourcesCount: number;
   generatedContentsCount: number;
+  approvalMode?: ApprovalMode | null;
+  autoApproveMinScore?: number | null;
+  autoScheduleOnApproval?: boolean | null;
+  enableLogoOverlay?: boolean | null;
+  logoOverlayPosition?: number | null;
+  logoOverlayMode?: number | null;
+  brandBannerColor?: string | null;
+  enabledSocialPlatforms?: string | null;
 }
 
 export enum SocialPlatform {
@@ -237,6 +263,8 @@ export enum SocialPlatform {
 
 export interface SocialConnector {
   id: string;
+  projectId?: string | null;
+  projectName?: string | null;
   platform: SocialPlatform;
   platformName: string;
   accountId?: string | null;
@@ -270,6 +298,8 @@ export interface EmailConnectorDto {
   fromEmail: string;
   fromName: string;
   isActive: boolean;
+  projectId?: string | null;
+  projectName?: string | null;
 }
 
 export interface NewsletterSubscriber {

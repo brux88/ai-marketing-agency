@@ -25,17 +25,44 @@ public class TelegramBotService : ITelegramBotService
         _logger = logger;
     }
 
-    private string BotToken => _configuration["Telegram:BotToken"] ?? "";
-    private string BaseUrl => $"https://api.telegram.org/bot{BotToken}";
+    private string? FallbackBotToken => _configuration["Telegram:BotToken"];
 
-    public async Task SendMessageAsync(long chatId, string message, CancellationToken ct = default)
+    // Resolution order: project bot → agency bot → global fallback
+    private async Task<string?> ResolveTokenAsync(Guid agencyId, Guid? projectId, CancellationToken ct)
     {
-        if (string.IsNullOrEmpty(BotToken)) return;
+        if (projectId.HasValue)
+        {
+            var projectToken = await _context.Projects
+                .IgnoreQueryFilters()
+                .Where(p => p.Id == projectId.Value)
+                .Select(p => p.TelegramBotToken)
+                .FirstOrDefaultAsync(ct);
+            if (!string.IsNullOrWhiteSpace(projectToken))
+                return projectToken;
+        }
+
+        var agencyToken = await _context.Agencies
+            .IgnoreQueryFilters()
+            .Where(a => a.Id == agencyId)
+            .Select(a => a.TelegramBotToken)
+            .FirstOrDefaultAsync(ct);
+
+        return !string.IsNullOrWhiteSpace(agencyToken) ? agencyToken : FallbackBotToken;
+    }
+
+    public async Task SendMessageAsync(Guid agencyId, Guid? projectId, long chatId, string message, CancellationToken ct = default)
+    {
+        var token = await ResolveTokenAsync(agencyId, projectId, ct);
+        if (string.IsNullOrEmpty(token))
+        {
+            _logger.LogWarning("No Telegram bot token configured for agency {AgencyId} project {ProjectId}.", agencyId, projectId);
+            return;
+        }
 
         try
         {
             var client = _httpClientFactory.CreateClient();
-            await client.PostAsJsonAsync($"{BaseUrl}/sendMessage", new
+            await client.PostAsJsonAsync($"https://api.telegram.org/bot{token}/sendMessage", new
             {
                 chat_id = chatId,
                 text = message,
@@ -44,41 +71,75 @@ public class TelegramBotService : ITelegramBotService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to send Telegram message to chat {ChatId}", chatId);
+            _logger.LogWarning(ex, "Failed to send Telegram message to chat {ChatId} for agency {AgencyId}", chatId, agencyId);
         }
     }
 
-    public async Task SendContentForApprovalAsync(long chatId, Guid contentId, string title, string preview, decimal score, CancellationToken ct = default)
+    public async Task<TelegramWebhookResult> RegisterWebhookAsync(string token, string webhookUrl, CancellationToken ct = default)
     {
-        var message = $"<b>Nuovo contenuto da approvare</b>\n\n" +
-                      $"<b>{title}</b>\n" +
-                      $"Score: {score}/10\n\n" +
-                      $"{preview[..Math.Min(preview.Length, 300)]}...\n\n" +
-                      $"/approve_{contentId:N}\n" +
-                      $"/reject_{contentId:N}";
+        if (string.IsNullOrWhiteSpace(token))
+            return new TelegramWebhookResult(false, "Token mancante", null);
 
-        await SendMessageAsync(chatId, message, ct);
+        try
+        {
+            var client = _httpClientFactory.CreateClient();
+            var setResp = await client.PostAsJsonAsync($"https://api.telegram.org/bot{token}/setWebhook", new
+            {
+                url = webhookUrl,
+                allowed_updates = new[] { "message", "callback_query" }
+            }, ct);
+            var setJson = await setResp.Content.ReadFromJsonAsync<TelegramApiResponse>(cancellationToken: ct);
+            if (setJson == null || !setJson.Ok)
+                return new TelegramWebhookResult(false, setJson?.Description ?? "setWebhook failed", null);
+
+            var meResp = await client.GetAsync($"https://api.telegram.org/bot{token}/getMe", ct);
+            var meJson = await meResp.Content.ReadFromJsonAsync<TelegramGetMeResponse>(cancellationToken: ct);
+            var botUsername = meJson?.Result?.Username;
+
+            return new TelegramWebhookResult(true, setJson.Description ?? "Webhook registered", botUsername);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to register Telegram webhook");
+            return new TelegramWebhookResult(false, ex.Message, null);
+        }
     }
 
-    public async Task SendPublishNotificationAsync(long chatId, string title, string platform, string? postUrl, CancellationToken ct = default)
+    private class TelegramApiResponse
     {
-        var message = $"<b>Contenuto pubblicato!</b>\n\n" +
-                      $"<b>{title}</b>\n" +
-                      $"Piattaforma: {platform}\n" +
-                      (postUrl != null ? $"Link: {postUrl}" : "");
-
-        await SendMessageAsync(chatId, message, ct);
+        public bool Ok { get; set; }
+        public string? Description { get; set; }
     }
 
-    public async Task NotifyAgencyAsync(Guid agencyId, string message, CancellationToken ct = default)
+    private class TelegramGetMeResponse
     {
+        public bool Ok { get; set; }
+        public TelegramMe? Result { get; set; }
+    }
+
+    private class TelegramMe
+    {
+        public long Id { get; set; }
+        public string? Username { get; set; }
+        public string? FirstName { get; set; }
+    }
+
+    public async Task NotifyAgencyAsync(Guid agencyId, Guid? projectId, string message, CancellationToken ct = default)
+    {
+        // Per-project first with agency-default fallback (same pattern as newsletter/social)
         var connections = await _context.TelegramConnections
-            .Where(c => c.AgencyId == agencyId && c.IsActive)
+            .IgnoreQueryFilters()
+            .Where(c => c.AgencyId == agencyId && c.IsActive
+                        && (c.ProjectId == projectId || c.ProjectId == null))
             .ToListAsync(ct);
 
-        foreach (var conn in connections)
+        // If we have any project-specific matches, drop the agency defaults
+        var projectSpecific = connections.Where(c => c.ProjectId == projectId && projectId != null).ToList();
+        var effective = projectSpecific.Any() ? projectSpecific : connections.Where(c => c.ProjectId == null).ToList();
+
+        foreach (var conn in effective)
         {
-            await SendMessageAsync(conn.ChatId, message, ct);
+            await SendMessageAsync(agencyId, projectId, conn.ChatId, message, ct);
         }
     }
 }

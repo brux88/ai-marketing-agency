@@ -28,9 +28,16 @@ public class UpdateScheduleCommandHandler : IRequestHandler<UpdateScheduleComman
         schedule.Days = request.Days;
         schedule.TimeOfDay = time;
         schedule.TimeZone = request.TimeZone;
+        schedule.ScheduleType = request.ScheduleType;
         schedule.AgentType = request.AgentType;
+        schedule.PublishContentType = request.PublishContentType;
+        schedule.MaxPostsPerPlatform = request.MaxPostsPerPlatform;
         schedule.Input = request.Input;
         schedule.IsActive = request.IsActive;
+        schedule.EnabledSocialPlatforms = request.EnabledSocialPlatforms;
+        schedule.ApprovalMode = request.ApprovalMode;
+        schedule.AutoApproveMinScore = request.AutoApproveMinScore;
+        schedule.AutoScheduleOnApproval = request.AutoScheduleOnApproval;
         schedule.NextRunAt = request.IsActive
             ? CreateScheduleCommandHandler.CalculateNextRun(request.Days, time, request.TimeZone)
             : null;
@@ -46,12 +53,19 @@ public class UpdateScheduleCommandHandler : IRequestHandler<UpdateScheduleComman
             Days = schedule.Days,
             TimeOfDay = schedule.TimeOfDay.ToString("HH:mm"),
             TimeZone = schedule.TimeZone,
+            ScheduleType = schedule.ScheduleType,
             AgentType = schedule.AgentType,
+            PublishContentType = schedule.PublishContentType,
+            MaxPostsPerPlatform = schedule.MaxPostsPerPlatform,
             Input = schedule.Input,
             IsActive = schedule.IsActive,
             LastRunAt = schedule.LastRunAt,
             NextRunAt = schedule.NextRunAt,
-            CreatedAt = schedule.CreatedAt
+            CreatedAt = schedule.CreatedAt,
+            EnabledSocialPlatforms = schedule.EnabledSocialPlatforms,
+            ApprovalMode = schedule.ApprovalMode,
+            AutoApproveMinScore = schedule.AutoApproveMinScore,
+            AutoScheduleOnApproval = schedule.AutoScheduleOnApproval
         };
     }
 }

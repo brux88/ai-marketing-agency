@@ -32,7 +32,20 @@ public class GetProjectByIdQueryHandler : IRequestHandler<GetProjectByIdQuery, P
                 IsActive = p.IsActive,
                 CreatedAt = p.CreatedAt,
                 ContentSourcesCount = p.ContentSources.Count(cs => cs.IsActive),
-                GeneratedContentsCount = p.GeneratedContents.Count
+                GeneratedContentsCount = p.GeneratedContents.Count,
+                BlogPromptTemplate = p.BlogPromptTemplate,
+                SocialPromptTemplate = p.SocialPromptTemplate,
+                NewsletterPromptTemplate = p.NewsletterPromptTemplate,
+                ExtractedContext = p.ExtractedContext,
+                ExtractedContextAt = p.ExtractedContextAt,
+                ApprovalMode = p.ApprovalMode,
+                AutoApproveMinScore = p.AutoApproveMinScore,
+                AutoScheduleOnApproval = p.AutoScheduleOnApproval,
+                EnableLogoOverlay = p.EnableLogoOverlay,
+                LogoOverlayPosition = p.LogoOverlayPosition,
+                LogoOverlayMode = p.LogoOverlayMode,
+                BrandBannerColor = p.BrandBannerColor,
+                EnabledSocialPlatforms = p.EnabledSocialPlatforms
             })
             .FirstOrDefaultAsync(cancellationToken);
     }

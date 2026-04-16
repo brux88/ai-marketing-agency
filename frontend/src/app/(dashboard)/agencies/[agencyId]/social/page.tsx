@@ -4,6 +4,7 @@ import { useParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { agenciesApi } from "@/lib/api/agencies.api";
 import { connectorsApi } from "@/lib/api/connectors.api";
+import { projectsApi } from "@/lib/api/projects.api";
 import { apiClient } from "@/lib/api/client";
 import { SocialPlatform } from "@/types/api";
 import type { SocialConnector } from "@/types/api";
@@ -31,6 +32,7 @@ export default function SocialPage() {
   const queryClient = useQueryClient();
   const [generating, setGenerating] = useState(false);
   const [showConnect, setShowConnect] = useState(false);
+  const [formProjectId, setFormProjectId] = useState<string>("");
   const [formPlatform, setFormPlatform] = useState<number>(SocialPlatform.Twitter);
   const [formToken, setFormToken] = useState("");
   const [formAccountId, setFormAccountId] = useState("");
@@ -46,13 +48,28 @@ export default function SocialPage() {
     queryFn: () => connectorsApi.list(agencyId),
   });
 
+  const { data: projects } = useQuery({
+    queryKey: ["projects", agencyId],
+    queryFn: () => projectsApi.list(agencyId),
+  });
+
   const agency = agencyData?.data;
   const connectors: SocialConnector[] = connectorsData?.data ?? [];
+  const defaultConnectors = connectors.filter((c) => !c.projectId);
+  const projectConnectorGroups = connectors
+    .filter((c) => c.projectId)
+    .reduce<Record<string, { projectId: string; projectName: string; items: SocialConnector[] }>>((acc, c) => {
+      const pid = c.projectId!;
+      if (!acc[pid]) acc[pid] = { projectId: pid, projectName: c.projectName || "Progetto", items: [] };
+      acc[pid].items.push(c);
+      return acc;
+    }, {});
 
   const connectMutation = useMutation({
     mutationFn: () =>
       connectorsApi.connect(agencyId, {
         platform: formPlatform,
+        projectId: formProjectId || null,
         accessToken: formToken,
         accountId: formAccountId || undefined,
         accountName: formAccountName || undefined,
@@ -61,6 +78,7 @@ export default function SocialPage() {
       queryClient.invalidateQueries({ queryKey: ["connectors", agencyId] });
       toast.success("Piattaforma connessa!");
       setShowConnect(false);
+      setFormProjectId("");
       setFormToken("");
       setFormAccountId("");
       setFormAccountName("");
@@ -125,6 +143,22 @@ export default function SocialPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
+              <Label>Ambito</Label>
+              <select
+                className="w-full border rounded-md px-3 py-2 text-sm bg-background"
+                value={formProjectId}
+                onChange={(e) => setFormProjectId(e.target.value)}
+              >
+                <option value="">Default agency (fallback per tutti i progetti)</option>
+                {projects?.map((p) => (
+                  <option key={p.id} value={p.id}>Progetto: {p.name}</option>
+                ))}
+              </select>
+              <p className="text-xs text-muted-foreground">
+                Se un progetto ha una sua pagina per questa piattaforma, verrà usata al posto del default.
+              </p>
+            </div>
+            <div className="space-y-2">
               <Label>Piattaforma</Label>
               <select
                 className="w-full border rounded-md px-3 py-2 text-sm bg-background"
@@ -160,47 +194,89 @@ export default function SocialPage() {
         </Card>
       )}
 
-      {/* Platform cards */}
+      {/* Platform cards grouped by scope */}
       {connectorsLoading ? (
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-32 rounded-xl" />)}
         </div>
       ) : (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {allPlatforms.map((platform) => {
-            const config = platformConfig[platform];
-            const connector = connectors.find((c) => c.platform === platform);
-            const Icon = config.icon;
-
-            return (
-              <Card key={platform} className={connector ? "border-green-500/30" : ""}>
-                <CardContent className="pt-6 text-center">
-                  <div className={`size-12 rounded-xl flex items-center justify-center mx-auto ${config.color}`}>
-                    <Icon className="size-6" />
-                  </div>
-                  <h4 className="font-medium mt-3">{config.label}</h4>
-                  {connector ? (
-                    <div className="mt-2 space-y-2">
-                      <Badge variant="default">Connesso</Badge>
-                      {connector.accountName && (
-                        <p className="text-xs text-muted-foreground">{connector.accountName}</p>
+        <div className="space-y-6">
+          <div>
+            <h3 className="text-sm font-semibold mb-3 text-muted-foreground">Default agency (fallback)</h3>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {allPlatforms.map((platform) => {
+                const config = platformConfig[platform];
+                const connector = defaultConnectors.find((c) => c.platform === platform);
+                const Icon = config.icon;
+                return (
+                  <Card key={platform} className={connector ? "border-green-500/30" : ""}>
+                    <CardContent className="pt-6 text-center">
+                      <div className={`size-12 rounded-xl flex items-center justify-center mx-auto ${config.color}`}>
+                        <Icon className="size-6" />
+                      </div>
+                      <h4 className="font-medium mt-3">{config.label}</h4>
+                      {connector ? (
+                        <div className="mt-2 space-y-2">
+                          <Badge variant="default">Connesso</Badge>
+                          {connector.accountName && (
+                            <p className="text-xs text-muted-foreground">{connector.accountName}</p>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive"
+                            onClick={() => disconnectMutation.mutate(connector.id)}
+                          >
+                            <Trash2 className="size-3 mr-1" /> Disconnetti
+                          </Button>
+                        </div>
+                      ) : (
+                        <p className="text-muted-foreground text-xs mt-1">Non connesso</p>
                       )}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-destructive"
-                        onClick={() => disconnectMutation.mutate(connector.id)}
-                      >
-                        <Trash2 className="size-3 mr-1" /> Disconnetti
-                      </Button>
-                    </div>
-                  ) : (
-                    <p className="text-muted-foreground text-xs mt-1">Non connesso</p>
-                  )}
-                </CardContent>
-              </Card>
-            );
-          })}
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+
+          {Object.values(projectConnectorGroups).map((group) => (
+            <div key={group.projectId}>
+              <h3 className="text-sm font-semibold mb-3 text-muted-foreground">
+                Progetto: {group.projectName}
+              </h3>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {group.items.map((connector) => {
+                  const config = platformConfig[connector.platform];
+                  const Icon = config.icon;
+                  return (
+                    <Card key={connector.id} className="border-green-500/30">
+                      <CardContent className="pt-6 text-center">
+                        <div className={`size-12 rounded-xl flex items-center justify-center mx-auto ${config.color}`}>
+                          <Icon className="size-6" />
+                        </div>
+                        <h4 className="font-medium mt-3">{config.label}</h4>
+                        <div className="mt-2 space-y-2">
+                          <Badge variant="default">Connesso</Badge>
+                          {connector.accountName && (
+                            <p className="text-xs text-muted-foreground">{connector.accountName}</p>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive"
+                            onClick={() => disconnectMutation.mutate(connector.id)}
+                          >
+                            <Trash2 className="size-3 mr-1" /> Disconnetti
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
@@ -212,8 +288,8 @@ export default function SocialPage() {
           </div>
           <h3 className="text-lg font-semibold">Pubblicazione Automatica</h3>
           <p className="text-muted-foreground max-w-md mx-auto">
-            Quando approvi un contenuto, viene automaticamente pubblicato su tutte le piattaforme connesse.
-            L&apos;agente Social Manager genera post adattando tono e formato per ogni social.
+            Quando approvi un contenuto, viene pubblicato sulla pagina specifica del progetto se configurata,
+            altrimenti sul default dell&apos;agency. Un post per piattaforma.
           </p>
           {connectors.length > 0 && (
             <Badge variant="outline" className="text-green-600">

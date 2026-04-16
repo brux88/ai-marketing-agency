@@ -35,6 +35,12 @@ namespace AiMarketingAgency.Infrastructure.Persistence.Migrations
                     b.Property<int>("AutoApproveMinScore")
                         .HasColumnType("integer");
 
+                    b.Property<bool>("AutoScheduleOnApproval")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("BrandBannerColor")
+                        .HasColumnType("text");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -54,6 +60,9 @@ namespace AiMarketingAgency.Infrastructure.Persistence.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
 
+                    b.Property<int>("LogoOverlayMode")
+                        .HasColumnType("integer");
+
                     b.Property<int>("LogoOverlayPosition")
                         .HasColumnType("integer");
 
@@ -70,6 +79,12 @@ namespace AiMarketingAgency.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
+
+                    b.Property<string>("TelegramBotToken")
+                        .HasColumnType("text");
+
+                    b.Property<string>("TelegramBotUsername")
+                        .HasColumnType("text");
 
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid");
@@ -140,6 +155,9 @@ namespace AiMarketingAgency.Infrastructure.Persistence.Migrations
                     b.Property<int>("RetryCount")
                         .HasColumnType("integer");
 
+                    b.Property<Guid?>("ScheduleId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTime?>("StartedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -160,6 +178,8 @@ namespace AiMarketingAgency.Infrastructure.Persistence.Migrations
                     b.HasIndex("AgencyId");
 
                     b.HasIndex("ProjectId");
+
+                    b.HasIndex("ScheduleId");
 
                     b.ToTable("agent_jobs", (string)null);
                 });
@@ -226,11 +246,24 @@ namespace AiMarketingAgency.Infrastructure.Persistence.Migrations
                     b.Property<int>("AgentType")
                         .HasColumnType("integer");
 
+                    b.Property<int?>("ApprovalMode")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("AutoApproveMinScore")
+                        .HasColumnType("integer");
+
+                    b.Property<bool?>("AutoScheduleOnApproval")
+                        .HasColumnType("boolean");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("Days")
                         .HasColumnType("integer");
+
+                    b.Property<string>("EnabledSocialPlatforms")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
 
                     b.Property<string>("Input")
                         .HasMaxLength(2000)
@@ -242,6 +275,9 @@ namespace AiMarketingAgency.Infrastructure.Persistence.Migrations
                     b.Property<DateTime?>("LastRunAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<int?>("MaxPostsPerPlatform")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -252,6 +288,14 @@ namespace AiMarketingAgency.Infrastructure.Persistence.Migrations
 
                     b.Property<Guid?>("ProjectId")
                         .HasColumnType("uuid");
+
+                    b.Property<int?>("PublishContentType")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ScheduleType")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1);
 
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid");
@@ -344,8 +388,14 @@ namespace AiMarketingAgency.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("ErrorMessage")
+                        .HasColumnType("text");
+
                     b.Property<int?>("Platform")
                         .HasColumnType("integer");
+
+                    b.Property<string>("PostUrl")
+                        .HasColumnType("text");
 
                     b.Property<DateTime?>("PublishedAt")
                         .HasColumnType("timestamp with time zone");
@@ -400,6 +450,9 @@ namespace AiMarketingAgency.Infrastructure.Persistence.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
 
+                    b.Property<Guid?>("ProjectId")
+                        .HasColumnType("uuid");
+
                     b.Property<int>("ProviderType")
                         .HasColumnType("integer");
 
@@ -426,10 +479,12 @@ namespace AiMarketingAgency.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("AgencyId")
-                        .IsUnique();
+                    b.HasIndex("ProjectId");
 
                     b.HasIndex("TenantId");
+
+                    b.HasIndex("AgencyId", "ProjectId")
+                        .IsUnique();
 
                     b.ToTable("email_connectors", (string)null);
                 });
@@ -442,6 +497,12 @@ namespace AiMarketingAgency.Infrastructure.Persistence.Migrations
 
                     b.Property<Guid>("AgencyId")
                         .HasColumnType("uuid");
+
+                    b.Property<decimal?>("AiGenerationCostUsd")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("AiImageCostUsd")
+                        .HasColumnType("numeric");
 
                     b.Property<DateTime?>("ApprovedAt")
                         .HasColumnType("timestamp with time zone");
@@ -466,6 +527,9 @@ namespace AiMarketingAgency.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("ImagePrompt")
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
@@ -477,6 +541,9 @@ namespace AiMarketingAgency.Infrastructure.Persistence.Migrations
                     b.Property<string>("ImageUrls")
                         .HasMaxLength(8000)
                         .HasColumnType("character varying(8000)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
 
                     b.Property<Guid?>("JobId")
                         .HasColumnType("uuid");
@@ -490,6 +557,9 @@ namespace AiMarketingAgency.Infrastructure.Persistence.Migrations
 
                     b.Property<Guid?>("ProjectId")
                         .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("PublishedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<decimal>("QualityScore")
                         .HasPrecision(5, 2)
@@ -646,6 +716,64 @@ namespace AiMarketingAgency.Infrastructure.Persistence.Migrations
                     b.ToTable("newsletter_subscribers", (string)null);
                 });
 
+            modelBuilder.Entity("AiMarketingAgency.Domain.Entities.Notification", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AgencyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Body")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("JobId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Link")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("ProjectId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("Read")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("ReadAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("TenantId", "AgencyId", "Read");
+
+                    b.ToTable("notifications", (string)null);
+                });
+
             modelBuilder.Entity("AiMarketingAgency.Domain.Entities.Project", b =>
                 {
                     b.Property<Guid>("Id")
@@ -655,6 +783,21 @@ namespace AiMarketingAgency.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("AgencyId")
                         .HasColumnType("uuid");
 
+                    b.Property<int?>("ApprovalMode")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("AutoApproveMinScore")
+                        .HasColumnType("integer");
+
+                    b.Property<bool?>("AutoScheduleOnApproval")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("BlogPromptTemplate")
+                        .HasColumnType("text");
+
+                    b.Property<string>("BrandBannerColor")
+                        .HasColumnType("text");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -662,8 +805,26 @@ namespace AiMarketingAgency.Infrastructure.Persistence.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
 
+                    b.Property<bool?>("EnableLogoOverlay")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("EnabledSocialPlatforms")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ExtractedContext")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("ExtractedContextAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
+
+                    b.Property<int?>("LogoOverlayMode")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("LogoOverlayPosition")
+                        .HasColumnType("integer");
 
                     b.Property<string>("LogoUrl")
                         .HasMaxLength(500)
@@ -673,6 +834,18 @@ namespace AiMarketingAgency.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
+
+                    b.Property<string>("NewsletterPromptTemplate")
+                        .HasColumnType("text");
+
+                    b.Property<string>("SocialPromptTemplate")
+                        .HasColumnType("text");
+
+                    b.Property<string>("TelegramBotToken")
+                        .HasColumnType("text");
+
+                    b.Property<string>("TelegramBotUsername")
+                        .HasColumnType("text");
 
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid");
@@ -728,6 +901,9 @@ namespace AiMarketingAgency.Infrastructure.Persistence.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
+                    b.Property<Guid?>("ProjectId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("RefreshToken")
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
@@ -743,9 +919,12 @@ namespace AiMarketingAgency.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ProjectId");
+
                     b.HasIndex("TenantId");
 
-                    b.HasIndex("AgencyId", "Platform");
+                    b.HasIndex("AgencyId", "ProjectId", "Platform")
+                        .IsUnique();
 
                     b.ToTable("social_connectors", (string)null);
                 });
@@ -881,6 +1060,9 @@ namespace AiMarketingAgency.Infrastructure.Persistence.Migrations
                     b.Property<bool>("NotifyOnPublished")
                         .HasColumnType("boolean");
 
+                    b.Property<Guid?>("ProjectId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid");
 
@@ -892,7 +1074,9 @@ namespace AiMarketingAgency.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("AgencyId");
+                    b.HasIndex("ProjectId");
+
+                    b.HasIndex("AgencyId", "ProjectId");
 
                     b.ToTable("TelegramConnections");
                 });
@@ -1172,9 +1356,16 @@ namespace AiMarketingAgency.Infrastructure.Persistence.Migrations
                         .HasForeignKey("ProjectId")
                         .OnDelete(DeleteBehavior.SetNull);
 
+                    b.HasOne("AiMarketingAgency.Domain.Entities.ContentSchedule", "Schedule")
+                        .WithMany()
+                        .HasForeignKey("ScheduleId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("Agency");
 
                     b.Navigation("Project");
+
+                    b.Navigation("Schedule");
                 });
 
             modelBuilder.Entity("AiMarketingAgency.Domain.Entities.ContentChunk", b =>
@@ -1251,6 +1442,11 @@ namespace AiMarketingAgency.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("AiMarketingAgency.Domain.Entities.Project", "Project")
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
                     b.HasOne("AiMarketingAgency.Domain.Entities.Tenant", "Tenant")
                         .WithMany()
                         .HasForeignKey("TenantId")
@@ -1258,6 +1454,8 @@ namespace AiMarketingAgency.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("Agency");
+
+                    b.Navigation("Project");
 
                     b.Navigation("Tenant");
                 });
@@ -1452,6 +1650,11 @@ namespace AiMarketingAgency.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("AiMarketingAgency.Domain.Entities.Project", "Project")
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
                     b.HasOne("AiMarketingAgency.Domain.Entities.Tenant", "Tenant")
                         .WithMany()
                         .HasForeignKey("TenantId")
@@ -1459,6 +1662,8 @@ namespace AiMarketingAgency.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("Agency");
+
+                    b.Navigation("Project");
 
                     b.Navigation("Tenant");
                 });
@@ -1493,7 +1698,14 @@ namespace AiMarketingAgency.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("AiMarketingAgency.Domain.Entities.Project", "Project")
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
                     b.Navigation("Agency");
+
+                    b.Navigation("Project");
                 });
 
             modelBuilder.Entity("AiMarketingAgency.Domain.Entities.UsageRecord", b =>

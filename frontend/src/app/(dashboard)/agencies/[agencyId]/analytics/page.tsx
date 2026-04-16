@@ -3,13 +3,14 @@
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { agenciesApi } from "@/lib/api/agencies.api";
+import { projectsApi } from "@/lib/api/projects.api";
 import { apiClient } from "@/lib/api/client";
 import type { ApiResponse, GeneratedContent } from "@/types/api";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { BarChart3, Loader2, FileText, Star, Briefcase, TrendingUp, ImageIcon, CheckCircle2 } from "lucide-react";
+import { BarChart3, Loader2, FileText, Star, Briefcase, TrendingUp, ImageIcon, CheckCircle2, DollarSign } from "lucide-react";
 import { toast } from "sonner";
 
 const contentTypeLabels: Record<number, string> = {
@@ -32,6 +33,12 @@ export default function AnalyticsPage() {
     queryKey: ["content", agencyId],
     queryFn: () =>
       apiClient.get<ApiResponse<GeneratedContent[]>>(`/api/v1/agencies/${agencyId}/content`),
+  });
+
+  const { data: costStats } = useQuery({
+    queryKey: ["agency-cost-stats", agencyId],
+    queryFn: () => projectsApi.getAgencyCostStats(agencyId as string),
+    refetchInterval: 60000,
   });
 
   const agency = agencyData?.data;
@@ -111,6 +118,57 @@ export default function AnalyticsPage() {
           </Card>
         ))}
       </div>
+
+      {/* Costi AI */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <DollarSign className="size-4" /> Costi AI agenzia
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {!costStats ? (
+            <p className="text-sm text-muted-foreground">Caricamento...</p>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div>
+                  <p className="text-[10px] uppercase text-muted-foreground">Totale contenuti</p>
+                  <p className="text-2xl font-bold">{costStats.totalContents}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase text-muted-foreground">Costo totale</p>
+                  <p className="text-2xl font-bold">${costStats.totalCostUsd.toFixed(4)}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase text-muted-foreground">Testo / Immagini</p>
+                  <p className="text-sm mt-2">
+                    ${costStats.totalTextCostUsd.toFixed(4)} / ${costStats.totalImageCostUsd.toFixed(4)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase text-muted-foreground">Ultimi 30 giorni</p>
+                  <p className="text-2xl font-bold">${costStats.last30DaysCostUsd.toFixed(4)}</p>
+                </div>
+              </div>
+              {costStats.projects.length > 0 && (
+                <div className="space-y-1.5 pt-2 border-t">
+                  <p className="text-xs font-semibold text-muted-foreground">Per progetto</p>
+                  {costStats.projects.map((p) => (
+                    <div key={p.projectId} className="flex items-center justify-between text-sm py-1">
+                      <span className="truncate flex-1 min-w-0">{p.projectName}</span>
+                      <span className="text-muted-foreground text-xs shrink-0 mx-2">
+                        {p.contents} contenuti
+                      </span>
+                      <span className="font-semibold shrink-0">${p.totalCostUsd.toFixed(4)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Breakdown per tipo di contenuto */}
       <Card>

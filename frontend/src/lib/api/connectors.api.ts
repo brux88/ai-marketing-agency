@@ -9,6 +9,7 @@ export const connectorsApi = {
 
   connect: (agencyId: string, data: {
     platform: number;
+    projectId?: string | null;
     accessToken: string;
     refreshToken?: string;
     accountId?: string;
@@ -21,8 +22,8 @@ export const connectorsApi = {
   disconnect: (agencyId: string, connectorId: string) =>
     apiClient.delete<ApiResponse<object>>(`${base(agencyId)}/${connectorId}`),
 
-  publish: (agencyId: string, connectorId: string, contentId: string) =>
+  publish: (agencyId: string, contentId: string, platform: number) =>
     apiClient.post<ApiResponse<PublishResult>>(
-      `${base(agencyId)}/${connectorId}/publish/${contentId}`
+      `${base(agencyId)}/publish/${contentId}/${platform}`
     ),
 };

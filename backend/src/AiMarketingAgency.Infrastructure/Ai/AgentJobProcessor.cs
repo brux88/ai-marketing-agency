@@ -1,5 +1,6 @@
 using System.Text.Json;
 using AiMarketingAgency.Application.Agents;
+using AiMarketingAgency.Application.Common;
 using AiMarketingAgency.Application.Common.Interfaces;
 using AiMarketingAgency.Domain.Entities;
 using AiMarketingAgency.Domain.Enums;
@@ -19,6 +20,7 @@ public class AgentJobProcessor : IAgentJobProcessor
     private readonly IVideoGenerationServiceFactory _videoGenerationServiceFactory;
     private readonly IImageOverlayService _overlayService;
     private readonly ILlmKeyVault _keyVault;
+    private readonly INotificationService _notificationService;
     private readonly ILogger<AgentJobProcessor> _logger;
 
     public AgentJobProcessor(
@@ -29,6 +31,7 @@ public class AgentJobProcessor : IAgentJobProcessor
         IVideoGenerationServiceFactory videoGenerationServiceFactory,
         IImageOverlayService overlayService,
         ILlmKeyVault keyVault,
+        INotificationService notificationService,
         ILogger<AgentJobProcessor> logger)
     {
         _context = context;
@@ -38,6 +41,7 @@ public class AgentJobProcessor : IAgentJobProcessor
         _videoGenerationServiceFactory = videoGenerationServiceFactory;
         _overlayService = overlayService;
         _keyVault = keyVault;
+        _notificationService = notificationService;
         _logger = logger;
     }
 
@@ -82,12 +86,21 @@ public class AgentJobProcessor : IAgentJobProcessor
                     .FirstOrDefaultAsync(p => p.Id == job.ProjectId.Value && p.IsActive, ct);
             }
 
+            // Load schedule if job was triggered by one
+            ContentSchedule? schedule = null;
+            if (job.ScheduleId.HasValue)
+            {
+                schedule = await _context.ContentSchedules
+                    .FirstOrDefaultAsync(s => s.Id == job.ScheduleId.Value, ct);
+            }
+
             var jobContext = new AgentJobContext(
                 Kernel: kernel,
                 Agency: agency,
                 Input: job.Input,
                 Sources: sources,
-                Project: project);
+                Project: project,
+                Schedule: schedule);
 
             _logger.LogInformation(
                 "Executing agent {AgentType} for job {JobId}, agency {AgencyId}",
@@ -116,11 +129,15 @@ public class AgentJobProcessor : IAgentJobProcessor
             }
 
             // Save generated content
+            var imageProviderType = agency.ImageLlmProviderKey?.ProviderType;
+            var textProviderType = agency.DefaultLlmProviderKey?.ProviderType;
             foreach (var content in result.Contents)
             {
                 string? imageUrl = content.ImageUrl;
                 string? imagePrompt = content.ImagePrompt;
                 List<string>? imageUrls = null;
+                decimal? imageCost = null;
+                decimal? textCost = EstimateTextCost(textProviderType, content.Title.Length + content.Body.Length);
 
                 // Generate image(s) if service is available and no image was already provided
                 if (imageService != null && job.ImageMode != ImageGenerationMode.None && string.IsNullOrEmpty(imageUrl))
@@ -149,16 +166,34 @@ public class AgentJobProcessor : IAgentJobProcessor
 
                             var finalUrl = imageResult.ImageUrl;
 
-                            // Apply logo overlay if configured
-                            if (agency.EnableLogoOverlay && !string.IsNullOrWhiteSpace(agency.LogoUrl))
+                            // Apply logo overlay if configured (project overrides agency when set)
+                            var overlayEnabled = project?.EnableLogoOverlay ?? agency.EnableLogoOverlay;
+                            var overlayLogoUrl = !string.IsNullOrWhiteSpace(project?.LogoUrl)
+                                ? project!.LogoUrl
+                                : agency.LogoUrl;
+                            var overlayPosition = project?.LogoOverlayPosition ?? agency.LogoOverlayPosition;
+                            var overlayMode = project?.LogoOverlayMode ?? agency.LogoOverlayMode;
+                            var bannerColor = project?.BrandBannerColor ?? agency.BrandBannerColor;
+                            if (overlayEnabled && !string.IsNullOrWhiteSpace(overlayLogoUrl))
                             {
                                 try
                                 {
-                                    finalUrl = await _overlayService.ApplyLogoOverlayAsync(
-                                        imageResult.ImageUrl,
-                                        agency.LogoUrl,
-                                        (LogoPosition)agency.LogoOverlayPosition,
-                                        ct);
+                                    if (overlayMode == 1 && !string.IsNullOrWhiteSpace(bannerColor))
+                                    {
+                                        finalUrl = await _overlayService.ApplyBrandBannerAsync(
+                                            imageResult.ImageUrl,
+                                            overlayLogoUrl!,
+                                            bannerColor!,
+                                            ct);
+                                    }
+                                    else
+                                    {
+                                        finalUrl = await _overlayService.ApplyLogoOverlayAsync(
+                                            imageResult.ImageUrl,
+                                            overlayLogoUrl!,
+                                            (LogoPosition)overlayPosition,
+                                            ct);
+                                    }
                                 }
                                 catch (Exception ex)
                                 {
@@ -173,6 +208,8 @@ public class AgentJobProcessor : IAgentJobProcessor
                                 imagePrompt = imageResult.RevisedPrompt;
                             }
                         }
+
+                        imageCost = EstimateImageCost(imageProviderType) * count;
 
                         if (count > 1)
                             imageUrls = generated;
@@ -235,12 +272,32 @@ public class AgentJobProcessor : IAgentJobProcessor
                     VideoUrl = videoUrl,
                     VideoPrompt = videoPrompt,
                     VideoDurationSeconds = videoDuration,
-                    Status = DetermineContentStatus(agency, content.OverallScore),
-                    AutoApproved = ShouldAutoApprove(agency, content.OverallScore),
-                    ApprovedAt = ShouldAutoApprove(agency, content.OverallScore) ? DateTime.UtcNow : null,
+                    Status = DetermineContentStatus(agency, project, schedule, content.OverallScore),
+                    AutoApproved = ShouldAutoApprove(agency, project, schedule, content.OverallScore),
+                    ApprovedAt = ShouldAutoApprove(agency, project, schedule, content.OverallScore) ? DateTime.UtcNow : null,
+                    AiGenerationCostUsd = textCost,
+                    AiImageCostUsd = imageCost,
                 };
 
                 _context.GeneratedContents.Add(generatedContent);
+            }
+
+            await _context.SaveChangesAsync(ct);
+
+            // Auto-schedule approved social posts when a connector exists for the detected platform.
+            var savedContents = await _context.GeneratedContents
+                .Where(c => c.JobId == job.Id && c.Status == ContentStatus.Approved)
+                .ToListAsync(ct);
+            foreach (var approved in savedContents)
+            {
+                try
+                {
+                    await CalendarAutoScheduler.TryScheduleAsync(_context, approved, _logger, ct, schedule);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Auto-schedule failed for content {ContentId}", approved.Id);
+                }
             }
 
             // Update job
@@ -251,7 +308,40 @@ public class AgentJobProcessor : IAgentJobProcessor
             if (!result.Success)
                 job.ErrorMessage = result.Output;
 
+            _context.Notifications.Add(new Notification
+            {
+                TenantId = job.TenantId,
+                AgencyId = job.AgencyId,
+                JobId = job.Id,
+                ProjectId = job.ProjectId,
+                Type = result.Success ? "job.completed" : "job.failed",
+                Title = result.Success
+                    ? $"{job.AgentType} completato ({result.Contents.Count} contenuti)"
+                    : $"{job.AgentType} fallito",
+                Body = result.Success ? result.Output : (job.ErrorMessage ?? "Errore sconosciuto"),
+                Link = "/jobs",
+                Read = false
+            });
+
             await _context.SaveChangesAsync(ct);
+
+            try
+            {
+                var createdContents = await _context.GeneratedContents
+                    .Where(c => c.JobId == job.Id)
+                    .ToListAsync(ct);
+                foreach (var c in createdContents)
+                {
+                    await _notificationService.NotifyContentGenerated(
+                        job.TenantId, job.AgencyId, c.Id, c.Title, c.Status.ToString());
+                }
+                await _notificationService.NotifyJobStatusChanged(
+                    job.TenantId, job.AgencyId, job.Id, job.Status.ToString(), job.AgentType.ToString());
+            }
+            catch (Exception notifyEx)
+            {
+                _logger.LogWarning(notifyEx, "Failed to send SignalR notification for job {JobId}", jobId);
+            }
 
             _logger.LogInformation(
                 "Job {JobId} completed with {ContentCount} content items, status: {Status}",
@@ -266,7 +356,31 @@ public class AgentJobProcessor : IAgentJobProcessor
             job.CompletedAt = DateTime.UtcNow;
             job.RetryCount++;
 
+            _context.Notifications.Add(new Notification
+            {
+                TenantId = job.TenantId,
+                AgencyId = job.AgencyId,
+                JobId = job.Id,
+                ProjectId = job.ProjectId,
+                Type = "job.failed",
+                Title = $"{job.AgentType} fallito",
+                Body = ex.Message,
+                Link = "/jobs",
+                Read = false
+            });
+
             await _context.SaveChangesAsync(ct);
+
+            try
+            {
+                await _notificationService.NotifyJobStatusChanged(
+                    job.TenantId, job.AgencyId, job.Id, job.Status.ToString(), job.AgentType.ToString());
+            }
+            catch (Exception notifyEx)
+            {
+                _logger.LogWarning(notifyEx, "Failed to send SignalR notification for job {JobId}", jobId);
+            }
+
             throw;
         }
     }
@@ -316,22 +430,52 @@ public class AgentJobProcessor : IAgentJobProcessor
         }
     }
 
-    private static bool ShouldAutoApprove(Agency agency, decimal overallScore)
+    private static bool ShouldAutoApprove(Agency agency, Project? project, ContentSchedule? schedule, decimal overallScore)
     {
-        return agency.ApprovalMode switch
+        var mode = schedule?.ApprovalMode ?? project?.ApprovalMode ?? agency.ApprovalMode;
+        var minScore = schedule?.AutoApproveMinScore ?? project?.AutoApproveMinScore ?? agency.AutoApproveMinScore;
+        return mode switch
         {
             ApprovalMode.AutoApprove => true,
-            ApprovalMode.AutoApproveAboveScore => overallScore >= agency.AutoApproveMinScore,
+            ApprovalMode.AutoApproveAboveScore => overallScore >= minScore,
             ApprovalMode.Manual => false,
             _ => false
         };
     }
 
-    private static ContentStatus DetermineContentStatus(Agency agency, decimal overallScore)
+    private static ContentStatus DetermineContentStatus(Agency agency, Project? project, ContentSchedule? schedule, decimal overallScore)
     {
-        if (ShouldAutoApprove(agency, overallScore))
+        if (ShouldAutoApprove(agency, project, schedule, overallScore))
             return ContentStatus.Approved;
 
         return ContentStatus.InReview;
+    }
+
+    // Best-effort cost estimates (USD). Replace with real billing when provider SDKs expose usage.
+    private static decimal EstimateImageCost(LlmProviderType? provider)
+    {
+        return provider switch
+        {
+            LlmProviderType.NanoBanana => 0.039m,
+            LlmProviderType.OpenAI => 0.040m,
+            LlmProviderType.AzureOpenAI => 0.040m,
+            LlmProviderType.Custom => 0.020m,
+            _ => 0.030m
+        };
+    }
+
+    private static decimal EstimateTextCost(LlmProviderType? provider, int outputChars)
+    {
+        // Rough: 4 chars ≈ 1 token; assume similar input tokens; price per 1K tokens varies by provider.
+        var tokens = Math.Max(1, outputChars / 4) * 2m;
+        var pricePerK = provider switch
+        {
+            LlmProviderType.OpenAI => 0.01m,       // gpt-4o input+output average
+            LlmProviderType.AzureOpenAI => 0.01m,
+            LlmProviderType.Anthropic => 0.015m,   // Claude average
+            LlmProviderType.Custom => 0.002m,
+            _ => 0.005m
+        };
+        return Math.Round(tokens / 1000m * pricePerK, 6);
     }
 }

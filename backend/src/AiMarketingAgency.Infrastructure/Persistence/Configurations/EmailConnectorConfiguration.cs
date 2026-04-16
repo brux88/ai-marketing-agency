@@ -24,11 +24,17 @@ public class EmailConnectorConfiguration : IEntityTypeConfiguration<EmailConnect
             .HasForeignKey(c => c.AgencyId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        builder.HasOne(c => c.Project)
+            .WithMany()
+            .HasForeignKey(c => c.ProjectId)
+            .OnDelete(DeleteBehavior.Cascade);
+
         builder.HasOne(c => c.Tenant)
             .WithMany()
             .HasForeignKey(c => c.TenantId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        builder.HasIndex(c => c.AgencyId).IsUnique();
+        // One connector per (agency, project). ProjectId null = agency-level default.
+        builder.HasIndex(c => new { c.AgencyId, c.ProjectId }).IsUnique();
     }
 }

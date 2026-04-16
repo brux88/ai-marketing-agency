@@ -3,4 +3,4 @@ using MediatR;
 
 namespace AiMarketingAgency.Application.ContentSources.Queries.GetContentSourcesByAgency;
 
-public record GetContentSourcesByAgencyQuery(Guid AgencyId) : IRequest<List<ContentSourceDto>>;
+public record GetContentSourcesByAgencyQuery(Guid AgencyId, Guid? ProjectId = null) : IRequest<List<ContentSourceDto>>;

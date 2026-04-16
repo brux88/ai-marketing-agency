@@ -6,4 +6,6 @@ public record UpdateImageSettingsCommand(
     Guid AgencyId,
     bool EnableLogoOverlay,
     int LogoOverlayPosition,
-    string? LogoUrl) : IRequest;
+    string? LogoUrl,
+    int LogoOverlayMode = 0,
+    string? BrandBannerColor = null) : IRequest;

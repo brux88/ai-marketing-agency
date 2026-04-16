@@ -7,6 +7,7 @@ namespace AiMarketingAgency.Application.Newsletter.Commands.ConfigureEmail;
 public record ConfigureEmailCommand : IRequest<EmailConnectorDto>
 {
     public Guid AgencyId { get; init; }
+    public Guid? ProjectId { get; init; }
     public EmailProviderType ProviderType { get; init; }
     public string? SmtpHost { get; init; }
     public int? SmtpPort { get; init; }

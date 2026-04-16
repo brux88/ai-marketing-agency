@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { agenciesApi } from "@/lib/api/agencies.api";
@@ -27,18 +28,20 @@ export function EditApprovalModeDialog({ open, onOpenChange, agency, onSaved }: 
   const [saving, setSaving] = useState(false);
   const [approvalMode, setApprovalMode] = useState(agency.approvalMode as number);
   const [minScore, setMinScore] = useState(agency.autoApproveMinScore);
+  const [autoSchedule, setAutoSchedule] = useState<boolean>(agency.autoScheduleOnApproval ?? true);
 
   useEffect(() => {
     if (open) {
       setApprovalMode(agency.approvalMode as number);
       setMinScore(agency.autoApproveMinScore);
+      setAutoSchedule(agency.autoScheduleOnApproval ?? true);
     }
   }, [open, agency]);
 
   const handleSubmit = async () => {
     setSaving(true);
     try {
-      await agenciesApi.updateApprovalMode(agency.id, approvalMode, minScore);
+      await agenciesApi.updateApprovalMode(agency.id, approvalMode, minScore, autoSchedule);
       toast.success("Modalita approvazione aggiornata");
       onSaved();
       onOpenChange(false);
@@ -83,6 +86,16 @@ export function EditApprovalModeDialog({ open, onOpenChange, agency, onSaved }: 
               />
             </div>
           )}
+          <div className="flex items-center justify-between rounded-md border p-3">
+            <div className="space-y-0.5 pr-3">
+              <Label className="text-sm">Auto-schedule al momento dell&apos;approvazione</Label>
+              <p className="text-xs text-muted-foreground">
+                Se attivo, i contenuti approvati vengono subito inseriti nel calendario editoriale.
+                Disabilitalo per approvare e schedulare manualmente.
+              </p>
+            </div>
+            <Switch checked={autoSchedule} onCheckedChange={setAutoSchedule} />
+          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Annulla</Button>

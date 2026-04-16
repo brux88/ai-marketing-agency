@@ -1,3 +1,4 @@
+using AiMarketingAgency.Domain.Enums;
 using AiMarketingAgency.Domain.Interfaces;
 using AiMarketingAgency.Domain.ValueObjects;
 
@@ -14,6 +15,33 @@ public class Project : BaseEntity, ITenantScoped, ISoftDeletable
     public BrandVoice BrandVoice { get; set; } = new();
     public TargetAudience TargetAudience { get; set; } = new();
     public bool IsActive { get; set; } = true;
+
+    // Optional per-project Telegram bot (overrides agency bot when set)
+    public string? TelegramBotToken { get; set; }
+    public string? TelegramBotUsername { get; set; }
+
+    // Project-specific prompt templates (override agent defaults if set)
+    public string? BlogPromptTemplate { get; set; }
+    public string? SocialPromptTemplate { get; set; }
+    public string? NewsletterPromptTemplate { get; set; }
+
+    // Extracted site context (JSON with topics, audience, tone, guides, key pages)
+    public string? ExtractedContext { get; set; }
+    public DateTime? ExtractedContextAt { get; set; }
+
+    // Per-project overrides for approval flow (fall back to agency values when null)
+    public ApprovalMode? ApprovalMode { get; set; }
+    public int? AutoApproveMinScore { get; set; }
+    public bool? AutoScheduleOnApproval { get; set; }
+
+    // Per-project logo overlay override (fall back to agency when EnableLogoOverlay is null)
+    public bool? EnableLogoOverlay { get; set; }
+    public int? LogoOverlayPosition { get; set; }
+    public int? LogoOverlayMode { get; set; }
+    public string? BrandBannerColor { get; set; }
+
+    // Comma-separated list of enabled SocialPlatform names ("Twitter,LinkedIn"). Null = all.
+    public string? EnabledSocialPlatforms { get; set; }
 
     // Navigation
     public Agency Agency { get; set; } = null!;

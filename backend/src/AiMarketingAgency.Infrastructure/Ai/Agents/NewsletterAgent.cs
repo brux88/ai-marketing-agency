@@ -21,15 +21,34 @@ public class NewsletterAgent : IMarketingAgent
     {
         var chatCompletion = context.Kernel.GetRequiredService<IChatCompletionService>();
         var agency = context.Agency;
-        var brandVoice = agency.BrandVoice;
-        var targetAudience = agency.TargetAudience;
+        var project = context.Project;
+        var brandVoice = project?.BrandVoice ?? agency.BrandVoice;
+        var targetAudience = project?.TargetAudience ?? agency.TargetAudience;
+        var productName = project?.Name ?? agency.ProductName;
+        var projectContextBlock = !string.IsNullOrWhiteSpace(project?.ExtractedContext)
+            ? $"\nPROJECT CONTEXT (from website):\n{project!.ExtractedContext}\n"
+            : string.Empty;
 
         var sourcesContext = string.Join("\n", context.Sources.Select(s =>
             $"- [{s.Name ?? s.Type.ToString()}] {s.Url}"));
 
-        var generatePrompt = $"""
-            You are an expert newsletter curator and writer for "{agency.ProductName}".
-
+        string generatePrompt;
+        if (!string.IsNullOrWhiteSpace(project?.NewsletterPromptTemplate))
+        {
+            generatePrompt = project!.NewsletterPromptTemplate!
+                .Replace("{product}", productName)
+                .Replace("{brandVoice}", $"{brandVoice.Tone}, {brandVoice.Style}, language {brandVoice.Language}")
+                .Replace("{audience}", targetAudience.Description)
+                .Replace("{projectContext}", project.ExtractedContext ?? string.Empty)
+                .Replace("{sources}", sourcesContext)
+                .Replace("{task}", context.Input ?? "Crea una newsletter rilevante per il dominio del progetto.")
+                + "\n\nFORMAT YOUR RESPONSE AS:\nTITLE: [newsletter subject]\n---\n[newsletter body]";
+        }
+        else
+        {
+        generatePrompt = $"""
+            You are an expert newsletter curator and writer for "{productName}".
+            {projectContextBlock}
             BRAND VOICE:
             - Tone: {brandVoice.Tone}
             - Style: {brandVoice.Style}
@@ -45,7 +64,9 @@ public class NewsletterAgent : IMarketingAgent
             CONTENT SOURCES (curate from these):
             {sourcesContext}
 
-            TASK: {context.Input ?? "Create a compelling weekly newsletter for our audience."}
+            TASK: {context.Input ?? "Create a compelling weekly newsletter for our audience. Stay strictly within the project's actual domain — do NOT write generic marketing/AI content unless that is the project's actual topic."}
+
+            Ground everything in the PROJECT CONTEXT above when available. Do not invent features or topics outside the project's actual scope.
 
             Create a newsletter with the following structure:
             1. SUBJECT LINE - compelling email subject
@@ -62,6 +83,7 @@ public class NewsletterAgent : IMarketingAgent
             ---
             [full newsletter body in HTML-friendly markdown]
             """;
+        }
 
         _logger.LogInformation("Generating newsletter for agency {AgencyId}", agency.Id);
 

@@ -33,6 +33,7 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<TeamInvitation> TeamInvitations => Set<TeamInvitation>();
     public DbSet<TelegramConnection> TelegramConnections => Set<TelegramConnection>();
     public DbSet<ContentChunk> ContentChunks => Set<ContentChunk>();
+    public DbSet<Notification> Notifications => Set<Notification>();
 
     // EF Core evaluates this property per-instance for cached query filters
     private Guid CurrentTenantId => _tenantContext.TenantId;
@@ -47,6 +48,14 @@ public class AppDbContext : DbContext, IAppDbContext
         // Using a DbContext instance member so EF Core re-evaluates per request
         foreach (var entityType in modelBuilder.Model.GetEntityTypes())
         {
+            // GeneratedContent gets a combined tenant + soft-delete filter.
+            if (entityType.ClrType == typeof(GeneratedContent))
+            {
+                modelBuilder.Entity<GeneratedContent>()
+                    .HasQueryFilter(e => e.TenantId == CurrentTenantId && !e.IsDeleted);
+                continue;
+            }
+
             if (typeof(ITenantScoped).IsAssignableFrom(entityType.ClrType))
             {
                 var method = typeof(AppDbContext)

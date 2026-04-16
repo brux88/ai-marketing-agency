@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
-import type { GeneratedContent, ApiResponse } from "@/types/api";
+import { resolveImageUrl } from "@/lib/utils";
+import { connectorsApi } from "@/lib/api/connectors.api";
+import { SocialPlatform, type GeneratedContent, type ApiResponse } from "@/types/api";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
@@ -12,8 +14,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { RichEditor } from "@/components/ui/rich-editor";
-import { Loader2, Star, Sparkles, Search, TrendingUp, Save } from "lucide-react";
+import { Loader2, Star, Sparkles, Search, TrendingUp, Save, Trash2, Calendar as CalendarIcon, Send } from "lucide-react";
 import { toast } from "sonner";
+
+const PLATFORM_OPTIONS: { value: number; label: string }[] = [
+  { value: SocialPlatform.Facebook, label: "Facebook" },
+  { value: SocialPlatform.Instagram, label: "Instagram" },
+  { value: SocialPlatform.LinkedIn, label: "LinkedIn" },
+  { value: SocialPlatform.Twitter, label: "Twitter/X" },
+  { value: 5, label: "Telegram" },
+];
 
 interface ContentEditDialogProps {
   content: GeneratedContent | null;
@@ -30,12 +40,31 @@ export function ContentEditDialog({ content, agencyId, open, onOpenChange }: Con
   const queryClient = useQueryClient();
   const [title, setTitle] = useState(content?.title ?? "");
   const [body, setBody] = useState(content?.body ?? "");
+  const [schedulePlatform, setSchedulePlatform] = useState<number | "">("");
+  const [scheduleAt, setScheduleAt] = useState<string>("");
 
-  // Reset when content changes
-  if (content && title !== content.title && body !== content.body) {
-    setTitle(content.title);
-    setBody(content.body);
-  }
+  const { data: connectorsRes } = useQuery({
+    queryKey: ["connectors", agencyId],
+    queryFn: () => connectorsApi.list(agencyId),
+    enabled: open,
+  });
+  const connectedPlatforms = useMemo(() => {
+    const list = connectorsRes?.data ?? [];
+    const set = new Set<number>();
+    for (const c of list) if (c.isActive && (!content?.projectId || !c.projectId || c.projectId === content.projectId)) set.add(c.platform);
+    return set;
+  }, [connectorsRes, content?.projectId]);
+  const availablePlatforms = useMemo(
+    () => PLATFORM_OPTIONS.filter((p) => connectedPlatforms.has(p.value)),
+    [connectedPlatforms]
+  );
+
+  useEffect(() => {
+    if (content) {
+      setTitle(content.title);
+      setBody(content.body);
+    }
+  }, [content]);
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -52,6 +81,47 @@ export function ContentEditDialog({ content, agencyId, open, onOpenChange }: Con
       toast.error(err.message || "Errore durante il salvataggio");
     },
   });
+
+  const deleteMutation = useMutation({
+    mutationFn: () =>
+      apiClient.delete<ApiResponse<object>>(
+        `/api/v1/agencies/${agencyId}/content/${content?.id}`
+      ),
+    onSuccess: () => {
+      toast.success("Contenuto eliminato");
+      queryClient.invalidateQueries({ queryKey: ["content", agencyId] });
+      queryClient.invalidateQueries({ queryKey: ["approvals", agencyId] });
+      onOpenChange(false);
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || "Errore durante l'eliminazione");
+    },
+  });
+
+  const scheduleMutation = useMutation({
+    mutationFn: () =>
+      apiClient.post<ApiResponse<{ id: string }>>(
+        `/api/v1/agencies/${agencyId}/content/${content?.id}/schedule`,
+        {
+          scheduledAt: new Date(scheduleAt).toISOString(),
+          platform: schedulePlatform === "" ? null : schedulePlatform,
+        }
+      ),
+    onSuccess: () => {
+      toast.success("Contenuto programmato!");
+      queryClient.invalidateQueries({ queryKey: ["project-calendar"] });
+      queryClient.invalidateQueries({ queryKey: ["content", agencyId] });
+      setSchedulePlatform("");
+      setScheduleAt("");
+    },
+    onError: (err: Error) => toast.error(err.message || "Programmazione fallita"),
+  });
+
+  const handleDelete = () => {
+    if (confirm(`Eliminare definitivamente "${content?.title}"?`)) {
+      deleteMutation.mutate();
+    }
+  };
 
   if (!content) return null;
 
@@ -95,11 +165,13 @@ export function ContentEditDialog({ content, agencyId, open, onOpenChange }: Con
 
           {/* Image */}
           {content.imageUrl && (
-            <img
-              src={content.imageUrl}
-              alt={content.title}
-              className="w-full max-h-48 object-cover rounded-lg"
-            />
+            <div className="w-full rounded-lg bg-muted/30 border flex items-center justify-center overflow-hidden">
+              <img
+                src={resolveImageUrl(content.imageUrl)}
+                alt={content.title}
+                className="max-h-[50vh] w-auto max-w-full object-contain"
+              />
+            </div>
           )}
 
           {/* Title */}
@@ -124,19 +196,76 @@ export function ContentEditDialog({ content, agencyId, open, onOpenChange }: Con
               {content.scoreExplanation}
             </p>
           )}
+
+          {/* Schedule */}
+          <div className="space-y-2 p-3 border rounded-md bg-muted/20">
+            <Label className="flex items-center gap-2 text-sm">
+              <CalendarIcon className="size-4" /> Programma pubblicazione
+            </Label>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+              <Input
+                type="datetime-local"
+                value={scheduleAt}
+                onChange={(e) => setScheduleAt(e.target.value)}
+                data-testid="schedule-datetime"
+              />
+              <select
+                className="h-9 rounded-md border bg-transparent px-3 text-sm"
+                value={schedulePlatform}
+                onChange={(e) => setSchedulePlatform(e.target.value ? Number(e.target.value) : "")}
+                data-testid="schedule-platform"
+              >
+                <option value="">Nessuna piattaforma</option>
+                {availablePlatforms.length === 0 && (
+                  <option disabled>Nessun account social collegato</option>
+                )}
+                {availablePlatforms.map((p) => (
+                  <option key={p.value} value={p.value}>{p.label}</option>
+                ))}
+              </select>
+              <Button
+                size="sm"
+                onClick={() => scheduleMutation.mutate()}
+                disabled={!scheduleAt || scheduleMutation.isPending}
+                data-testid="schedule-submit"
+              >
+                {scheduleMutation.isPending ? (
+                  <><Loader2 className="size-4 animate-spin" /> Programmazione...</>
+                ) : (
+                  <><Send className="size-4" /> Programma</>
+                )}
+              </Button>
+            </div>
+            <p className="text-[10px] text-muted-foreground">
+              Il contenuto verrà pubblicato automaticamente all&apos;orario indicato. Lascia &quot;Nessuna piattaforma&quot; per una voce di sola bozza.
+            </p>
+          </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Annulla
-          </Button>
-          <Button onClick={() => mutation.mutate()} disabled={mutation.isPending}>
-            {mutation.isPending ? (
-              <><Loader2 className="size-4 animate-spin" /> Salvataggio...</>
+        <DialogFooter className="sm:justify-between gap-2">
+          <Button
+            variant="destructive"
+            onClick={handleDelete}
+            disabled={deleteMutation.isPending || mutation.isPending}
+          >
+            {deleteMutation.isPending ? (
+              <><Loader2 className="size-4 animate-spin" /> Eliminazione...</>
             ) : (
-              <><Save className="size-4" /> Salva modifiche</>
+              <><Trash2 className="size-4" /> Elimina</>
             )}
           </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Annulla
+            </Button>
+            <Button onClick={() => mutation.mutate()} disabled={mutation.isPending || deleteMutation.isPending}>
+              {mutation.isPending ? (
+                <><Loader2 className="size-4 animate-spin" /> Salvataggio...</>
+              ) : (
+                <><Save className="size-4" /> Salva modifiche</>
+              )}
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

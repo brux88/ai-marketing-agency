@@ -13,6 +13,7 @@ export class NotificationClient {
   private connection: signalR.HubConnection | null = null;
   private startPromise: Promise<void> | null = null;
   private listeners: ((event: NotificationEvent) => void)[] = [];
+  private pendingJoins = new Set<string>();
 
   async connect(accessToken: string) {
     if (this.connection?.state === signalR.HubConnectionState.Connected) return;
@@ -35,7 +36,13 @@ export class NotificationClient {
       });
     }
 
-    this.startPromise = connection.start().catch((err) => {
+    this.startPromise = connection.start().then(async () => {
+      const toJoin = Array.from(this.pendingJoins);
+      this.pendingJoins.clear();
+      for (const id of toJoin) {
+        try { await connection.invoke("JoinAgencyGroup", id); } catch (e) { console.error("JoinAgencyGroup failed", e); }
+      }
+    }).catch((err) => {
       // StrictMode double-mount aborts the first negotiation; ignore that specific race.
       if (!String(err?.message ?? err).includes("stopped during negotiation")) {
         console.error("SignalR connection failed:", err);
@@ -50,10 +57,20 @@ export class NotificationClient {
   async joinAgency(agencyId: string) {
     if (this.connection?.state === signalR.HubConnectionState.Connected) {
       await this.connection.invoke("JoinAgencyGroup", agencyId);
+      return;
+    }
+    this.pendingJoins.add(agencyId);
+    if (this.startPromise) {
+      await this.startPromise;
+      if (this.connection?.state === signalR.HubConnectionState.Connected && this.pendingJoins.has(agencyId)) {
+        this.pendingJoins.delete(agencyId);
+        try { await this.connection.invoke("JoinAgencyGroup", agencyId); } catch (e) { console.error("JoinAgencyGroup failed", e); }
+      }
     }
   }
 
   async leaveAgency(agencyId: string) {
+    this.pendingJoins.delete(agencyId);
     if (this.connection?.state === signalR.HubConnectionState.Connected) {
       await this.connection.invoke("LeaveAgencyGroup", agencyId);
     }

@@ -11,18 +11,18 @@ public class RunAgentCommandHandler : IRequestHandler<RunAgentCommand, Guid>
     private readonly IAppDbContext _context;
     private readonly ITenantContext _tenantContext;
     private readonly IUsageGuard _usageGuard;
-    private readonly IAgentJobProcessor _jobProcessor;
+    private readonly IBackgroundJobQueue _jobQueue;
 
     public RunAgentCommandHandler(
         IAppDbContext context,
         ITenantContext tenantContext,
         IUsageGuard usageGuard,
-        IAgentJobProcessor jobProcessor)
+        IBackgroundJobQueue jobQueue)
     {
         _context = context;
         _tenantContext = tenantContext;
         _usageGuard = usageGuard;
-        _jobProcessor = jobProcessor;
+        _jobQueue = jobQueue;
     }
 
     public async Task<Guid> Handle(RunAgentCommand request, CancellationToken cancellationToken)
@@ -53,8 +53,7 @@ public class RunAgentCommandHandler : IRequestHandler<RunAgentCommand, Guid>
         await _context.SaveChangesAsync(cancellationToken);
         await _usageGuard.IncrementJobCountAsync(_tenantContext.TenantId, request.AgencyId, cancellationToken);
 
-        // Process synchronously for now (Service Bus dispatch will replace this later)
-        await _jobProcessor.ProcessJobAsync(job.Id, cancellationToken);
+        _jobQueue.Enqueue(job.Id, _tenantContext.TenantId);
 
         return job.Id;
     }

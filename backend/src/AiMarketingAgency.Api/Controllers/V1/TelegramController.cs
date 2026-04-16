@@ -23,6 +23,107 @@ public class TelegramController : ControllerBase
         _telegramBot = telegramBot;
     }
 
+    // Bot credentials (token stored on Agency for white-label)
+    [HttpGet("bot")]
+    public async Task<ActionResult<ApiResponse<TelegramBotInfoDto>>> GetBot(
+        Guid agencyId, CancellationToken ct)
+    {
+        var agency = await _context.Agencies.FirstOrDefaultAsync(a => a.Id == agencyId, ct);
+        if (agency == null) return NotFound();
+
+        return Ok(ApiResponse<TelegramBotInfoDto>.Ok(new TelegramBotInfoDto
+        {
+            HasToken = !string.IsNullOrEmpty(agency.TelegramBotToken),
+            BotUsername = agency.TelegramBotUsername,
+            WebhookUrl = $"{Request.Scheme}://{Request.Host}/api/v1/telegram/webhook/{agencyId}"
+        }));
+    }
+
+    [HttpPut("bot")]
+    public async Task<ActionResult<ApiResponse<TelegramBotInfoDto>>> SetBot(
+        Guid agencyId, [FromBody] SetTelegramBotRequest request, CancellationToken ct)
+    {
+        var agency = await _context.Agencies.FirstOrDefaultAsync(a => a.Id == agencyId, ct);
+        if (agency == null) return NotFound();
+
+        if (!string.IsNullOrWhiteSpace(request.Token))
+            agency.TelegramBotToken = request.Token;
+        agency.TelegramBotUsername = request.BotUsername;
+
+        await _context.SaveChangesAsync(ct);
+
+        return Ok(ApiResponse<TelegramBotInfoDto>.Ok(new TelegramBotInfoDto
+        {
+            HasToken = !string.IsNullOrEmpty(agency.TelegramBotToken),
+            BotUsername = agency.TelegramBotUsername,
+            WebhookUrl = $"{Request.Scheme}://{Request.Host}/api/v1/telegram/webhook/{agencyId}"
+        }));
+    }
+
+    [HttpDelete("bot")]
+    public async Task<ActionResult> ClearBot(Guid agencyId, CancellationToken ct)
+    {
+        var agency = await _context.Agencies.FirstOrDefaultAsync(a => a.Id == agencyId, ct);
+        if (agency == null) return NotFound();
+
+        agency.TelegramBotToken = null;
+        agency.TelegramBotUsername = null;
+        await _context.SaveChangesAsync(ct);
+
+        return Ok(new { success = true });
+    }
+
+    // Per-project Telegram bot (optional override)
+    [HttpGet("project/{projectId:guid}/bot")]
+    public async Task<ActionResult<ApiResponse<TelegramBotInfoDto>>> GetProjectBot(
+        Guid agencyId, Guid projectId, CancellationToken ct)
+    {
+        var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id == projectId && p.AgencyId == agencyId, ct);
+        if (project == null) return NotFound();
+
+        return Ok(ApiResponse<TelegramBotInfoDto>.Ok(new TelegramBotInfoDto
+        {
+            HasToken = !string.IsNullOrEmpty(project.TelegramBotToken),
+            BotUsername = project.TelegramBotUsername,
+            WebhookUrl = $"{Request.Scheme}://{Request.Host}/api/v1/telegram/webhook/{agencyId}"
+        }));
+    }
+
+    [HttpPut("project/{projectId:guid}/bot")]
+    public async Task<ActionResult<ApiResponse<TelegramBotInfoDto>>> SetProjectBot(
+        Guid agencyId, Guid projectId, [FromBody] SetTelegramBotRequest request, CancellationToken ct)
+    {
+        var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id == projectId && p.AgencyId == agencyId, ct);
+        if (project == null) return NotFound();
+
+        if (!string.IsNullOrWhiteSpace(request.Token))
+            project.TelegramBotToken = request.Token;
+        project.TelegramBotUsername = request.BotUsername;
+
+        await _context.SaveChangesAsync(ct);
+
+        return Ok(ApiResponse<TelegramBotInfoDto>.Ok(new TelegramBotInfoDto
+        {
+            HasToken = !string.IsNullOrEmpty(project.TelegramBotToken),
+            BotUsername = project.TelegramBotUsername,
+            WebhookUrl = $"{Request.Scheme}://{Request.Host}/api/v1/telegram/webhook/{agencyId}"
+        }));
+    }
+
+    [HttpDelete("project/{projectId:guid}/bot")]
+    public async Task<ActionResult> ClearProjectBot(Guid agencyId, Guid projectId, CancellationToken ct)
+    {
+        var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id == projectId && p.AgencyId == agencyId, ct);
+        if (project == null) return NotFound();
+
+        project.TelegramBotToken = null;
+        project.TelegramBotUsername = null;
+        await _context.SaveChangesAsync(ct);
+
+        return Ok(new { success = true });
+    }
+
+    // Connected chats
     [HttpGet]
     public async Task<ActionResult<ApiResponse<List<TelegramConnectionDto>>>> GetConnections(
         Guid agencyId, CancellationToken ct)
@@ -32,6 +133,8 @@ public class TelegramController : ControllerBase
             .Select(c => new TelegramConnectionDto
             {
                 Id = c.Id,
+                ProjectId = c.ProjectId,
+                ProjectName = c.Project != null ? c.Project.Name : null,
                 ChatId = c.ChatId,
                 ChatTitle = c.ChatTitle,
                 Username = c.Username,
@@ -41,6 +144,8 @@ public class TelegramController : ControllerBase
                 AllowCommands = c.AllowCommands,
                 IsActive = c.IsActive
             })
+            .OrderBy(c => c.ProjectId == null ? 0 : 1)
+            .ThenBy(c => c.ProjectName)
             .ToListAsync(ct);
 
         return Ok(ApiResponse<List<TelegramConnectionDto>>.Ok(connections));
@@ -54,6 +159,7 @@ public class TelegramController : ControllerBase
         {
             TenantId = _tenantContext.TenantId,
             AgencyId = agencyId,
+            ProjectId = request.ProjectId,
             ChatId = request.ChatId,
             ChatTitle = request.ChatTitle,
             Username = request.Username,
@@ -67,13 +173,23 @@ public class TelegramController : ControllerBase
         _context.TelegramConnections.Add(connection);
         await _context.SaveChangesAsync(ct);
 
-        // Send welcome message
-        await _telegramBot.SendMessageAsync(request.ChatId,
+        await _telegramBot.SendMessageAsync(agencyId, request.ProjectId, request.ChatId,
             "<b>Connesso ad AI Marketing Agency!</b>\n\nRiceverai notifiche per questa agenzia.", ct);
+
+        string? projectName = null;
+        if (connection.ProjectId.HasValue)
+        {
+            projectName = await _context.Projects
+                .Where(p => p.Id == connection.ProjectId.Value)
+                .Select(p => p.Name)
+                .FirstOrDefaultAsync(ct);
+        }
 
         return Ok(ApiResponse<TelegramConnectionDto>.Ok(new TelegramConnectionDto
         {
             Id = connection.Id,
+            ProjectId = connection.ProjectId,
+            ProjectName = projectName,
             ChatId = connection.ChatId,
             ChatTitle = connection.ChatTitle,
             Username = connection.Username,
@@ -102,12 +218,62 @@ public class TelegramController : ControllerBase
     [HttpPost("test")]
     public async Task<ActionResult> TestMessage(Guid agencyId, CancellationToken ct)
     {
-        await _telegramBot.NotifyAgencyAsync(agencyId, "<b>Test</b>\n\nLa connessione Telegram funziona correttamente!", ct);
+        await _telegramBot.NotifyAgencyAsync(agencyId, null, "<b>Test</b>\n\nLa connessione Telegram funziona correttamente!", ct);
         return Ok(new { success = true });
+    }
+
+    [HttpPost("register-webhook")]
+    public async Task<ActionResult<ApiResponse<TelegramWebhookRegistrationDto>>> RegisterAgencyWebhook(
+        Guid agencyId, CancellationToken ct)
+    {
+        var agency = await _context.Agencies.FirstOrDefaultAsync(a => a.Id == agencyId, ct);
+        if (agency == null) return NotFound();
+        if (string.IsNullOrWhiteSpace(agency.TelegramBotToken))
+            return BadRequest(ApiResponse<TelegramWebhookRegistrationDto>.Fail("Token non configurato"));
+
+        var webhookUrl = $"{Request.Scheme}://{Request.Host}/api/v1/telegram/webhook/{agencyId}";
+        var result = await _telegramBot.RegisterWebhookAsync(agency.TelegramBotToken, webhookUrl, ct);
+        if (result.Ok && !string.IsNullOrWhiteSpace(result.BotUsername))
+        {
+            agency.TelegramBotUsername = result.BotUsername;
+            await _context.SaveChangesAsync(ct);
+        }
+        return Ok(ApiResponse<TelegramWebhookRegistrationDto>.Ok(new TelegramWebhookRegistrationDto
+        {
+            Ok = result.Ok,
+            Description = result.Description,
+            BotUsername = result.BotUsername,
+            WebhookUrl = webhookUrl
+        }));
+    }
+
+    [HttpPost("project/{projectId:guid}/register-webhook")]
+    public async Task<ActionResult<ApiResponse<TelegramWebhookRegistrationDto>>> RegisterProjectWebhook(
+        Guid agencyId, Guid projectId, CancellationToken ct)
+    {
+        var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id == projectId && p.AgencyId == agencyId, ct);
+        if (project == null) return NotFound();
+        if (string.IsNullOrWhiteSpace(project.TelegramBotToken))
+            return BadRequest(ApiResponse<TelegramWebhookRegistrationDto>.Fail("Token di progetto non configurato"));
+
+        var webhookUrl = $"{Request.Scheme}://{Request.Host}/api/v1/telegram/webhook/{agencyId}";
+        var result = await _telegramBot.RegisterWebhookAsync(project.TelegramBotToken, webhookUrl, ct);
+        if (result.Ok && !string.IsNullOrWhiteSpace(result.BotUsername))
+        {
+            project.TelegramBotUsername = result.BotUsername;
+            await _context.SaveChangesAsync(ct);
+        }
+        return Ok(ApiResponse<TelegramWebhookRegistrationDto>.Ok(new TelegramWebhookRegistrationDto
+        {
+            Ok = result.Ok,
+            Description = result.Description,
+            BotUsername = result.BotUsername,
+            WebhookUrl = webhookUrl
+        }));
     }
 }
 
-// Webhook endpoint for Telegram bot updates (unauthenticated)
+// Webhook endpoint for Telegram bot updates (unauthenticated, per-agency route)
 [ApiController]
 [Route("api/v1/telegram/webhook")]
 public class TelegramWebhookController : ControllerBase
@@ -123,17 +289,17 @@ public class TelegramWebhookController : ControllerBase
         _logger = logger;
     }
 
-    [HttpPost]
-    public async Task<ActionResult> HandleUpdate([FromBody] TelegramUpdate update, CancellationToken ct)
+    [HttpPost("{agencyId:guid}")]
+    public async Task<ActionResult> HandleUpdate(
+        Guid agencyId, [FromBody] TelegramUpdate update, CancellationToken ct)
     {
         if (update?.Message?.Text == null) return Ok();
 
         var chatId = update.Message.Chat.Id;
         var text = update.Message.Text;
 
-        _logger.LogInformation("Telegram update from chat {ChatId}: {Text}", chatId, text);
+        _logger.LogInformation("Telegram update for agency {AgencyId} from chat {ChatId}: {Text}", agencyId, chatId, text);
 
-        // Handle commands
         if (text.StartsWith("/approve_"))
         {
             var contentIdStr = text.Replace("/approve_", "");
@@ -141,14 +307,14 @@ public class TelegramWebhookController : ControllerBase
             {
                 var content = await _context.GeneratedContents
                     .IgnoreQueryFilters()
-                    .FirstOrDefaultAsync(c => c.Id == contentId, ct);
+                    .FirstOrDefaultAsync(c => c.Id == contentId && c.AgencyId == agencyId, ct);
 
                 if (content != null && content.Status == Domain.Enums.ContentStatus.InReview)
                 {
                     content.Status = Domain.Enums.ContentStatus.Approved;
                     content.ApprovedAt = DateTime.UtcNow;
                     await _context.SaveChangesAsync(ct);
-                    await _telegramBot.SendMessageAsync(chatId, $"Contenuto '<b>{content.Title}</b>' approvato!", ct);
+                    await _telegramBot.SendMessageAsync(agencyId, content.ProjectId, chatId, $"Contenuto '<b>{content.Title}</b>' approvato!", ct);
                 }
             }
         }
@@ -159,31 +325,24 @@ public class TelegramWebhookController : ControllerBase
             {
                 var content = await _context.GeneratedContents
                     .IgnoreQueryFilters()
-                    .FirstOrDefaultAsync(c => c.Id == contentId, ct);
+                    .FirstOrDefaultAsync(c => c.Id == contentId && c.AgencyId == agencyId, ct);
 
                 if (content != null && content.Status == Domain.Enums.ContentStatus.InReview)
                 {
                     content.Status = Domain.Enums.ContentStatus.Rejected;
                     await _context.SaveChangesAsync(ct);
-                    await _telegramBot.SendMessageAsync(chatId, $"Contenuto '<b>{content.Title}</b>' rifiutato.", ct);
+                    await _telegramBot.SendMessageAsync(agencyId, content.ProjectId, chatId, $"Contenuto '<b>{content.Title}</b>' rifiutato.", ct);
                 }
             }
         }
         else if (text == "/status")
         {
-            var connection = await _context.TelegramConnections
+            var pendingCount = await _context.GeneratedContents
                 .IgnoreQueryFilters()
-                .FirstOrDefaultAsync(c => c.ChatId == chatId && c.IsActive, ct);
+                .CountAsync(c => c.AgencyId == agencyId && c.Status == Domain.Enums.ContentStatus.InReview, ct);
 
-            if (connection != null)
-            {
-                var pendingCount = await _context.GeneratedContents
-                    .IgnoreQueryFilters()
-                    .CountAsync(c => c.AgencyId == connection.AgencyId && c.Status == Domain.Enums.ContentStatus.InReview, ct);
-
-                await _telegramBot.SendMessageAsync(chatId,
-                    $"<b>Status Agenzia</b>\n\nContenuti in attesa di approvazione: {pendingCount}", ct);
-            }
+            await _telegramBot.SendMessageAsync(agencyId, null, chatId,
+                $"<b>Status Agenzia</b>\n\nContenuti in attesa di approvazione: {pendingCount}", ct);
         }
 
         return Ok();
@@ -223,14 +382,34 @@ public record ConnectTelegramRequest(
     long ChatId,
     string? ChatTitle,
     string? Username,
+    Guid? ProjectId = null,
     bool NotifyOnContentGenerated = true,
     bool NotifyOnApprovalNeeded = true,
     bool NotifyOnPublished = true,
     bool AllowCommands = true);
 
+public record SetTelegramBotRequest(string? Token, string? BotUsername);
+
+public class TelegramBotInfoDto
+{
+    public bool HasToken { get; set; }
+    public string? BotUsername { get; set; }
+    public string WebhookUrl { get; set; } = string.Empty;
+}
+
+public class TelegramWebhookRegistrationDto
+{
+    public bool Ok { get; set; }
+    public string? Description { get; set; }
+    public string? BotUsername { get; set; }
+    public string WebhookUrl { get; set; } = string.Empty;
+}
+
 public class TelegramConnectionDto
 {
     public Guid Id { get; set; }
+    public Guid? ProjectId { get; set; }
+    public string? ProjectName { get; set; }
     public long ChatId { get; set; }
     public string? ChatTitle { get; set; }
     public string? Username { get; set; }

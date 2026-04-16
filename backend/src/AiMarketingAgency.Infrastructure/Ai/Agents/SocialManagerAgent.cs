@@ -21,16 +21,36 @@ public class SocialManagerAgent : IMarketingAgent
     {
         var chatCompletion = context.Kernel.GetRequiredService<IChatCompletionService>();
         var agency = context.Agency;
-        var brandVoice = agency.BrandVoice;
-        var targetAudience = agency.TargetAudience;
+        var project = context.Project;
+        var brandVoice = project?.BrandVoice ?? agency.BrandVoice;
+        var targetAudience = project?.TargetAudience ?? agency.TargetAudience;
+        var productName = project?.Name ?? agency.ProductName;
+        var projectContextBlock = !string.IsNullOrWhiteSpace(project?.ExtractedContext)
+            ? $"\nPROJECT CONTEXT (from website):\n{project!.ExtractedContext}\n"
+            : string.Empty;
 
-        var platforms = new[]
+        var allPlatforms = new[]
         {
-            (Platform: SocialPlatform.Twitter, Name: "Twitter/X", MaxLength: 280, ToneHint: "concise, punchy, use hashtags"),
-            (Platform: SocialPlatform.LinkedIn, Name: "LinkedIn", MaxLength: 3000, ToneHint: "professional, insightful, thought-leadership"),
-            (Platform: SocialPlatform.Instagram, Name: "Instagram", MaxLength: 2200, ToneHint: "visual-oriented, casual, use emojis and hashtags"),
-            (Platform: SocialPlatform.Facebook, Name: "Facebook", MaxLength: 5000, ToneHint: "conversational, engaging, encourage comments"),
+            (Platform: SocialPlatform.Twitter, Name: "Twitter/X", Tag: "TWITTER", MaxLength: 280, ToneHint: "concise, punchy, use hashtags"),
+            (Platform: SocialPlatform.LinkedIn, Name: "LinkedIn", Tag: "LINKEDIN", MaxLength: 3000, ToneHint: "professional, insightful, thought-leadership"),
+            (Platform: SocialPlatform.Instagram, Name: "Instagram", Tag: "INSTAGRAM", MaxLength: 2200, ToneHint: "visual-oriented, casual, use emojis and hashtags"),
+            (Platform: SocialPlatform.Facebook, Name: "Facebook", Tag: "FACEBOOK", MaxLength: 5000, ToneHint: "conversational, engaging, encourage comments"),
         };
+
+        // Filter platforms according to schedule > project preference (null/empty = all)
+        var platformPref = !string.IsNullOrWhiteSpace(context.Schedule?.EnabledSocialPlatforms)
+            ? context.Schedule!.EnabledSocialPlatforms
+            : project?.EnabledSocialPlatforms;
+        var enabledPrefs = !string.IsNullOrWhiteSpace(platformPref)
+            ? platformPref!
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(s => s.ToUpperInvariant())
+                .ToHashSet()
+            : null;
+        var platforms = enabledPrefs == null
+            ? allPlatforms
+            : allPlatforms.Where(p => enabledPrefs.Contains(p.Tag) || enabledPrefs.Contains(p.Platform.ToString().ToUpperInvariant())).ToArray();
+        if (platforms.Length == 0) platforms = allPlatforms; // safety fallback
 
         var sourcesContext = string.Join("\n", context.Sources.Select(s =>
             $"- [{s.Name ?? s.Type.ToString()}] {s.Url}"));
@@ -38,9 +58,33 @@ public class SocialManagerAgent : IMarketingAgent
         var platformDescriptions = string.Join("\n", platforms.Select(p =>
             $"- {p.Name}: max {p.MaxLength} chars, tone: {p.ToneHint}"));
 
-        var generatePrompt = $"""
-            You are an expert social media manager for "{agency.ProductName}".
+        var platformFormatBlocks = string.Join("\n\n", platforms.Select(p =>
+            $"[{p.Tag}]\nTITLE: [short descriptive title]\nPOST: [post content]\n[/{p.Tag}]"));
 
+        var projectUrl = project?.WebsiteUrl ?? agency.WebsiteUrl;
+        var ctaRule = !string.IsNullOrWhiteSpace(projectUrl)
+            ? $"If the post includes a call-to-action link, use EXACTLY this URL: {projectUrl}. NEVER write placeholder text like [Link Demo], [link], [URL], [tuo link], [website]. Either write the real URL or omit the link entirely."
+            : "Do NOT include any placeholder text like [Link Demo], [link], [URL], [tuo link], [website] or similar brackets. Either write a real URL or omit the link entirely.";
+
+        string generatePrompt;
+        if (!string.IsNullOrWhiteSpace(project?.SocialPromptTemplate))
+        {
+            generatePrompt = project!.SocialPromptTemplate!
+                .Replace("{product}", productName)
+                .Replace("{brandVoice}", $"{brandVoice.Tone}, {brandVoice.Style}, language {brandVoice.Language}")
+                .Replace("{audience}", targetAudience.Description)
+                .Replace("{projectContext}", project.ExtractedContext ?? string.Empty)
+                .Replace("{sources}", sourcesContext)
+                .Replace("{task}", context.Input ?? "Crea post social rilevanti per il dominio specifico del progetto.")
+                + $"\n\nCTA / LINK RULE: {ctaRule}"
+                + $"\n\nGenerate ONLY for the following platforms:\n{platformDescriptions}"
+                + $"\n\nFORMAT YOUR RESPONSE EXACTLY AS:\n{platformFormatBlocks}";
+        }
+        else
+        {
+        generatePrompt = $"""
+            You are an expert social media manager for "{productName}".
+            {projectContextBlock}
             BRAND VOICE:
             - Tone: {brandVoice.Tone}
             - Style: {brandVoice.Style}
@@ -56,41 +100,33 @@ public class SocialManagerAgent : IMarketingAgent
             CONTENT SOURCES (for context and inspiration):
             {sourcesContext}
 
-            TASK: {context.Input ?? "Create engaging social media posts about a relevant topic for our audience."}
+            TASK: {context.Input ?? "Create engaging social media posts about a relevant topic for our audience. Stay strictly within the project's actual domain — do NOT write generic marketing content."}
 
-            Generate ONE post for EACH of the following platforms, adapting tone and length:
+            CTA / LINK RULE: {ctaRule}
+
+            Ground every post in the PROJECT CONTEXT above when available. Do not invent features or topics outside the project's actual scope.
+
+            Generate ONE post for EACH of the following platforms (and ONLY these), adapting tone and length:
             {platformDescriptions}
 
             FORMAT YOUR RESPONSE EXACTLY AS:
-            [TWITTER]
-            TITLE: [short descriptive title]
-            POST: [post content]
-            [/TWITTER]
-
-            [LINKEDIN]
-            TITLE: [short descriptive title]
-            POST: [post content]
-            [/LINKEDIN]
-
-            [INSTAGRAM]
-            TITLE: [short descriptive title]
-            POST: [post content]
-            [/INSTAGRAM]
-
-            [FACEBOOK]
-            TITLE: [short descriptive title]
-            POST: [post content]
-            [/FACEBOOK]
+            {platformFormatBlocks}
             """;
+        }
 
-        _logger.LogInformation("Generating social media posts for agency {AgencyId}", agency.Id);
+        _logger.LogInformation(
+            "Generating social media posts for agency {AgencyId}, enabled platforms: [{Platforms}] (project pref: '{Pref}')",
+            agency.Id,
+            string.Join(",", platforms.Select(p => p.Tag)),
+            project?.EnabledSocialPlatforms ?? "(null)");
 
         var chatHistory = new ChatHistory();
         chatHistory.AddUserMessage(generatePrompt);
         var generatedResponse = await chatCompletion.GetChatMessageContentAsync(chatHistory, cancellationToken: ct);
         var generatedText = generatedResponse.Content ?? string.Empty;
 
-        var posts = ParsePlatformPosts(generatedText);
+        var enabledTags = platforms.Select(p => p.Tag).ToArray();
+        var posts = ParsePlatformPosts(generatedText, enabledTags);
         var results = new List<GeneratedContentResult>();
 
         // Score each post
@@ -141,12 +177,11 @@ public class SocialManagerAgent : IMarketingAgent
             Contents: results);
     }
 
-    private static List<(string Platform, string Title, string Body)> ParsePlatformPosts(string text)
+    private static List<(string Platform, string Title, string Body)> ParsePlatformPosts(string text, string[] enabledTags)
     {
         var results = new List<(string, string, string)>();
-        var platformTags = new[] { "TWITTER", "LINKEDIN", "INSTAGRAM", "FACEBOOK" };
 
-        foreach (var tag in platformTags)
+        foreach (var tag in enabledTags)
         {
             var startMarker = $"[{tag}]";
             var endMarker = $"[/{tag}]";

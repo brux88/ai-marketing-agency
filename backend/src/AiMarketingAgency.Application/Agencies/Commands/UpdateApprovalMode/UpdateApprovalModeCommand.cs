@@ -3,4 +3,4 @@ using MediatR;
 
 namespace AiMarketingAgency.Application.Agencies.Commands.UpdateApprovalMode;
 
-public record UpdateApprovalModeCommand(Guid AgencyId, ApprovalMode ApprovalMode, int AutoApproveMinScore) : IRequest;
+public record UpdateApprovalModeCommand(Guid AgencyId, ApprovalMode ApprovalMode, int AutoApproveMinScore, bool AutoScheduleOnApproval = true) : IRequest;

@@ -3,13 +3,15 @@
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
-import type { ApiResponse, GeneratedContent } from "@/types/api";
+import { schedulesApi } from "@/lib/api/schedules.api";
+import type { ApiResponse, GeneratedContent, ContentSchedule } from "@/types/api";
+import { DayOfWeekFlag } from "@/types/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
-import { useState } from "react";
+import { ChevronLeft, ChevronRight, CalendarDays, Clock } from "lucide-react";
+import { useState, useMemo } from "react";
 
 const DAYS = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"];
 const MONTHS = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"];
@@ -39,6 +41,31 @@ function isSameDay(a: Date, b: Date) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
 
+// Map JS getDay() (0=Sun..6=Sat) to server DayOfWeekFlag
+function dayFlagForDate(date: Date): number {
+  const map = [
+    DayOfWeekFlag.Sunday,
+    DayOfWeekFlag.Monday,
+    DayOfWeekFlag.Tuesday,
+    DayOfWeekFlag.Wednesday,
+    DayOfWeekFlag.Thursday,
+    DayOfWeekFlag.Friday,
+    DayOfWeekFlag.Saturday,
+  ];
+  return map[date.getDay()];
+}
+
+const projectPalette = [
+  "bg-blue-500", "bg-emerald-500", "bg-violet-500", "bg-orange-500",
+  "bg-pink-500", "bg-cyan-500", "bg-amber-500", "bg-rose-500",
+];
+
+function colorForProject(projectId: string | null | undefined, projectIndex: Map<string, number>): string {
+  const key = projectId || "__agency__";
+  if (!projectIndex.has(key)) projectIndex.set(key, projectIndex.size);
+  return projectPalette[projectIndex.get(key)! % projectPalette.length];
+}
+
 export default function CalendarPage() {
   const { agencyId } = useParams();
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -54,12 +81,25 @@ export default function CalendarPage() {
     queryFn: () => apiClient.get<ApiResponse<GeneratedContent[]>>(`/api/v1/agencies/${agencyId}/content`),
   });
 
+  const { data: schedulesRes } = useQuery({
+    queryKey: ["schedules", agencyId],
+    queryFn: () => schedulesApi.list(agencyId as string),
+  });
+
   const contents = data?.data || [];
+  const schedules = (schedulesRes?.data || []) as ContentSchedule[];
+  const projectIndex = useMemo(() => new Map<string, number>(), [schedules.length]);
 
   const getContentsForDate = (date: Date) =>
     contents.filter((c) => isSameDay(new Date(c.createdAt), date));
 
+  const getSchedulesForDate = (date: Date) => {
+    const flag = dayFlagForDate(date);
+    return schedules.filter((s) => s.isActive && (s.days & flag) !== 0);
+  };
+
   const selectedContents = selectedDate ? getContentsForDate(selectedDate) : [];
+  const selectedSchedules = selectedDate ? getSchedulesForDate(selectedDate) : [];
 
   const prevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
   const nextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
@@ -109,15 +149,16 @@ export default function CalendarPage() {
           ) : (
             <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden">
               {days.map((date, i) => {
-                if (!date) return <div key={i} className="h-24 bg-muted/20" />;
+                if (!date) return <div key={i} className="h-28 bg-muted/20" />;
                 const dayContents = getContentsForDate(date);
+                const daySchedules = getSchedulesForDate(date);
                 const isToday = isSameDay(date, today);
                 const isSelected = selectedDate && isSameDay(date, selectedDate);
                 const isWeekend = date.getDay() === 0 || date.getDay() === 6;
                 return (
                   <div
                     key={i}
-                    className={`h-24 p-1.5 cursor-pointer transition-colors ${
+                    className={`h-28 p-1.5 cursor-pointer transition-colors ${
                       isSelected ? "bg-primary/10 ring-2 ring-primary" :
                       isToday ? "bg-blue-50 dark:bg-blue-950/30" :
                       isWeekend ? "bg-muted/30" : "bg-background"
@@ -130,14 +171,23 @@ export default function CalendarPage() {
                       {date.getDate()}
                     </div>
                     <div className="space-y-0.5 overflow-hidden">
-                      {dayContents.slice(0, 3).map((c) => (
+                      {daySchedules.slice(0, 2).map((s) => (
+                        <div key={s.id} className="flex items-center gap-1" title={`${s.name} · ${s.timeOfDay}`}>
+                          <div className={`size-1.5 rounded-full shrink-0 ${colorForProject(s.projectId, projectIndex)}`} />
+                          <span className="text-[10px] truncate">{s.timeOfDay} {s.name}</span>
+                        </div>
+                      ))}
+                      {daySchedules.length > 2 && (
+                        <span className="text-[10px] text-muted-foreground">+{daySchedules.length - 2} sched.</span>
+                      )}
+                      {dayContents.slice(0, 1).map((c) => (
                         <div key={c.id} className="flex items-center gap-1">
                           <div className={`size-1.5 rounded-full shrink-0 ${contentTypeColors[c.contentType] || "bg-gray-400"}`} />
                           <span className="text-[10px] truncate">{c.title}</span>
                         </div>
                       ))}
-                      {dayContents.length > 3 && (
-                        <span className="text-[10px] text-muted-foreground">+{dayContents.length - 3} altri</span>
+                      {dayContents.length > 1 && (
+                        <span className="text-[10px] text-muted-foreground">+{dayContents.length - 1} contenuti</span>
                       )}
                     </div>
                   </div>
@@ -150,37 +200,69 @@ export default function CalendarPage() {
 
       {/* Selected date details */}
       {selectedDate && (
-        <Card>
-          <CardContent className="pt-6">
-            <h3 className="font-semibold mb-3">
-              {selectedDate.getDate()} {MONTHS[selectedDate.getMonth()]} {selectedDate.getFullYear()}
-              <span className="text-muted-foreground font-normal ml-2">
-                ({selectedContents.length} contenuti)
-              </span>
-            </h3>
-            {selectedContents.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <CalendarDays className="size-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">Nessun contenuto per questa data</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {selectedContents.map((c) => (
-                  <div key={c.id} className="flex items-center justify-between p-3 rounded-lg border">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className={`size-2 rounded-full ${statusColors[c.status]}`} />
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{c.title}</p>
-                        <p className="text-xs text-muted-foreground">Score: {c.overallScore}/10</p>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <Card>
+            <CardContent className="pt-6">
+              <h3 className="font-semibold mb-3 flex items-center gap-2">
+                <Clock className="size-4" />
+                Programmazioni ({selectedSchedules.length})
+              </h3>
+              {selectedSchedules.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Clock className="size-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">Nessuna programmazione attiva</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {selectedSchedules.map((s) => (
+                    <div key={s.id} className="flex items-center justify-between p-3 rounded-lg border">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`size-2 rounded-full shrink-0 ${colorForProject(s.projectId, projectIndex)}`} />
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{s.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {s.timeOfDay} · {s.projectName || "Agenzia"}
+                          </p>
+                        </div>
                       </div>
+                      <Badge variant="outline">{s.timeOfDay}</Badge>
                     </div>
-                    <Badge variant="outline">{contentTypeLabels[c.contentType] || "Altro"}</Badge>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-6">
+              <h3 className="font-semibold mb-3 flex items-center gap-2">
+                <CalendarDays className="size-4" />
+                Contenuti ({selectedContents.length})
+              </h3>
+              {selectedContents.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <CalendarDays className="size-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">Nessun contenuto</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {selectedContents.map((c) => (
+                    <div key={c.id} className="flex items-center justify-between p-3 rounded-lg border">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`size-2 rounded-full ${statusColors[c.status]}`} />
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{c.title}</p>
+                          <p className="text-xs text-muted-foreground">Score: {c.overallScore}/10</p>
+                        </div>
+                      </div>
+                      <Badge variant="outline">{contentTypeLabels[c.contentType] || "Altro"}</Badge>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       )}
     </div>
   );
