@@ -26,6 +26,7 @@ public class GeneratedContent : BaseEntity, ITenantScoped
     public decimal? AiGenerationCostUsd { get; set; }
     public decimal? AiImageCostUsd { get; set; }
     public string? ImageUrl { get; set; }
+    public string? OriginalImageUrl { get; set; }
     public string? ImagePrompt { get; set; }
     public string? ImageUrls { get; set; } // JSON array for carousel
     public string? VideoUrl { get; set; }

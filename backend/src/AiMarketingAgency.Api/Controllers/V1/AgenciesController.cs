@@ -139,7 +139,7 @@ public class AgenciesController : ControllerBase
         var agency = await _context.Agencies.FirstOrDefaultAsync(a => a.Id == id, ct);
         if (agency == null) return NotFound();
 
-        const string adminPassword = "admin2026!";
+        const string adminPassword = "Test123!";
         if (request.Password != adminPassword)
             return BadRequest(ApiResponse<object>.Fail("Password admin non valida."));
 

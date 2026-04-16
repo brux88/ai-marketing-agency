@@ -134,6 +134,7 @@ public class AgentJobProcessor : IAgentJobProcessor
             foreach (var content in result.Contents)
             {
                 string? imageUrl = content.ImageUrl;
+                string? originalImageUrl = null;
                 string? imagePrompt = content.ImagePrompt;
                 List<string>? imageUrls = null;
                 decimal? imageCost = null;
@@ -205,6 +206,7 @@ public class AgentJobProcessor : IAgentJobProcessor
                             if (i == 0)
                             {
                                 imageUrl = finalUrl;
+                                originalImageUrl = imageResult.ImageUrl;
                                 imagePrompt = imageResult.RevisedPrompt;
                             }
                         }
@@ -267,6 +269,7 @@ public class AgentJobProcessor : IAgentJobProcessor
                     OverallScore = content.OverallScore,
                     ScoreExplanation = content.ScoreExplanation,
                     ImageUrl = imageUrl,
+                    OriginalImageUrl = originalImageUrl,
                     ImagePrompt = imagePrompt,
                     ImageUrls = imageUrls != null ? JsonSerializer.Serialize(imageUrls) : null,
                     VideoUrl = videoUrl,

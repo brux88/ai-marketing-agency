@@ -50,12 +50,14 @@ public static class CalendarAutoScheduler
             foreach (var platform in platforms)
             {
                 var alreadyScheduled = await context.CalendarEntries
+                    .IgnoreQueryFilters()
                     .AnyAsync(e => e.ContentId == content.Id
                                    && e.Platform == platform
                                    && e.Status != CalendarEntryStatus.Failed, ct);
                 if (alreadyScheduled) continue;
 
                 var scheduledCountForPlatform = await context.CalendarEntries
+                    .IgnoreQueryFilters()
                     .CountAsync(e => e.AgencyId == content.AgencyId
                                      && e.Platform == platform
                                      && e.Status == CalendarEntryStatus.Scheduled, ct);
@@ -79,6 +81,7 @@ public static class CalendarAutoScheduler
         else if (content.ContentType == ContentType.Newsletter)
         {
             var alreadyScheduled = await context.CalendarEntries
+                .IgnoreQueryFilters()
                 .AnyAsync(e => e.ContentId == content.Id
                                && e.Platform == null
                                && e.Status != CalendarEntryStatus.Failed, ct);

@@ -49,21 +49,25 @@ public class ImageOverlayService : IImageOverlayService
             _ => new Point(sourceImage.Width - targetLogoWidth - padding, sourceImage.Height - targetLogoHeight - padding)
         };
 
-        var pillPadding = (int)(targetLogoWidth * 0.15);
-        var cornerRadius = Math.Max(8, pillPadding);
-        var pillPath = BuildRoundedRect(
-            point.X - pillPadding,
-            point.Y - pillPadding,
-            targetLogoWidth + pillPadding * 2,
-            targetLogoHeight + pillPadding * 2,
-            cornerRadius);
+        var ovalPaddingX = (int)(targetLogoWidth * 0.25);
+        var ovalPaddingY = (int)(targetLogoHeight * 0.35);
+        var centerX = point.X + targetLogoWidth / 2f;
+        var centerY = point.Y + targetLogoHeight / 2f;
+        var radiusX = targetLogoWidth / 2f + ovalPaddingX;
+        var radiusY = targetLogoHeight / 2f + ovalPaddingY;
+        var ovalPath = new EllipsePolygon(centerX, centerY, radiusX, radiusY);
 
         var avgBrightness = SampleAverageBrightness(sourceImage, point, targetLogoWidth, targetLogoHeight);
-        var pillColor = avgBrightness > 128
-            ? new Rgba32(0, 0, 0, 120)
-            : new Rgba32(255, 255, 255, 120);
+        var ovalColor = avgBrightness > 128
+            ? new Rgba32(0, 0, 0, 100)
+            : new Rgba32(255, 255, 255, 100);
 
-        sourceImage.Mutate(x => x.Fill(pillColor, pillPath));
+        // Draw blurred oval glow behind logo
+        using var glowLayer = new Image<Rgba32>(sourceImage.Width, sourceImage.Height, new Rgba32(0, 0, 0, 0));
+        glowLayer.Mutate(x => x.Fill(ovalColor, ovalPath));
+        glowLayer.Mutate(x => x.GaussianBlur(12));
+        sourceImage.Mutate(x => x.DrawImage(glowLayer, new Point(0, 0), 1f));
+
         sourceImage.Mutate(x => x.DrawImage(logoImage, point, 1f));
 
         return await SaveOverlayResult(sourceImage, ct);

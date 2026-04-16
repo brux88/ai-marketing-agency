@@ -83,6 +83,8 @@ public class MetaPublisher : ISocialPublishingService
         };
 
         var resolvedIgImageUrl = ResolveAbsoluteImageUrl(content.ImageUrl);
+        if (string.IsNullOrEmpty(resolvedIgImageUrl) && !string.IsNullOrEmpty(content.OriginalImageUrl))
+            resolvedIgImageUrl = ResolveAbsoluteImageUrl(content.OriginalImageUrl);
         if (string.IsNullOrEmpty(resolvedIgImageUrl))
         {
             return new PublishResult(false, null, null,
