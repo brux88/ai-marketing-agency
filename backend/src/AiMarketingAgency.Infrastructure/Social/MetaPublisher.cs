@@ -83,6 +83,15 @@ public class MetaPublisher : ISocialPublishingService
         };
 
         var resolvedIgImageUrl = ResolveAbsoluteImageUrl(content.ImageUrl);
+        if (string.IsNullOrEmpty(resolvedIgImageUrl) && !string.IsNullOrEmpty(content.ImageUrl))
+        {
+            var localPath = ResolveLocalImagePath(content.ImageUrl);
+            if (localPath != null && File.Exists(localPath))
+            {
+                _logger?.LogInformation("Instagram: overlay image is local, uploading to Facebook to get public URL");
+                resolvedIgImageUrl = await UploadToFacebookForUrlAsync(accessToken, localPath, ct);
+            }
+        }
         if (string.IsNullOrEmpty(resolvedIgImageUrl) && !string.IsNullOrEmpty(content.OriginalImageUrl))
             resolvedIgImageUrl = ResolveAbsoluteImageUrl(content.OriginalImageUrl);
         if (string.IsNullOrEmpty(resolvedIgImageUrl))
@@ -194,6 +203,60 @@ public class MetaPublisher : ISocialPublishingService
         using var doc = JsonDocument.Parse(responseBody);
         var postId = doc.RootElement.GetProperty("id").GetString();
         return new PublishResult(true, postId, $"https://www.facebook.com/{postId}", null);
+    }
+
+    private async Task<string?> UploadToFacebookForUrlAsync(string accessToken, string localPath, CancellationToken ct)
+    {
+        try
+        {
+            var meResp = await _httpClient.GetAsync($"https://graph.facebook.com/v19.0/me?fields=id&access_token={accessToken}", ct);
+            var meBody = await meResp.Content.ReadAsStringAsync(ct);
+            if (!meResp.IsSuccessStatusCode) return null;
+
+            using var meDoc = JsonDocument.Parse(meBody);
+            var pageId = meDoc.RootElement.GetProperty("id").GetString();
+            if (string.IsNullOrEmpty(pageId)) return null;
+
+            var url = $"https://graph.facebook.com/v19.0/{pageId}/photos";
+            using var form = new MultipartFormDataContent();
+            form.Add(new StringContent(accessToken), "access_token");
+            form.Add(new StringContent("false"), "published");
+
+            var imageBytes = await File.ReadAllBytesAsync(localPath, ct);
+            var imageContent = new ByteArrayContent(imageBytes);
+            imageContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("image/png");
+            form.Add(imageContent, "source", System.IO.Path.GetFileName(localPath));
+
+            var uploadResp = await _httpClient.PostAsync(url, form, ct);
+            var uploadBody = await uploadResp.Content.ReadAsStringAsync(ct);
+            if (!uploadResp.IsSuccessStatusCode)
+            {
+                _logger?.LogWarning("Failed to upload overlay to Facebook for Instagram URL: {Body}", uploadBody);
+                return null;
+            }
+
+            using var uploadDoc = JsonDocument.Parse(uploadBody);
+            var photoId = uploadDoc.RootElement.GetProperty("id").GetString();
+
+            var imgResp = await _httpClient.GetAsync(
+                $"https://graph.facebook.com/v19.0/{photoId}?fields=images&access_token={accessToken}", ct);
+            var imgBody = await imgResp.Content.ReadAsStringAsync(ct);
+            if (!imgResp.IsSuccessStatusCode) return null;
+
+            using var imgDoc = JsonDocument.Parse(imgBody);
+            if (imgDoc.RootElement.TryGetProperty("images", out var images) && images.GetArrayLength() > 0)
+            {
+                var largest = images[0];
+                var sourceUrl = largest.GetProperty("source").GetString();
+                _logger?.LogInformation("Uploaded overlay to Facebook, got public URL for Instagram: {Url}", sourceUrl);
+                return sourceUrl;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to upload overlay image to Facebook for Instagram");
+        }
+        return null;
     }
 
     private async Task<(bool Ready, string? Error)> WaitForContainerReadyAsync(

@@ -49,8 +49,8 @@ public class ImageOverlayService : IImageOverlayService
             _ => new Point(sourceImage.Width - targetLogoWidth - padding, sourceImage.Height - targetLogoHeight - padding)
         };
 
-        var ovalPaddingX = (int)(targetLogoWidth * 0.25);
-        var ovalPaddingY = (int)(targetLogoHeight * 0.35);
+        var ovalPaddingX = (int)(targetLogoWidth * 0.35);
+        var ovalPaddingY = (int)(targetLogoHeight * 0.45);
         var centerX = point.X + targetLogoWidth / 2f;
         var centerY = point.Y + targetLogoHeight / 2f;
         var radiusX = targetLogoWidth / 2f + ovalPaddingX;
@@ -58,15 +58,22 @@ public class ImageOverlayService : IImageOverlayService
         var ovalPath = new EllipsePolygon(centerX, centerY, radiusX, radiusY);
 
         var avgBrightness = SampleAverageBrightness(sourceImage, point, targetLogoWidth, targetLogoHeight);
-        var ovalColor = avgBrightness > 128
-            ? new Rgba32(0, 0, 0, 100)
-            : new Rgba32(255, 255, 255, 100);
+        var isDark = avgBrightness <= 128;
 
-        // Draw blurred oval glow behind logo
+        // Outer soft glow
         using var glowLayer = new Image<Rgba32>(sourceImage.Width, sourceImage.Height, new Rgba32(0, 0, 0, 0));
-        glowLayer.Mutate(x => x.Fill(ovalColor, ovalPath));
-        glowLayer.Mutate(x => x.GaussianBlur(12));
+        var outerColor = isDark ? new Rgba32(255, 255, 255, 200) : new Rgba32(0, 0, 0, 200);
+        glowLayer.Mutate(x => x.Fill(outerColor, ovalPath));
+        glowLayer.Mutate(x => x.GaussianBlur(20));
         sourceImage.Mutate(x => x.DrawImage(glowLayer, new Point(0, 0), 1f));
+
+        // Inner solid pill for strong contrast
+        var innerPath = new EllipsePolygon(centerX, centerY, radiusX * 0.8f, radiusY * 0.8f);
+        using var pillLayer = new Image<Rgba32>(sourceImage.Width, sourceImage.Height, new Rgba32(0, 0, 0, 0));
+        var pillColor = isDark ? new Rgba32(255, 255, 255, 220) : new Rgba32(0, 0, 0, 220);
+        pillLayer.Mutate(x => x.Fill(pillColor, innerPath));
+        pillLayer.Mutate(x => x.GaussianBlur(6));
+        sourceImage.Mutate(x => x.DrawImage(pillLayer, new Point(0, 0), 0.85f));
 
         sourceImage.Mutate(x => x.DrawImage(logoImage, point, 1f));
 
