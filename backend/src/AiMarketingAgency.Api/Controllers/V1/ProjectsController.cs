@@ -22,11 +22,13 @@ public class ProjectsController : ControllerBase
 {
     private readonly IMediator _mediator;
     private readonly IAppDbContext _context;
+    private readonly IConfiguration _configuration;
 
-    public ProjectsController(IMediator mediator, IAppDbContext context)
+    public ProjectsController(IMediator mediator, IAppDbContext context, IConfiguration configuration)
     {
         _mediator = mediator;
         _context = context;
+        _configuration = configuration;
     }
 
     [HttpGet]
@@ -84,8 +86,15 @@ public class ProjectsController : ControllerBase
     }
 
     [HttpDelete("{projectId:guid}")]
-    public async Task<ActionResult<ApiResponse<object>>> Delete(Guid agencyId, Guid projectId, CancellationToken ct)
+    public async Task<ActionResult<ApiResponse<object>>> Delete(
+        Guid agencyId, Guid projectId,
+        [FromQuery] string? password,
+        CancellationToken ct)
     {
+        var adminPwd = _configuration["AdminPassword"] ?? "Admin123!";
+        if (string.IsNullOrEmpty(password) || password != adminPwd)
+            return BadRequest(ApiResponse<object>.Fail("Password admin richiesta per eliminare un progetto."));
+
         await _mediator.Send(new DeleteProjectCommand(agencyId, projectId), ct);
         return Ok(ApiResponse<object>.Ok(null));
     }
@@ -137,6 +146,24 @@ public class ProjectsController : ControllerBase
         if (project == null) return NotFound();
 
         project.EnabledSocialPlatforms = request.EnabledSocialPlatforms;
+        await _context.SaveChangesAsync(ct);
+        return Ok(ApiResponse<object>.Ok(null));
+    }
+
+    [HttpPut("{projectId:guid}/email-notifications")]
+    public async Task<ActionResult<ApiResponse<object>>> UpdateEmailNotifications(
+        Guid agencyId, Guid projectId,
+        [FromBody] UpdateProjectEmailNotificationsRequest request,
+        CancellationToken ct)
+    {
+        var project = await _context.Projects
+            .FirstOrDefaultAsync(p => p.Id == projectId && p.AgencyId == agencyId && p.IsActive, ct);
+        if (project == null) return NotFound();
+
+        project.NotifyEmailOnGeneration = request.NotifyEmailOnGeneration;
+        project.NotifyEmailOnPublication = request.NotifyEmailOnPublication;
+        project.NotifyEmailOnApprovalNeeded = request.NotifyEmailOnApprovalNeeded;
+        project.NotificationEmail = request.NotificationEmail;
         await _context.SaveChangesAsync(ct);
         return Ok(ApiResponse<object>.Ok(null));
     }
@@ -336,6 +363,12 @@ public record UpdateProjectImageSettingsRequest(
     string? BrandBannerColor = null);
 
 public record UpdateProjectSocialPlatformsRequest(string? EnabledSocialPlatforms);
+
+public record UpdateProjectEmailNotificationsRequest(
+    bool NotifyEmailOnGeneration,
+    bool NotifyEmailOnPublication,
+    bool NotifyEmailOnApprovalNeeded,
+    string? NotificationEmail);
 
 public class ProjectCostStatsDto
 {

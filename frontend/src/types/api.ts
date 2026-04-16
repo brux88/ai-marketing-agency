@@ -253,6 +253,10 @@ export interface Project {
   logoOverlayMode?: number | null;
   brandBannerColor?: string | null;
   enabledSocialPlatforms?: string | null;
+  notifyEmailOnGeneration?: boolean;
+  notifyEmailOnPublication?: boolean;
+  notifyEmailOnApprovalNeeded?: boolean;
+  notificationEmail?: string | null;
 }
 
 export enum SocialPlatform {

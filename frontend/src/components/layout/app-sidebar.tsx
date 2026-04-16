@@ -41,7 +41,7 @@ export function AppSidebar() {
 
       <nav className="flex-1 p-3 space-y-1">
         {navItems
-          .filter((item) => !item.ownerOnly || user?.role === "Owner")
+          .filter((item) => !item.ownerOnly || user?.role === "Owner" || user?.role === "SuperAdmin")
           .map((item) => {
           const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
           return (

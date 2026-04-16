@@ -2,6 +2,7 @@ using AiMarketingAgency.Application.Common.Interfaces;
 using AiMarketingAgency.Application.Common.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace AiMarketingAgency.Api.Controllers.V1;
 
@@ -11,11 +12,51 @@ public class BillingController : ControllerBase
 {
     private readonly ISubscriptionService _subscriptionService;
     private readonly ITenantContext _tenantContext;
+    private readonly IAppDbContext _context;
 
-    public BillingController(ISubscriptionService subscriptionService, ITenantContext tenantContext)
+    public BillingController(ISubscriptionService subscriptionService, ITenantContext tenantContext, IAppDbContext context)
     {
         _subscriptionService = subscriptionService;
         _tenantContext = tenantContext;
+        _context = context;
+    }
+
+    [HttpGet("usage")]
+    [Authorize]
+    public async Task<ActionResult<ApiResponse<BillingUsageDto>>> GetUsage(CancellationToken ct)
+    {
+        var tenantId = _tenantContext.TenantId;
+        var subscription = await _context.Subscriptions
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(s => s.TenantId == tenantId, ct);
+
+        var monthStart = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+        var periodStart = subscription?.CurrentPeriodEnd?.AddMonths(-1) ?? monthStart;
+
+        var agencyCount = await _context.Agencies
+            .IgnoreQueryFilters()
+            .CountAsync(a => a.TenantId == tenantId && a.IsActive, ct);
+
+        var jobsThisMonth = await _context.AgentJobs
+            .IgnoreQueryFilters()
+            .CountAsync(j => j.TenantId == tenantId && j.CreatedAt >= periodStart, ct);
+
+        var plan = subscription?.PlanTier.ToString() ?? "FreeTrial";
+        var maxAgencies = subscription?.MaxAgencies ?? 1;
+        var maxJobs = subscription?.MaxJobsPerMonth ?? 50;
+        var status = subscription?.Status.ToString() ?? "FreeTrial";
+
+        return Ok(ApiResponse<BillingUsageDto>.Ok(new BillingUsageDto
+        {
+            Plan = plan,
+            Status = status,
+            AgenciesUsed = agencyCount,
+            MaxAgencies = maxAgencies,
+            JobsUsed = jobsThisMonth,
+            MaxJobs = maxJobs,
+            CurrentPeriodEnd = subscription?.CurrentPeriodEnd,
+            TrialEndsAt = subscription?.TrialEndsAt
+        }));
     }
 
     [HttpPost("checkout-session")]
@@ -47,6 +88,18 @@ public class BillingController : ControllerBase
         await _subscriptionService.HandleWebhookAsync(json, signature, ct);
         return Ok();
     }
+}
+
+public class BillingUsageDto
+{
+    public string Plan { get; set; } = "FreeTrial";
+    public string Status { get; set; } = "FreeTrial";
+    public int AgenciesUsed { get; set; }
+    public int MaxAgencies { get; set; }
+    public int JobsUsed { get; set; }
+    public int MaxJobs { get; set; }
+    public DateTime? CurrentPeriodEnd { get; set; }
+    public DateTime? TrialEndsAt { get; set; }
 }
 
 public record CreateCheckoutRequest(string PriceId, string SuccessUrl, string CancelUrl);

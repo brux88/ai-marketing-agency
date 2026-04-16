@@ -3,7 +3,10 @@ import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { PenLine, Share2, Mail, BarChart3, Check, ArrowRight, Sparkles, Zap, Shield } from "lucide-react";
+import {
+  PenLine, Share2, Mail, BarChart3, Check, ArrowRight, Sparkles, Zap, Shield,
+  Calendar, Bot, Bell, Image, Smartphone, Globe, Users, Clock, MessageSquare
+} from "lucide-react";
 
 const features = [
   {
@@ -14,7 +17,7 @@ const features = [
   },
   {
     title: "Social Manager",
-    desc: "Crea post per Instagram, LinkedIn, X e Facebook con calendario editoriale intelligente.",
+    desc: "Crea post per Instagram, LinkedIn, X e Facebook con calendario editoriale intelligente e pubblicazione automatica.",
     icon: Share2,
     color: "text-violet-600 bg-violet-100 dark:bg-violet-950",
   },
@@ -32,10 +35,106 @@ const features = [
   },
 ];
 
+const capabilities = [
+  {
+    title: "Calendario Editoriale",
+    desc: "Pianifica e visualizza tutti i tuoi contenuti in un calendario mensile interattivo. Pubblica direttamente o programma la pubblicazione automatica.",
+    icon: Calendar,
+  },
+  {
+    title: "Bot Telegram Integrato",
+    desc: "Gestisci tutto dal tuo smartphone: approva contenuti, avvia generazioni, visualizza statistiche e ricevi notifiche in tempo reale.",
+    icon: MessageSquare,
+  },
+  {
+    title: "Generazione Immagini AI",
+    desc: "Immagini generate automaticamente per ogni post con overlay del logo e banner personalizzati. Supporto DALL-E e Stability AI.",
+    icon: Image,
+  },
+  {
+    title: "Multi-progetto",
+    desc: "Gestisci piu brand e progetti dalla stessa piattaforma. Ogni progetto ha la sua brand voice, audience e configurazione.",
+    icon: Users,
+  },
+  {
+    title: "Scheduling Automatico",
+    desc: "Configura scheduler per generazione e pubblicazione automatica. Imposta orari, frequenze e lascia fare all'AI.",
+    icon: Clock,
+  },
+  {
+    title: "Notifiche Multicanale",
+    desc: "Ricevi notifiche via Telegram, email e web quando i contenuti vengono generati, approvati o pubblicati.",
+    icon: Bell,
+  },
+];
+
+const howItWorks = [
+  {
+    step: "1",
+    title: "Configura il tuo brand",
+    desc: "Inserisci il sito web del tuo progetto e l'AI estrarra automaticamente il tono di voce, il pubblico target e il contesto del brand.",
+  },
+  {
+    step: "2",
+    title: "Collega i tuoi canali",
+    desc: "Collega Instagram, LinkedIn, Facebook, X e il tuo bot Telegram. Configura le chiavi API del tuo provider AI preferito.",
+  },
+  {
+    step: "3",
+    title: "Genera e approva",
+    desc: "L'AI genera contenuti personalizzati. Approva con un click da web o Telegram, e la pubblicazione avviene automaticamente.",
+  },
+  {
+    step: "4",
+    title: "Automatizza",
+    desc: "Configura gli scheduler per generazione e pubblicazione automatica. L'AI lavora 24/7 mentre tu ti concentri sul business.",
+  },
+];
+
 const plans = [
-  { name: "Basic", price: "29", agencies: "3", jobs: "100" },
-  { name: "Pro", price: "79", agencies: "10", jobs: "500", popular: true },
-  { name: "Enterprise", price: "199", agencies: "Illimitate", jobs: "2000" },
+  {
+    name: "Basic",
+    price: "29",
+    agencies: "3",
+    jobs: "100",
+    features: ["3 agenzie", "100 job AI/mese", "Blog + Social", "Calendario editoriale", "Supporto email"],
+  },
+  {
+    name: "Pro",
+    price: "79",
+    agencies: "10",
+    jobs: "500",
+    popular: true,
+    features: ["10 agenzie", "500 job AI/mese", "Tutti i canali social", "Bot Telegram", "Newsletter", "Immagini AI", "Supporto prioritario"],
+  },
+  {
+    name: "Enterprise",
+    price: "199",
+    agencies: "Illimitate",
+    jobs: "2000",
+    features: ["Agenzie illimitate", "2000 job AI/mese", "API personalizzate", "Account manager", "SLA garantito", "White-label"],
+  },
+];
+
+const blogPosts = [
+  {
+    title: "Come l'AI sta rivoluzionando il content marketing",
+    excerpt: "Scopri come gli agenti AI possono generare contenuti di qualita mantenendo il tono di voce del tuo brand.",
+    category: "AI Marketing",
+    date: "15 Apr 2026",
+  },
+  {
+    title: "Guida completa al Social Media Marketing automatizzato",
+    excerpt: "Dalla pianificazione alla pubblicazione: come automatizzare il tuo flusso di lavoro sui social media.",
+    category: "Social Media",
+    date: "12 Apr 2026",
+  },
+  {
+    title: "Newsletter che convertono: strategie AI-powered",
+    excerpt: "Come usare l'intelligenza artificiale per creare newsletter che i tuoi iscritti vogliono davvero leggere.",
+    category: "Newsletter",
+    date: "10 Apr 2026",
+  },
 ];
 
 export default function LandingPage() {
@@ -66,6 +165,11 @@ export default function LandingPage() {
               Scopri le funzionalita
             </Link>
           </div>
+          <div className="mt-8 flex justify-center gap-6 text-sm text-muted-foreground">
+            <span className="flex items-center gap-1"><Check className="size-3.5 text-primary" /> No carta di credito</span>
+            <span className="flex items-center gap-1"><Check className="size-3.5 text-primary" /> Setup in 2 minuti</span>
+            <span className="flex items-center gap-1"><Check className="size-3.5 text-primary" /> Cancella quando vuoi</span>
+          </div>
         </div>
       </section>
 
@@ -91,6 +195,54 @@ export default function LandingPage() {
                 </CardHeader>
                 <CardContent>
                   <p className="text-muted-foreground text-sm leading-relaxed">{f.desc}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* How it works */}
+      <section className="py-20 px-4 border-y bg-muted/30">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">Come funziona</h2>
+            <p className="text-muted-foreground mt-3">Inizia in pochi minuti, automatizza in pochi click</p>
+          </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            {howItWorks.map((item) => (
+              <div key={item.step} className="text-center">
+                <div className="size-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xl font-bold mx-auto mb-4">
+                  {item.step}
+                </div>
+                <h3 className="font-semibold text-lg mb-2">{item.title}</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">{item.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Capabilities */}
+      <section className="py-24 px-4">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">Tutto cio di cui hai bisogno</h2>
+            <p className="text-muted-foreground mt-3">Funzionalita avanzate per gestire il tuo marketing</p>
+          </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {capabilities.map((c) => (
+              <Card key={c.title} className="hover:shadow-md transition-shadow">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="size-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <c.icon className="size-5 text-primary" />
+                    </div>
+                    <CardTitle className="text-base">{c.title}</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{c.desc}</p>
                 </CardContent>
               </Card>
             ))}
@@ -130,14 +282,14 @@ export default function LandingPage() {
             {plans.map((plan) => (
               <Card
                 key={plan.name}
-                className={`relative flex flex-col ${plan.popular ? "border-primary shadow-lg scale-105" : ""}`}
+                className={`relative flex flex-col ${plan.popular ? "border-primary shadow-lg ring-1 ring-primary/20 scale-105" : ""}`}
               >
                 {plan.popular && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <Badge>Piu popolare</Badge>
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
+                    <Badge className="px-3 py-1 whitespace-nowrap shadow-sm">Piu popolare</Badge>
                   </div>
                 )}
-                <CardHeader>
+                <CardHeader className="pt-6">
                   <CardTitle>{plan.name}</CardTitle>
                   <div className="mt-2">
                     <span className="text-4xl font-bold">&euro;{plan.price}</span>
@@ -145,23 +297,13 @@ export default function LandingPage() {
                   </div>
                 </CardHeader>
                 <CardContent className="flex-1">
-                  <ul className="space-y-3 text-sm">
-                    <li className="flex items-center gap-2">
-                      <Check className="size-4 text-primary shrink-0" />
-                      Fino a {plan.agencies} agenzie
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <Check className="size-4 text-primary shrink-0" />
-                      {plan.jobs} job AI / mese
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <Check className="size-4 text-primary shrink-0" />
-                      Tutti e 4 gli agenti AI
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <Check className="size-4 text-primary shrink-0" />
-                      Supporto via email
-                    </li>
+                  <ul className="space-y-2.5 text-sm">
+                    {plan.features.map((f) => (
+                      <li key={f} className="flex items-center gap-2">
+                        <Check className="size-4 text-primary shrink-0" />
+                        {f}
+                      </li>
+                    ))}
                   </ul>
                 </CardContent>
                 <CardFooter>
@@ -174,6 +316,55 @@ export default function LandingPage() {
                 </CardFooter>
               </Card>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Blog */}
+      <section id="blog" className="py-24 px-4 border-t bg-muted/30">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">Blog</h2>
+            <p className="text-muted-foreground mt-3">Guide, strategie e novita dal mondo dell'AI marketing</p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-6">
+            {blogPosts.map((post) => (
+              <Card key={post.title} className="hover:shadow-md transition-shadow cursor-pointer">
+                <CardHeader>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Badge variant="secondary" className="text-xs">{post.category}</Badge>
+                    <span className="text-xs text-muted-foreground">{post.date}</span>
+                  </div>
+                  <CardTitle className="text-lg leading-snug">{post.title}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{post.excerpt}</p>
+                </CardContent>
+                <CardFooter>
+                  <span className="text-sm text-primary flex items-center gap-1 hover:underline">
+                    Leggi di piu <ArrowRight className="size-3" />
+                  </span>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className="py-24 px-4">
+        <div className="max-w-3xl mx-auto text-center">
+          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
+            Pronto a trasformare il tuo marketing?
+          </h2>
+          <p className="text-lg text-muted-foreground mt-4">
+            Unisciti a centinaia di aziende che hanno gia automatizzato il loro content marketing con l'AI.
+          </p>
+          <div className="mt-8">
+            <Link href="/register" className={cn(buttonVariants({ size: "lg" }), "gap-1")}>
+              Inizia gratis per 14 giorni
+              <ArrowRight className="size-4" />
+            </Link>
           </div>
         </div>
       </section>

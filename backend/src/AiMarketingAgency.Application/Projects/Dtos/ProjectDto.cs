@@ -33,4 +33,9 @@ public class ProjectDto
     public int? LogoOverlayMode { get; set; }
     public string? BrandBannerColor { get; set; }
     public string? EnabledSocialPlatforms { get; set; }
+
+    public bool NotifyEmailOnGeneration { get; set; }
+    public bool NotifyEmailOnPublication { get; set; }
+    public bool NotifyEmailOnApprovalNeeded { get; set; }
+    public string? NotificationEmail { get; set; }
 }

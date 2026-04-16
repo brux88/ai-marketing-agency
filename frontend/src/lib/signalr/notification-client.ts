@@ -62,9 +62,9 @@ export class NotificationClient {
     this.pendingJoins.add(agencyId);
     if (this.startPromise) {
       await this.startPromise;
-      if (this.connection?.state === signalR.HubConnectionState.Connected && this.pendingJoins.has(agencyId)) {
+      if ((this.connection?.state as string) === signalR.HubConnectionState.Connected && this.pendingJoins.has(agencyId)) {
         this.pendingJoins.delete(agencyId);
-        try { await this.connection.invoke("JoinAgencyGroup", agencyId); } catch (e) { console.error("JoinAgencyGroup failed", e); }
+        try { await this.connection!.invoke("JoinAgencyGroup", agencyId); } catch (e) { console.error("JoinAgencyGroup failed", e); }
       }
     }
   }

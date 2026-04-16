@@ -69,8 +69,13 @@ export default function ApprovalsPage() {
 
       <Tabs defaultValue="pending">
         <TabsList>
-          <TabsTrigger value="pending">
-            In attesa{approvals.length > 0 ? ` · ${approvals.length}` : ""}
+          <TabsTrigger value="pending" className="gap-2">
+            In attesa
+            {approvals.length > 0 && (
+              <Badge variant="destructive" className="rounded-full px-1.5 py-0 text-[10px] min-w-5 h-5 flex items-center justify-center">
+                {approvals.length}
+              </Badge>
+            )}
           </TabsTrigger>
           <TabsTrigger value="history">Storico</TabsTrigger>
         </TabsList>

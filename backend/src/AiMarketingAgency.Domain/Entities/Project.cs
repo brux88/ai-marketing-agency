@@ -43,6 +43,12 @@ public class Project : BaseEntity, ITenantScoped, ISoftDeletable
     // Comma-separated list of enabled SocialPlatform names ("Twitter,LinkedIn"). Null = all.
     public string? EnabledSocialPlatforms { get; set; }
 
+    // Email notification settings
+    public bool NotifyEmailOnGeneration { get; set; }
+    public bool NotifyEmailOnPublication { get; set; }
+    public bool NotifyEmailOnApprovalNeeded { get; set; }
+    public string? NotificationEmail { get; set; }
+
     // Navigation
     public Agency Agency { get; set; } = null!;
     public Tenant Tenant { get; set; } = null!;

@@ -185,6 +185,52 @@ public class AuthService : IAuthService
         return BCrypt.Net.BCrypt.Verify(password, hash);
     }
 
+    public async Task EnsureSuperAdminAsync(CancellationToken ct = default)
+    {
+        var email = _configuration["SuperAdmin:Email"] ?? "admin@aimarketing.local";
+        var exists = await _context.Users.IgnoreQueryFilters()
+            .AnyAsync(u => u.Role == UserRole.SuperAdmin, ct);
+        if (exists) return;
+
+        var password = _configuration["SuperAdmin:Password"] ?? "Admin123!";
+        var tenant = new Tenant
+        {
+            Id = Guid.NewGuid(),
+            Name = "Platform Admin",
+            Slug = "platform-admin",
+            Plan = PlanTier.Enterprise,
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow
+        };
+        _context.Tenants.Add(tenant);
+
+        var user = new User
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenant.Id,
+            Email = email,
+            FullName = "Super Admin",
+            ExternalId = HashPassword(password),
+            Role = UserRole.SuperAdmin,
+            CreatedAt = DateTime.UtcNow
+        };
+        _context.Users.Add(user);
+
+        _context.Subscriptions.Add(new Subscription
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenant.Id,
+            StripeCustomerId = $"admin_{tenant.Id}",
+            PlanTier = PlanTier.Enterprise,
+            Status = SubscriptionStatus.Active,
+            MaxAgencies = 999,
+            MaxJobsPerMonth = 99999,
+            CreatedAt = DateTime.UtcNow
+        });
+
+        await _context.SaveChangesAsync(ct);
+    }
+
     private static string GenerateSlug(string name)
     {
         return name.ToLowerInvariant()

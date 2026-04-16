@@ -8,7 +8,7 @@ import { notificationsApi, type NotificationItem } from "@/lib/api/notifications
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CheckCheck, Loader2 } from "lucide-react";
+import { CheckCheck, Loader2, RefreshCw } from "lucide-react";
 
 function statusVariant(status: string): "default" | "secondary" | "destructive" | "outline" {
   switch (status) {
@@ -59,15 +59,28 @@ export default function JobsPage() {
       <Card>
         <CardHeader className="flex-row items-center justify-between space-y-0">
           <CardTitle>Notifiche ({notifData?.unreadCount ?? 0} non lette)</CardTitle>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => markAllRead.mutate()}
-            disabled={!notifData?.unreadCount}
-            data-testid="mark-all-read"
-          >
-            <CheckCheck className="size-4" /> Segna tutte come lette
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                qc.invalidateQueries({ queryKey: ["jobs"] });
+                qc.invalidateQueries({ queryKey: ["notifications"] });
+              }}
+              data-testid="refresh-all"
+            >
+              <RefreshCw className="size-4" /> Aggiorna
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => markAllRead.mutate()}
+              disabled={!notifData?.unreadCount}
+              data-testid="mark-all-read"
+            >
+              <CheckCheck className="size-4" /> Segna tutte come lette
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-2">
           {!notifData?.items?.length && (

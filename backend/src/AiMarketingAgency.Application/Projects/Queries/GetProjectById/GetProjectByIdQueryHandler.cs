@@ -45,7 +45,11 @@ public class GetProjectByIdQueryHandler : IRequestHandler<GetProjectByIdQuery, P
                 LogoOverlayPosition = p.LogoOverlayPosition,
                 LogoOverlayMode = p.LogoOverlayMode,
                 BrandBannerColor = p.BrandBannerColor,
-                EnabledSocialPlatforms = p.EnabledSocialPlatforms
+                EnabledSocialPlatforms = p.EnabledSocialPlatforms,
+                NotifyEmailOnGeneration = p.NotifyEmailOnGeneration,
+                NotifyEmailOnPublication = p.NotifyEmailOnPublication,
+                NotifyEmailOnApprovalNeeded = p.NotifyEmailOnApprovalNeeded,
+                NotificationEmail = p.NotificationEmail
             })
             .FirstOrDefaultAsync(cancellationToken);
     }

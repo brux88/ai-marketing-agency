@@ -123,4 +123,11 @@ app.UseMiddleware<TenantResolutionMiddleware>();
 app.MapControllers();
 app.MapHub<NotificationHub>("/hubs/notifications");
 
+// Seed SuperAdmin on first run
+using (var scope = app.Services.CreateScope())
+{
+    var authService = scope.ServiceProvider.GetRequiredService<IAuthService>();
+    await authService.EnsureSuperAdminAsync(default);
+}
+
 app.Run();

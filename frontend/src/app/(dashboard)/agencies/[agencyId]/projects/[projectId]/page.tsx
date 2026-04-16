@@ -33,6 +33,146 @@ interface TelegramBotInfo {
   webhookUrl: string;
 }
 
+function ProjectEmailNotificationsCard({
+  agencyId,
+  projectId,
+  project,
+}: {
+  agencyId: string;
+  projectId: string;
+  project: any;
+}) {
+  const qc = useQueryClient();
+  const [email, setEmail] = useState(project?.notificationEmail ?? "");
+  const [onGeneration, setOnGeneration] = useState(project?.notifyEmailOnGeneration ?? false);
+  const [onPublication, setOnPublication] = useState(project?.notifyEmailOnPublication ?? false);
+  const [onApproval, setOnApproval] = useState(project?.notifyEmailOnApprovalNeeded ?? false);
+
+  useEffect(() => {
+    setEmail(project?.notificationEmail ?? "");
+    setOnGeneration(project?.notifyEmailOnGeneration ?? false);
+    setOnPublication(project?.notifyEmailOnPublication ?? false);
+    setOnApproval(project?.notifyEmailOnApprovalNeeded ?? false);
+  }, [project]);
+
+  const save = useMutation({
+    mutationFn: () =>
+      apiClient.put(`/api/v1/agencies/${agencyId}/projects/${projectId}/email-notifications`, {
+        notifyEmailOnGeneration: onGeneration,
+        notifyEmailOnPublication: onPublication,
+        notifyEmailOnApprovalNeeded: onApproval,
+        notificationEmail: email || null,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["project", agencyId, projectId] });
+      toast.success("Impostazioni email salvate");
+    },
+    onError: () => toast.error("Errore nel salvataggio"),
+  });
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base flex items-center gap-2">
+          <Mail className="size-4" />
+          Notifiche Email
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-2">
+          <Label>Email destinatario</Label>
+          <Input
+            type="email"
+            placeholder="nome@esempio.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+          <p className="text-xs text-muted-foreground">
+            Lascia vuoto per non ricevere notifiche email
+          </p>
+        </div>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <Label className="cursor-pointer">Generazione contenuti</Label>
+            <Switch checked={onGeneration} onCheckedChange={setOnGeneration} />
+          </div>
+          <div className="flex items-center justify-between">
+            <Label className="cursor-pointer">Pubblicazione</Label>
+            <Switch checked={onPublication} onCheckedChange={setOnPublication} />
+          </div>
+          <div className="flex items-center justify-between">
+            <Label className="cursor-pointer">Contenuti da approvare</Label>
+            <Switch checked={onApproval} onCheckedChange={setOnApproval} />
+          </div>
+        </div>
+        <Button size="sm" onClick={() => save.mutate()} disabled={save.isPending}>
+          {save.isPending && <Loader2 className="size-4 animate-spin mr-1" />}
+          Salva
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ProjectDeleteCard({ agencyId, projectId }: { agencyId: string; projectId: string }) {
+  const [password, setPassword] = useState("");
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  const deleteMut = useMutation({
+    mutationFn: () => projectsApi.delete(agencyId, projectId, password),
+    onSuccess: () => {
+      toast.success("Progetto eliminato");
+      window.location.href = `/agencies/${agencyId}`;
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.message || e?.message || "Password errata o errore"),
+  });
+
+  return (
+    <Card className="border-destructive/50">
+      <CardHeader>
+        <CardTitle className="text-base flex items-center gap-2 text-destructive">
+          <Trash2 className="size-4" />
+          Elimina progetto
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <p className="text-sm text-muted-foreground">
+          Questa azione e irreversibile. Tutti i contenuti, il calendario e le configurazioni verranno eliminati.
+        </p>
+        {!showConfirm ? (
+          <Button variant="destructive" size="sm" onClick={() => setShowConfirm(true)}>
+            Elimina progetto
+          </Button>
+        ) : (
+          <div className="space-y-2">
+            <Label>Password admin</Label>
+            <Input
+              type="password"
+              placeholder="Inserisci la password admin"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+            <div className="flex gap-2">
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => deleteMut.mutate()}
+                disabled={!password || deleteMut.isPending}
+              >
+                {deleteMut.isPending && <Loader2 className="size-4 animate-spin mr-1" />}
+                Conferma eliminazione
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => { setShowConfirm(false); setPassword(""); }}>
+                Annulla
+              </Button>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function ProjectTelegramBot({ agencyId, projectId }: { agencyId: string; projectId: string }) {
   const queryClient = useQueryClient();
   const [token, setToken] = useState("");
@@ -297,7 +437,14 @@ export default function ProjectDetailPage() {
           <TabsTrigger value="content">Contenuti</TabsTrigger>
           <TabsTrigger value="calendar">Calendario</TabsTrigger>
           <TabsTrigger value="schedules">Programmazione</TabsTrigger>
-          <TabsTrigger value="approvals">Approvazioni</TabsTrigger>
+          <TabsTrigger value="approvals" className="relative gap-2">
+            Approvazioni
+            {allContents.filter((c) => c.status === ContentStatus.InReview).length > 0 && (
+              <span className="inline-flex items-center justify-center size-5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold">
+                {allContents.filter((c) => c.status === ContentStatus.InReview).length}
+              </span>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
           <TabsTrigger value="notifications" className="relative">
             Notifiche
@@ -484,7 +631,13 @@ export default function ProjectDetailPage() {
             project={project}
             agency={agency}
           />
+          <ProjectEmailNotificationsCard
+            agencyId={agencyId as string}
+            projectId={projectId as string}
+            project={project}
+          />
           <ProjectTelegramBot agencyId={agencyId as string} projectId={projectId as string} />
+          <ProjectDeleteCard agencyId={agencyId as string} projectId={projectId as string} />
         </TabsContent>
       </Tabs>
 

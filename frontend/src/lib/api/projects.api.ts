@@ -43,8 +43,8 @@ export const projectsApi = {
     return res.data;
   },
 
-  delete: async (agencyId: string, projectId: string) => {
-    await apiClient.delete(`/api/v1/agencies/${agencyId}/projects/${projectId}`);
+  delete: async (agencyId: string, projectId: string, password: string) => {
+    await apiClient.delete(`/api/v1/agencies/${agencyId}/projects/${projectId}?password=${encodeURIComponent(password)}`);
   },
 
   extractBrand: async (agencyId: string, projectId: string) => {
