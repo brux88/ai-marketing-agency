@@ -208,6 +208,7 @@ export default function ProjectDetailPage() {
       apiClient.get<ApiResponse<GeneratedContent[]>>(
         `/api/v1/agencies/${agencyId}/content?projectId=${projectId}`
       ),
+    refetchInterval: 10000,
   });
 
   const { data: unreadNotifCount } = useQuery({
@@ -573,7 +574,12 @@ function ContentSection({
                           Pubblicato{c.publishedAt ? ` · ${new Date(c.publishedAt).toLocaleDateString("it-IT")}` : ""}
                         </Badge>
                       )}
-                      {c.status === ContentStatus.Approved && (
+                      {c.status === ContentStatus.Approved && c.isScheduled && (
+                        <Badge className="bg-amber-500 text-white hover:bg-amber-600 text-[10px]">
+                          Programmato
+                        </Badge>
+                      )}
+                      {c.status === ContentStatus.Approved && !c.isScheduled && (
                         <Badge className="bg-blue-500 text-white hover:bg-blue-600 text-[10px]">
                           Approvato{c.approvedAt ? ` · ${new Date(c.approvedAt).toLocaleDateString("it-IT")}` : ""}
                         </Badge>

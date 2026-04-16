@@ -32,7 +32,11 @@ public class TeamController : ControllerBase
                 Email = u.Email,
                 FullName = u.FullName,
                 Role = u.Role.ToString(),
-                CreatedAt = u.CreatedAt
+                CreatedAt = u.CreatedAt,
+                AllowedAgencyIds = u.AllowedAgencyIds,
+                AllowedProjectIds = u.AllowedProjectIds,
+                CanCreateProjects = u.CanCreateProjects,
+                CanCreateApiKeys = u.CanCreateApiKeys
             })
             .ToListAsync(ct);
 
@@ -82,7 +86,11 @@ public class TeamController : ControllerBase
             InvitedBy = _tenantContext.UserId,
             Token = Guid.NewGuid().ToString("N"),
             Status = InvitationStatus.Pending,
-            ExpiresAt = DateTime.UtcNow.AddDays(7)
+            ExpiresAt = DateTime.UtcNow.AddDays(7),
+            AllowedAgencyIds = request.AllowedAgencyIds,
+            AllowedProjectIds = request.AllowedProjectIds,
+            CanCreateProjects = request.CanCreateProjects ?? false,
+            CanCreateApiKeys = request.CanCreateApiKeys ?? false
         };
 
         _context.TeamInvitations.Add(invitation);
@@ -152,6 +160,10 @@ public class TeamController : ControllerBase
                 FullName = request.FullName ?? invitation.Email.Split('@')[0],
                 ExternalId = BCrypt.Net.BCrypt.HashPassword(request.Password),
                 Role = invitation.Role,
+                AllowedAgencyIds = invitation.AllowedAgencyIds,
+                AllowedProjectIds = invitation.AllowedProjectIds,
+                CanCreateProjects = invitation.CanCreateProjects,
+                CanCreateApiKeys = invitation.CanCreateApiKeys,
             };
             _context.Users.Add(user);
         }
@@ -178,6 +190,21 @@ public class TeamController : ControllerBase
         return Ok(new { success = true });
     }
 
+    [HttpPut("members/{userId:guid}/permissions")]
+    public async Task<ActionResult> UpdatePermissions(Guid userId, [FromBody] UpdatePermissionsRequest request, CancellationToken ct)
+    {
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
+        if (user == null) return NotFound();
+
+        user.AllowedAgencyIds = request.AllowedAgencyIds;
+        user.AllowedProjectIds = request.AllowedProjectIds;
+        user.CanCreateProjects = request.CanCreateProjects;
+        user.CanCreateApiKeys = request.CanCreateApiKeys;
+        await _context.SaveChangesAsync(ct);
+
+        return Ok(new { success = true });
+    }
+
     [HttpDelete("members/{userId:guid}")]
     public async Task<ActionResult> RemoveMember(Guid userId, CancellationToken ct)
     {
@@ -194,9 +221,20 @@ public class TeamController : ControllerBase
     }
 }
 
-public record InviteRequest(string Email, string? Role);
+public record InviteRequest(
+    string Email,
+    string? Role,
+    string? AllowedAgencyIds,
+    string? AllowedProjectIds,
+    bool? CanCreateProjects,
+    bool? CanCreateApiKeys);
 public record AcceptInvitationRequest(string Token, string? FullName, string Password);
 public record UpdateRoleRequest(string Role);
+public record UpdatePermissionsRequest(
+    string? AllowedAgencyIds,
+    string? AllowedProjectIds,
+    bool CanCreateProjects,
+    bool CanCreateApiKeys);
 
 public class TeamMemberDto
 {
@@ -205,6 +243,10 @@ public class TeamMemberDto
     public string FullName { get; set; } = string.Empty;
     public string Role { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
+    public string? AllowedAgencyIds { get; set; }
+    public string? AllowedProjectIds { get; set; }
+    public bool CanCreateProjects { get; set; }
+    public bool CanCreateApiKeys { get; set; }
 }
 
 public class InvitationDto

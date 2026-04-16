@@ -11,6 +11,11 @@ public class User : BaseEntity, ITenantScoped
     public string FullName { get; set; } = string.Empty;
     public UserRole Role { get; set; } = UserRole.Member;
 
+    public string? AllowedAgencyIds { get; set; }
+    public string? AllowedProjectIds { get; set; }
+    public bool CanCreateProjects { get; set; }
+    public bool CanCreateApiKeys { get; set; }
+
     // Navigation
     public Tenant Tenant { get; set; } = null!;
 }

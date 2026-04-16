@@ -27,4 +27,5 @@ public class ContentDto
     public List<string>? ImageUrls { get; set; }
     public string? VideoUrl { get; set; }
     public Guid? ProjectId { get; set; }
+    public bool IsScheduled { get; set; }
 }

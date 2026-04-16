@@ -55,7 +55,8 @@ public class GetContentQueryHandler : IRequestHandler<GetContentQuery, List<Cont
                 c.ImagePrompt,
                 c.ImageUrls,
                 c.VideoUrl,
-                c.ProjectId
+                c.ProjectId,
+                IsScheduled = c.CalendarEntries.Any(e => e.Status == Domain.Enums.CalendarEntryStatus.Scheduled)
             })
             .ToListAsync(cancellationToken);
 
@@ -83,7 +84,8 @@ public class GetContentQueryHandler : IRequestHandler<GetContentQuery, List<Cont
             ImagePrompt = r.ImagePrompt,
             ImageUrls = DeserializeImages(r.ImageUrls),
             VideoUrl = r.VideoUrl,
-            ProjectId = r.ProjectId
+            ProjectId = r.ProjectId,
+            IsScheduled = r.IsScheduled
         }).ToList();
     }
 

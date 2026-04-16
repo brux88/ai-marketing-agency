@@ -49,31 +49,26 @@ public class ImageOverlayService : IImageOverlayService
             _ => new Point(sourceImage.Width - targetLogoWidth - padding, sourceImage.Height - targetLogoHeight - padding)
         };
 
-        var ovalPaddingX = (int)(targetLogoWidth * 0.35);
-        var ovalPaddingY = (int)(targetLogoHeight * 0.45);
+        var ovalPaddingX = (int)(targetLogoWidth * 0.8);
+        var ovalPaddingY = (int)(targetLogoHeight * 0.9);
         var centerX = point.X + targetLogoWidth / 2f;
         var centerY = point.Y + targetLogoHeight / 2f;
         var radiusX = targetLogoWidth / 2f + ovalPaddingX;
         var radiusY = targetLogoHeight / 2f + ovalPaddingY;
         var ovalPath = new EllipsePolygon(centerX, centerY, radiusX, radiusY);
 
-        var avgBrightness = SampleAverageBrightness(sourceImage, point, targetLogoWidth, targetLogoHeight);
-        var isDark = avgBrightness <= 128;
-
-        // Outer soft glow
+        // Always use white glow — visible on any background
         using var glowLayer = new Image<Rgba32>(sourceImage.Width, sourceImage.Height, new Rgba32(0, 0, 0, 0));
-        var outerColor = isDark ? new Rgba32(255, 255, 255, 200) : new Rgba32(0, 0, 0, 200);
-        glowLayer.Mutate(x => x.Fill(outerColor, ovalPath));
-        glowLayer.Mutate(x => x.GaussianBlur(20));
+        glowLayer.Mutate(x => x.Fill(new Rgba32(255, 255, 255, 220), ovalPath));
+        glowLayer.Mutate(x => x.GaussianBlur(35));
         sourceImage.Mutate(x => x.DrawImage(glowLayer, new Point(0, 0), 1f));
 
-        // Inner solid pill for strong contrast
-        var innerPath = new EllipsePolygon(centerX, centerY, radiusX * 0.8f, radiusY * 0.8f);
+        // Inner solid white pill for strong contrast
+        var innerPath = new EllipsePolygon(centerX, centerY, radiusX * 0.65f, radiusY * 0.65f);
         using var pillLayer = new Image<Rgba32>(sourceImage.Width, sourceImage.Height, new Rgba32(0, 0, 0, 0));
-        var pillColor = isDark ? new Rgba32(255, 255, 255, 220) : new Rgba32(0, 0, 0, 220);
-        pillLayer.Mutate(x => x.Fill(pillColor, innerPath));
-        pillLayer.Mutate(x => x.GaussianBlur(6));
-        sourceImage.Mutate(x => x.DrawImage(pillLayer, new Point(0, 0), 0.85f));
+        pillLayer.Mutate(x => x.Fill(new Rgba32(255, 255, 255, 240), innerPath));
+        pillLayer.Mutate(x => x.GaussianBlur(12));
+        sourceImage.Mutate(x => x.DrawImage(pillLayer, new Point(0, 0), 0.9f));
 
         sourceImage.Mutate(x => x.DrawImage(logoImage, point, 1f));
 
@@ -121,25 +116,6 @@ public class ImageOverlayService : IImageOverlayService
         builder.AddArc(new PointF(x + radius, y + height - radius), radius, radius, 0, 90, 180);
         builder.CloseFigure();
         return builder.Build();
-    }
-
-    private static byte SampleAverageBrightness(Image<Rgba32> image, Point topLeft, int width, int height)
-    {
-        long totalBrightness = 0;
-        int samples = 0;
-        var step = Math.Max(1, Math.Min(width, height) / 10);
-
-        for (int py = Math.Max(0, topLeft.Y); py < Math.Min(image.Height, topLeft.Y + height); py += step)
-        {
-            for (int px = Math.Max(0, topLeft.X); px < Math.Min(image.Width, topLeft.X + width); px += step)
-            {
-                var pixel = image[px, py];
-                totalBrightness += (pixel.R * 299 + pixel.G * 587 + pixel.B * 114) / 1000;
-                samples++;
-            }
-        }
-
-        return samples > 0 ? (byte)(totalBrightness / samples) : (byte)128;
     }
 
     private async Task<string> SaveOverlayResult(Image image, CancellationToken ct)

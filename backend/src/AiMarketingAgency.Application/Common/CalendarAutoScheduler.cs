@@ -46,7 +46,10 @@ public static class CalendarAutoScheduler
 
         if (content.ContentType is ContentType.SocialPost or ContentType.Carousel)
         {
-            var platforms = ParsePlatforms(matchingSchedule.EnabledSocialPlatforms);
+            var targetPlatform = ContentPlatformResolver.DetectFromTitle(content.Title);
+            var platforms = targetPlatform.HasValue
+                ? new List<SocialPlatform> { targetPlatform.Value }
+                : ParsePlatforms(matchingSchedule.EnabledSocialPlatforms);
             foreach (var platform in platforms)
             {
                 var alreadyScheduled = await context.CalendarEntries
