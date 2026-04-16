@@ -23,7 +23,7 @@ const navItems = [
   { href: "/agencies/new", label: "Nuova Agenzia", icon: PlusCircle },
   { href: "/settings/api-keys", label: "Chiavi API", icon: Key },
   { href: "/settings/billing", label: "Abbonamento", icon: CreditCard },
-  { href: "/admin", label: "Admin", icon: Shield, ownerOnly: true },
+  { href: "/admin", label: "Admin", icon: Shield, superAdminOnly: true },
 ];
 
 export function AppSidebar() {
@@ -41,7 +41,7 @@ export function AppSidebar() {
 
       <nav className="flex-1 p-3 space-y-1">
         {navItems
-          .filter((item) => !item.ownerOnly || user?.role === "Owner" || user?.role === "SuperAdmin")
+          .filter((item) => !item.superAdminOnly || user?.role === "SuperAdmin")
           .map((item) => {
           const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
           return (
