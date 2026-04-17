@@ -469,6 +469,43 @@ public class TelegramWebhookController : ControllerBase
                 }
             }
         }
+        else if (text == "/daapprovare" || text == "daapprovare")
+        {
+            var pending = await _context.GeneratedContents
+                .IgnoreQueryFilters()
+                .Where(c => c.AgencyId == agencyId && c.Status == Domain.Enums.ContentStatus.InReview)
+                .OrderByDescending(c => c.CreatedAt)
+                .Take(10)
+                .ToListAsync(ct);
+
+            if (pending.Count == 0)
+            {
+                await _telegramBot.SendMessageAsync(agencyId, null, chatId, "✅ Nessun contenuto da approvare. Tutto aggiornato!", ct);
+            }
+            else
+            {
+                await _telegramBot.SendMessageAsync(agencyId, null, chatId,
+                    $"📋 <b>Contenuti da approvare</b> ({pending.Count})\n", ct);
+                foreach (var c in pending)
+                {
+                    var body = c.Body.Length > 300 ? c.Body[..300] + "..." : c.Body;
+                    var caption = $"📝 <b>{c.Title}</b>\n\n{body}\n\n⭐ Score: {c.OverallScore:F1}/10";
+                    var btns = new List<TelegramInlineButton>
+                    {
+                        new("✅ Approva", $"approve_{c.Id}"),
+                        new("❌ Rifiuta", $"reject_{c.Id}")
+                    };
+                    if (!string.IsNullOrEmpty(c.ImageUrl))
+                    {
+                        await _telegramBot.SendPhotoAsync(agencyId, c.ProjectId, chatId, c.ImageUrl, caption, btns, ct);
+                    }
+                    else
+                    {
+                        await _telegramBot.SendMessageWithButtonsAsync(agencyId, c.ProjectId, chatId, caption, btns, ct);
+                    }
+                }
+            }
+        }
         else if (text == "/generati" || text == "generati")
         {
             var recent = await _context.GeneratedContents
@@ -527,6 +564,7 @@ public class TelegramWebhookController : ControllerBase
 
             var buttons = new List<TelegramInlineButton>
             {
+                new("📋 Da approvare", "daapprovare"),
                 new("📊 Status Agenzia", "status"),
                 new("⚙️ Tutti gli Scheduler", "scheduler"),
                 new("📅 Tutti i programmati", "programmati"),
@@ -539,7 +577,7 @@ public class TelegramWebhookController : ControllerBase
             await _telegramBot.SendMessageWithButtonsAsync(agencyId, null, chatId,
                 "<b>🤖 Menu AI Marketing Agency</b>\n\nScegli un'opzione o un progetto:", buttons, ct);
         }
-        else if (text.StartsWith("project_") && !text.Contains("_programmati") && !text.Contains("_approvati") && !text.Contains("_generati") && !text.Contains("_pubblicati") && !text.Contains("_scheduler"))
+        else if (text.StartsWith("project_") && !text.Contains("_programmati") && !text.Contains("_approvati") && !text.Contains("_generati") && !text.Contains("_pubblicati") && !text.Contains("_scheduler") && !text.Contains("_daapprovare"))
         {
             var projectIdStr = text.Replace("project_", "");
             if (Guid.TryParse(projectIdStr, out var projectId))
@@ -552,6 +590,7 @@ public class TelegramWebhookController : ControllerBase
                 {
                     var buttons = new List<TelegramInlineButton>
                     {
+                        new("📋 Da approvare", $"project_{projectId}_daapprovare"),
                         new("⚙️ Scheduler", $"project_{projectId}_scheduler"),
                         new("📅 Programmati", $"project_{projectId}_programmati"),
                         new("📝 Generati", $"project_{projectId}_generati"),
@@ -631,6 +670,53 @@ public class TelegramWebhookController : ControllerBase
                         lines.Add($"• <b>{c.CreatedAt:dd/MM HH:mm}</b> [{c.Status}] {c.Title}");
                     var btns = new List<TelegramInlineButton> { new("⬅️ Torna al progetto", $"project_{projectId}") };
                     await _telegramBot.SendMessageWithButtonsAsync(agencyId, projectId, chatId, string.Join("\n", lines), btns, ct);
+                }
+            }
+        }
+        else if (text.Contains("_daapprovare") && text.StartsWith("project_"))
+        {
+            var projectIdStr = text.Replace("project_", "").Replace("_daapprovare", "");
+            if (Guid.TryParse(projectIdStr, out var projectId))
+            {
+                var pending = await _context.GeneratedContents
+                    .IgnoreQueryFilters()
+                    .Where(c => c.AgencyId == agencyId && c.ProjectId == projectId && c.Status == Domain.Enums.ContentStatus.InReview)
+                    .OrderByDescending(c => c.CreatedAt)
+                    .Take(10)
+                    .ToListAsync(ct);
+
+                var project = await _context.Projects.IgnoreQueryFilters().FirstOrDefaultAsync(p => p.Id == projectId, ct);
+                var projectName = project?.Name ?? "Progetto";
+
+                if (pending.Count == 0)
+                {
+                    var btns = new List<TelegramInlineButton> { new("⬅️ Torna al progetto", $"project_{projectId}") };
+                    await _telegramBot.SendMessageWithButtonsAsync(agencyId, projectId, chatId,
+                        $"✅ Nessun contenuto da approvare in <b>{projectName}</b>.", btns, ct);
+                }
+                else
+                {
+                    await _telegramBot.SendMessageAsync(agencyId, projectId, chatId,
+                        $"📋 <b>Da approvare — {projectName}</b> ({pending.Count})\n", ct);
+                    foreach (var c in pending)
+                    {
+                        var body = c.Body.Length > 300 ? c.Body[..300] + "..." : c.Body;
+                        var caption = $"📝 <b>{c.Title}</b>\n\n{body}\n\n⭐ Score: {c.OverallScore:F1}/10";
+                        var btns = new List<TelegramInlineButton>
+                        {
+                            new("✅ Approva", $"approve_{c.Id}"),
+                            new("❌ Rifiuta", $"reject_{c.Id}"),
+                            new("⬅️ Torna al progetto", $"project_{projectId}")
+                        };
+                        if (!string.IsNullOrEmpty(c.ImageUrl))
+                        {
+                            await _telegramBot.SendPhotoAsync(agencyId, projectId, chatId, c.ImageUrl, caption, btns, ct);
+                        }
+                        else
+                        {
+                            await _telegramBot.SendMessageWithButtonsAsync(agencyId, projectId, chatId, caption, btns, ct);
+                        }
+                    }
                 }
             }
         }
@@ -932,6 +1018,7 @@ public class TelegramWebhookController : ControllerBase
             var help = "<b>🤖 AI Marketing Agency Bot</b>\n\n"
                 + "Comandi disponibili:\n"
                 + "/menu — Menu interattivo con progetti\n"
+                + "/daapprovare — Contenuti da approvare (con bottoni)\n"
                 + "/scheduler — Vedi e gestisci gli scheduler\n"
                 + "/status — Contenuti in attesa di approvazione\n"
                 + "/programmati — Post programmati con azione pubblica\n"
