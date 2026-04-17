@@ -19,6 +19,10 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "WePostAI",
   description: "Piattaforma SaaS per il marketing automatizzato con agenti AI",
+  icons: {
+    icon: "/icon.svg",
+    apple: "/icon.svg",
+  },
 };
 
 export default function RootLayout({

@@ -13,6 +13,9 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
             WePostAI
           </Link>
           <div className="flex items-center gap-3">
+            <Link href="/guide" className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
+              Guida
+            </Link>
             <Link href="/login" className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
               Accedi
             </Link>

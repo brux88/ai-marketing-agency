@@ -5,7 +5,8 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Badge } from "@/components/ui/badge";
 import {
   PenLine, Share2, Mail, BarChart3, Check, ArrowRight, Zap, Shield,
-  Calendar, Bot, Bell, Image, Smartphone, Globe, Users, Clock, MessageSquare
+  Calendar, Bot, Bell, Image, Smartphone, Globe, Users, Clock, MessageSquare,
+  Download, Monitor, ChevronRight
 } from "lucide-react";
 import { WePostAILogo } from "@/components/ui/wepostai-logo";
 
@@ -123,18 +124,21 @@ const blogPosts = [
     excerpt: "Scopri come gli agenti AI possono generare contenuti di qualita mantenendo il tono di voce del tuo brand.",
     category: "WePostAI",
     date: "15 Apr 2026",
+    href: "/guide",
   },
   {
     title: "Guida completa al Social Media Marketing automatizzato",
     excerpt: "Dalla pianificazione alla pubblicazione: come automatizzare il tuo flusso di lavoro sui social media.",
     category: "Social Media",
     date: "12 Apr 2026",
+    href: "/guide",
   },
   {
     title: "Newsletter che convertono: strategie AI-powered",
     excerpt: "Come usare l'intelligenza artificiale per creare newsletter che i tuoi iscritti vogliono davvero leggere.",
     category: "Newsletter",
     date: "10 Apr 2026",
+    href: "/guide",
   },
 ];
 
@@ -272,8 +276,52 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Mobile App */}
+      <section className="py-20 px-4">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">Gestisci tutto dal tuo smartphone</h2>
+            <p className="text-muted-foreground mt-3 max-w-2xl mx-auto">
+              Scarica l&apos;app WePostAI per iOS e Android. Approva contenuti, avvia generazioni AI e monitora le performance ovunque tu sia.
+            </p>
+          </div>
+          <div className="grid sm:grid-cols-3 gap-6 max-w-3xl mx-auto">
+            <div className="text-center p-6 rounded-xl border bg-card">
+              <div className="size-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
+                <Smartphone className="size-6 text-primary" />
+              </div>
+              <h3 className="font-semibold mb-1">App Nativa</h3>
+              <p className="text-sm text-muted-foreground">Esperienza fluida su iOS e Android con notifiche push in tempo reale</p>
+            </div>
+            <div className="text-center p-6 rounded-xl border bg-card">
+              <div className="size-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
+                <Bell className="size-6 text-primary" />
+              </div>
+              <h3 className="font-semibold mb-1">Notifiche Push</h3>
+              <p className="text-sm text-muted-foreground">Ricevi alert quando i contenuti sono pronti per l&apos;approvazione</p>
+            </div>
+            <div className="text-center p-6 rounded-xl border bg-card">
+              <div className="size-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
+                <MessageSquare className="size-6 text-primary" />
+              </div>
+              <h3 className="font-semibold mb-1">Bot Telegram</h3>
+              <p className="text-sm text-muted-foreground">In alternativa, gestisci tutto via Telegram senza installare nulla</p>
+            </div>
+          </div>
+          <div className="flex justify-center gap-4 mt-8">
+            <span className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-foreground text-background text-sm font-medium">
+              <Download className="size-4" /> App Store
+            </span>
+            <span className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-foreground text-background text-sm font-medium">
+              <Download className="size-4" /> Google Play
+            </span>
+          </div>
+          <p className="text-center text-xs text-muted-foreground mt-3">Disponibile prossimamente su App Store e Google Play</p>
+        </div>
+      </section>
+
       {/* Pricing */}
-      <section className="py-24 px-4">
+      <section className="py-24 px-4 border-t">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">Piani e prezzi</h2>
@@ -330,23 +378,25 @@ export default function LandingPage() {
           </div>
           <div className="grid md:grid-cols-3 gap-6">
             {blogPosts.map((post) => (
-              <Card key={post.title} className="hover:shadow-md transition-shadow cursor-pointer">
-                <CardHeader>
-                  <div className="flex items-center gap-2 mb-2">
-                    <Badge variant="secondary" className="text-xs">{post.category}</Badge>
-                    <span className="text-xs text-muted-foreground">{post.date}</span>
-                  </div>
-                  <CardTitle className="text-lg leading-snug">{post.title}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground leading-relaxed">{post.excerpt}</p>
-                </CardContent>
-                <CardFooter>
-                  <span className="text-sm text-primary flex items-center gap-1 hover:underline">
-                    Leggi di piu <ArrowRight className="size-3" />
-                  </span>
-                </CardFooter>
-              </Card>
+              <Link key={post.title} href={post.href}>
+                <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
+                  <CardHeader>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Badge variant="secondary" className="text-xs">{post.category}</Badge>
+                      <span className="text-xs text-muted-foreground">{post.date}</span>
+                    </div>
+                    <CardTitle className="text-lg leading-snug">{post.title}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground leading-relaxed">{post.excerpt}</p>
+                  </CardContent>
+                  <CardFooter>
+                    <span className="text-sm text-primary flex items-center gap-1 hover:underline">
+                      Leggi di piu <ArrowRight className="size-3" />
+                    </span>
+                  </CardFooter>
+                </Card>
+              </Link>
             ))}
           </div>
         </div>
