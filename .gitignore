@@ -13,6 +13,8 @@ obj/
 # Env
 .env.local
 .env*.local
+appsettings.Development.json
+appsettings.Production.json
 
 # IDE
 .idea/
