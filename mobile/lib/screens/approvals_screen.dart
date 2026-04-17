@@ -168,7 +168,9 @@ class _ApprovalCard extends StatelessWidget {
           // Image preview
           if (approval.imageUrl != null)
             CachedNetworkImage(
-              imageUrl: approval.imageUrl!,
+              imageUrl: approval.imageUrl!.replaceAll(
+                  'https://api.wepostai.com',
+                  'https://wepostai-api.azurewebsites.net'),
               height: 200,
               width: double.infinity,
               fit: BoxFit.cover,
