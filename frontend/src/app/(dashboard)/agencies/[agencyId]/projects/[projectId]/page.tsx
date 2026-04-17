@@ -8,12 +8,13 @@ import { schedulesApi } from "@/lib/api/schedules.api";
 import { notificationsApi, type NotificationItem } from "@/lib/api/notifications.api";
 import { jobsApi, type JobListItem } from "@/lib/api/jobs.api";
 import { apiClient } from "@/lib/api/client";
+import { newsletterApi } from "@/lib/api/newsletter.api";
 import { resolveImageUrl } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PenLine, Share2, Mail, BarChart3, Loader2, FileText, Rss, Globe, FolderKanban, Calendar, Images, ImageIcon, Sparkles, Bot, Trash2, Webhook, Plus, X, Pause, Play, Pencil, Zap, Bell, CheckCheck, RefreshCw } from "lucide-react";
+import { PenLine, Share2, Mail, BarChart3, Loader2, FileText, Rss, Globe, FolderKanban, Calendar, Images, ImageIcon, Sparkles, Bot, Trash2, Webhook, Plus, X, Pause, Play, Pencil, Zap, Bell, CheckCheck, RefreshCw, Users, Settings2, Copy, Code2, Send, ExternalLink } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { GenerateContentDialog } from "@/components/agency/generate-content-dialog";
@@ -24,8 +25,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useMutation } from "@tanstack/react-query";
-import type { ApiResponse, GeneratedContent, ContentSchedule } from "@/types/api";
-import { ApprovalMode, ContentStatus, DayOfWeekFlag } from "@/types/api";
+import type { ApiResponse, GeneratedContent, ContentSchedule, EmailConnectorDto, NewsletterSubscriber } from "@/types/api";
+import { ApprovalMode, ContentStatus, DayOfWeekFlag, EmailProviderType } from "@/types/api";
 
 interface TelegramBotInfo {
   hasToken: boolean;
@@ -671,25 +672,7 @@ export default function ProjectDetailPage() {
             project={project}
           />
           <ProjectTelegramBot agencyId={agencyId as string} projectId={projectId as string} />
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <Mail className="size-4" />
-                Gestisci Newsletter
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <p className="text-sm text-muted-foreground">
-                Configura l&apos;invio email, gestisci gli iscritti e visualizza il link di iscrizione pubblica alla newsletter.
-              </p>
-              <a href={`/agencies/${agencyId}/newsletter`}>
-                <Button size="sm" variant="outline">
-                  <Mail className="size-4" />
-                  Vai alla Newsletter
-                </Button>
-              </a>
-            </CardContent>
-          </Card>
+          <ProjectNewsletterSection agencyId={agencyId as string} projectId={projectId as string} />
           <ProjectDeleteCard agencyId={agencyId as string} projectId={projectId as string} />
         </TabsContent>
       </Tabs>
@@ -2232,11 +2215,320 @@ function ProjectAnalyticsSection({
   );
 }
 
+function ProjectNewsletterSection({ agencyId, projectId }: { agencyId: string; projectId: string }) {
+  const queryClient = useQueryClient();
+  const [showConfig, setShowConfig] = useState(false);
+  const [providerType, setProviderType] = useState<number>(EmailProviderType.Smtp);
+  const [smtpHost, setSmtpHost] = useState("");
+  const [smtpPort, setSmtpPort] = useState("587");
+  const [smtpUsername, setSmtpUsername] = useState("");
+  const [smtpPassword, setSmtpPassword] = useState("");
+  const [apiKey, setApiKey] = useState("");
+  const [fromEmail, setFromEmail] = useState("");
+  const [fromName, setFromName] = useState("");
+  const [showAddSub, setShowAddSub] = useState(false);
+  const [subEmail, setSubEmail] = useState("");
+  const [subName, setSubName] = useState("");
+
+  const { data: configData, isLoading: configLoading } = useQuery({
+    queryKey: ["newsletter-config", agencyId],
+    queryFn: () => newsletterApi.getConfig(agencyId),
+  });
+
+  const { data: subsData, isLoading: subsLoading } = useQuery({
+    queryKey: ["newsletter-subscribers", agencyId],
+    queryFn: () => newsletterApi.getSubscribers(agencyId),
+  });
+
+  const configs: EmailConnectorDto[] = configData?.data ?? [];
+  const projectConfig = configs.find((c) => c.projectId === projectId) ?? null;
+  const subscribers: NewsletterSubscriber[] = subsData?.data ?? [];
+  const activeSubscribers = subscribers.filter((s) => s.isActive);
+
+  const loadConfigIntoForm = (c: EmailConnectorDto) => {
+    setProviderType(c.providerType);
+    setSmtpHost(c.smtpHost ?? "");
+    setSmtpPort(c.smtpPort?.toString() ?? "587");
+    setSmtpUsername(c.smtpUsername ?? "");
+    setSmtpPassword("");
+    setApiKey("");
+    setFromEmail(c.fromEmail);
+    setFromName(c.fromName);
+    setShowConfig(true);
+  };
+
+  const resetConfigForm = () => {
+    setProviderType(EmailProviderType.Smtp);
+    setSmtpHost("");
+    setSmtpPort("587");
+    setSmtpUsername("");
+    setSmtpPassword("");
+    setApiKey("");
+    setFromEmail("");
+    setFromName("");
+  };
+
+  const saveConfigMutation = useMutation({
+    mutationFn: () =>
+      newsletterApi.saveConfig(agencyId, {
+        providerType,
+        smtpHost: providerType === EmailProviderType.Smtp ? smtpHost : undefined,
+        smtpPort: providerType === EmailProviderType.Smtp ? Number(smtpPort) : undefined,
+        smtpUsername: providerType === EmailProviderType.Smtp ? smtpUsername : undefined,
+        smtpPassword: providerType === EmailProviderType.Smtp ? smtpPassword : undefined,
+        apiKey: providerType === EmailProviderType.SendGrid ? apiKey : undefined,
+        fromEmail,
+        fromName,
+        projectId,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["newsletter-config", agencyId] });
+      toast.success("Configurazione email salvata!");
+      setShowConfig(false);
+      resetConfigForm();
+    },
+    onError: () => toast.error("Errore nel salvataggio."),
+  });
+
+  const addSubMutation = useMutation({
+    mutationFn: () => newsletterApi.addSubscriber(agencyId, { email: subEmail, name: subName || undefined }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["newsletter-subscribers", agencyId] });
+      toast.success("Iscritto aggiunto!");
+      setSubEmail("");
+      setSubName("");
+      setShowAddSub(false);
+    },
+    onError: () => toast.error("Errore nell'aggiunta."),
+  });
+
+  const removeSubMutation = useMutation({
+    mutationFn: (subscriberId: string) => newsletterApi.removeSubscriber(agencyId, subscriberId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["newsletter-subscribers", agencyId] });
+      toast.success("Iscritto rimosso.");
+    },
+  });
+
+  return (
+    <div className="space-y-4">
+      {/* Email Configuration */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Settings2 className="size-4" /> Configurazione Email Newsletter
+            </CardTitle>
+            <CardDescription>
+              {configLoading
+                ? "Caricamento..."
+                : projectConfig
+                  ? `SMTP configurato: ${projectConfig.fromEmail}`
+                  : "Nessuna configurazione SMTP per questo progetto"}
+            </CardDescription>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              if (projectConfig) {
+                loadConfigIntoForm(projectConfig);
+              } else {
+                resetConfigForm();
+                setShowConfig(!showConfig);
+              }
+            }}
+          >
+            {projectConfig ? <Pencil className="size-4 mr-1" /> : <Plus className="size-4 mr-1" />}
+            {projectConfig ? "Modifica" : "Configura"}
+          </Button>
+        </CardHeader>
+
+        {projectConfig && !showConfig && (
+          <CardContent className="border-t pt-4">
+            <div className="flex items-center justify-between p-3 border rounded-lg">
+              <div>
+                <p className="text-sm font-medium">
+                  {projectConfig.providerType === EmailProviderType.Smtp ? "SMTP" : "SendGrid"}
+                </p>
+                <p className="text-xs text-muted-foreground">{projectConfig.fromEmail} ({projectConfig.fromName})</p>
+              </div>
+            </div>
+          </CardContent>
+        )}
+
+        {showConfig && (
+          <CardContent className="space-y-4 border-t pt-4">
+            <div className="space-y-2">
+              <Label>Provider</Label>
+              <select
+                className="w-full border rounded-md px-3 py-2 text-sm bg-background"
+                value={providerType}
+                onChange={(e) => setProviderType(Number(e.target.value))}
+              >
+                <option value={EmailProviderType.Smtp}>SMTP</option>
+                <option value={EmailProviderType.SendGrid}>SendGrid</option>
+              </select>
+            </div>
+
+            {providerType === EmailProviderType.Smtp ? (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Host SMTP</Label>
+                  <Input value={smtpHost} onChange={(e) => setSmtpHost(e.target.value)} placeholder="smtp.gmail.com" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Porta</Label>
+                  <Input value={smtpPort} onChange={(e) => setSmtpPort(e.target.value)} placeholder="587" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Username</Label>
+                  <Input value={smtpUsername} onChange={(e) => setSmtpUsername(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Password</Label>
+                  <Input type="password" value={smtpPassword} onChange={(e) => setSmtpPassword(e.target.value)} />
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label>API Key SendGrid</Label>
+                <Input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="SG.xxxx..." />
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Email mittente</Label>
+                <Input value={fromEmail} onChange={(e) => setFromEmail(e.target.value)} placeholder="newsletter@dominio.com" />
+              </div>
+              <div className="space-y-2">
+                <Label>Nome mittente</Label>
+                <Input value={fromName} onChange={(e) => setFromName(e.target.value)} placeholder="La tua Azienda" />
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <Button onClick={() => saveConfigMutation.mutate()} disabled={!fromEmail || saveConfigMutation.isPending}>
+                {saveConfigMutation.isPending ? "Salvataggio..." : "Salva"}
+              </Button>
+              <Button variant="ghost" onClick={() => { setShowConfig(false); resetConfigForm(); }}>
+                Annulla
+              </Button>
+            </div>
+          </CardContent>
+        )}
+      </Card>
+
+      {/* Subscribers */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Users className="size-4" /> Iscritti Newsletter ({activeSubscribers.length})
+            </CardTitle>
+            <CardDescription>Gestisci gli iscritti alla newsletter.</CardDescription>
+          </div>
+          <Button size="sm" onClick={() => setShowAddSub(!showAddSub)}>
+            <Plus className="size-4 mr-1" /> Aggiungi
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {showAddSub && (
+            <div className="flex gap-3 items-end p-4 border rounded-lg bg-muted/30">
+              <div className="flex-1 space-y-1">
+                <Label className="text-xs">Email</Label>
+                <Input value={subEmail} onChange={(e) => setSubEmail(e.target.value)} placeholder="email@esempio.com" />
+              </div>
+              <div className="flex-1 space-y-1">
+                <Label className="text-xs">Nome</Label>
+                <Input value={subName} onChange={(e) => setSubName(e.target.value)} placeholder="Opzionale" />
+              </div>
+              <Button onClick={() => addSubMutation.mutate()} disabled={!subEmail || addSubMutation.isPending}>
+                Aggiungi
+              </Button>
+            </div>
+          )}
+
+          {subsLoading ? (
+            <div className="space-y-2">
+              {[1, 2, 3].map((i) => <Skeleton key={i} className="h-10 rounded" />)}
+            </div>
+          ) : subscribers.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              Nessun iscritto. Aggiungi il primo iscritto alla newsletter.
+            </p>
+          ) : (
+            <div className="divide-y">
+              {subscribers.map((sub) => (
+                <div key={sub.id} className="flex items-center justify-between py-2.5">
+                  <div>
+                    <p className="font-medium text-sm">{sub.email}</p>
+                    {sub.name && <p className="text-xs text-muted-foreground">{sub.name}</p>}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={sub.isActive ? "default" : "secondary"} className="text-xs">
+                      {sub.isActive ? "Attivo" : "Disiscritto"}
+                    </Badge>
+                    <Button variant="ghost" size="sm" onClick={() => removeSubMutation.mutate(sub.id)}>
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Public subscription URL */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Code2 className="size-4" /> Link iscrizione pubblica
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex gap-2">
+            <Input
+              readOnly
+              value={`https://wepostai-api.azurewebsites.net/api/v1/public/agencies/${agencyId}/newsletter/subscribe`}
+              className="font-mono text-xs"
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                navigator.clipboard.writeText(
+                  `https://wepostai-api.azurewebsites.net/api/v1/public/agencies/${agencyId}/newsletter/subscribe`
+                );
+                toast.success("URL copiato!");
+              }}
+            >
+              <Copy className="size-4" /> Copia
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+interface DiscoveredSource {
+  url: string;
+  name: string;
+  description: string;
+  type: number;
+}
+
 function ProjectContentSourcesSection({ agencyId, projectId }: { agencyId: string; projectId: string }) {
   const queryClient = useQueryClient();
   const [newType, setNewType] = useState<number>(1);
   const [newUrl, setNewUrl] = useState<string>("");
   const [newName, setNewName] = useState<string>("");
+  const [discovering, setDiscovering] = useState(false);
+  const [suggestions, setSuggestions] = useState<DiscoveredSource[]>([]);
+  const [addingSuggestion, setAddingSuggestion] = useState<string | null>(null);
 
   const { data: sources, isLoading } = useQuery({
     queryKey: ["project-sources", agencyId, projectId],
@@ -2270,6 +2562,44 @@ function ProjectContentSourcesSection({ agencyId, projectId }: { agencyId: strin
       queryClient.invalidateQueries({ queryKey: ["project-sources", agencyId, projectId] });
     },
   });
+
+  const handleDiscover = async () => {
+    setDiscovering(true);
+    setSuggestions([]);
+    try {
+      const res = await apiClient.post<ApiResponse<DiscoveredSource[]>>(
+        `/api/v1/agencies/${agencyId}/sources/discover?projectId=${projectId}`
+      );
+      const data = res?.data ?? [];
+      setSuggestions(Array.isArray(data) ? data : []);
+      if ((Array.isArray(data) ? data : []).length === 0) {
+        toast.info("Nessuna fonte suggerita trovata");
+      }
+    } catch {
+      toast.error("Errore durante la ricerca delle fonti");
+    } finally {
+      setDiscovering(false);
+    }
+  };
+
+  const handleAddSuggestion = async (suggestion: DiscoveredSource) => {
+    setAddingSuggestion(suggestion.url);
+    try {
+      await apiClient.post(`/api/v1/agencies/${agencyId}/sources`, {
+        type: suggestion.type,
+        url: suggestion.url,
+        name: suggestion.name,
+        projectId,
+      });
+      toast.success("Fonte aggiunta");
+      setSuggestions((prev) => prev.filter((s) => s.url !== suggestion.url));
+      queryClient.invalidateQueries({ queryKey: ["project-sources", agencyId, projectId] });
+    } catch (err: any) {
+      toast.error(err?.message || "Errore durante l'aggiunta");
+    } finally {
+      setAddingSuggestion(null);
+    }
+  };
 
   const typeLabel = (t: number) => (t === 1 ? "RSS" : t === 2 ? "Website" : t === 3 ? "Social" : String(t));
 
@@ -2309,10 +2639,50 @@ function ProjectContentSourcesSection({ agencyId, projectId }: { agencyId: strin
           </select>
           <Input placeholder="https://example.com/feed" value={newUrl} onChange={(e) => setNewUrl(e.target.value)} />
           <Input placeholder="Nome (opzionale)" value={newName} onChange={(e) => setNewName(e.target.value)} />
-          <Button size="sm" onClick={() => create.mutate()} disabled={!newUrl || create.isPending}>
-            {create.isPending ? <Loader2 className="size-4 animate-spin" /> : null} Aggiungi
-          </Button>
+          <div className="flex gap-2">
+            <Button size="sm" onClick={() => create.mutate()} disabled={!newUrl || create.isPending}>
+              {create.isPending ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />} Aggiungi
+            </Button>
+            <Button size="sm" variant="outline" onClick={handleDiscover} disabled={discovering}>
+              {discovering ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />} Cerca fonti AI
+            </Button>
+          </div>
         </div>
+
+        {/* AI-discovered suggestions */}
+        {discovering && (
+          <div className="flex items-center justify-center gap-2 py-4 text-sm text-muted-foreground">
+            <Loader2 className="size-4 animate-spin" />
+            Ricerca fonti in corso...
+          </div>
+        )}
+        {suggestions.length > 0 && (
+          <div className="space-y-2 pt-2 border-t">
+            <p className="text-sm font-medium text-muted-foreground">
+              Fonti suggerite dall&apos;AI ({suggestions.length})
+            </p>
+            {suggestions.map((suggestion) => {
+              const isAdding = addingSuggestion === suggestion.url;
+              return (
+                <div key={suggestion.url} className="rounded-lg border border-dashed p-3 space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="text-[10px] shrink-0">{typeLabel(suggestion.type)}</Badge>
+                    <span className="text-sm font-semibold truncate flex-1">{suggestion.name}</span>
+                    <Button size="sm" variant="outline" disabled={isAdding} onClick={() => handleAddSuggestion(suggestion)} className="shrink-0">
+                      {isAdding ? <Loader2 className="size-3.5 animate-spin" /> : <Plus className="size-3.5" />} Aggiungi
+                    </Button>
+                  </div>
+                  <a href={suggestion.url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline">
+                    {suggestion.url}
+                  </a>
+                  {suggestion.description && (
+                    <p className="text-xs text-muted-foreground">{suggestion.description}</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
