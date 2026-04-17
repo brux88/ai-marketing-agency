@@ -316,7 +316,7 @@ public class StripeSubscriptionService : ISubscriptionService
     {
         (subscription.MaxAgencies, subscription.MaxJobsPerMonth) = subscription.PlanTier switch
         {
-            PlanTier.FreeTrial => (1, 20),
+            PlanTier.FreeTrial => (1, 50),
             PlanTier.Basic => (3, 100),
             PlanTier.Pro => (10, 500),
             PlanTier.Enterprise => (50, 5000),

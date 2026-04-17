@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { billingApi, type BillingUsage } from "@/lib/api/billing.api";
 import { Button } from "@/components/ui/button";
@@ -8,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CreditCard, Check, Crown, Zap, Building2, Rocket, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 const plans = [
   {
@@ -15,30 +17,22 @@ const plans = [
     tier: "FreeTrial",
     price: "0",
     period: "14 giorni",
-    agencies: "1",
-    jobs: "50",
     features: ["1 agenzia", "50 job AI/mese", "Generazione contenuti", "Calendario editoriale"],
     icon: Rocket,
   },
   {
     name: "Basic",
     tier: "Basic",
-    stripePriceId: "price_1TN5Yz5TWCwEP0KhIgZmFrgH",
     price: "29",
     period: "mese",
-    agencies: "3",
-    jobs: "100",
     features: ["3 agenzie", "100 job AI/mese", "Pubblicazione social", "Newsletter", "Supporto email"],
     icon: Zap,
   },
   {
     name: "Pro",
     tier: "Pro",
-    stripePriceId: "price_1TN5ZG5TWCwEP0KhtI8imdCu",
     price: "79",
     period: "mese",
-    agencies: "10",
-    jobs: "500",
     features: ["10 agenzie", "500 job AI/mese", "Tutti i canali social", "Analitiche avanzate", "Supporto prioritario"],
     icon: Crown,
     popular: true,
@@ -46,17 +40,16 @@ const plans = [
   {
     name: "Enterprise",
     tier: "Enterprise",
-    stripePriceId: "price_1TN5ZU5TWCwEP0Kh4tO2WUrJ",
     price: "199",
     period: "mese",
-    agencies: "Illimitate",
-    jobs: "2000",
     features: ["Agenzie illimitate", "2000 job AI/mese", "API personalizzate", "Account manager dedicato", "SLA garantito"],
     icon: Building2,
   },
 ];
 
 export default function BillingPage() {
+  const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+
   const { data: usage, isLoading } = useQuery({
     queryKey: ["billing", "usage"],
     queryFn: () => billingApi.getUsage(),
@@ -69,6 +62,8 @@ export default function BillingPage() {
   });
 
   const u = usage;
+  const isFreeTrial = !u?.plan || u.plan === "FreeTrial";
+  const hasStripeCustomer = u?.status !== "FreeTrial" && u?.status !== undefined;
   const agenciesPct = u ? Math.round((u.agenciesUsed / u.maxAgencies) * 100) : 0;
   const jobsPct = u ? Math.round((u.jobsUsed / u.maxJobs) * 100) : 0;
 
@@ -76,18 +71,40 @@ export default function BillingPage() {
     try {
       const result = await billingApi.createPortalSession(window.location.href);
       if (result?.url) window.location.href = result.url;
-    } catch { /* noop */ }
+    } catch {
+      toast.error("Nessun abbonamento Stripe attivo. Scegli un piano per iniziare.");
+    }
   };
 
-  const handleCheckout = async (priceId: string) => {
+  const handleCheckout = async (planTier: string) => {
+    const priceMap: Record<string, string | undefined> = {
+      Basic: prices?.basic,
+      Pro: prices?.pro,
+      Enterprise: prices?.enterprise,
+    };
+    const priceId = priceMap[planTier];
+    if (!priceId) {
+      toast.error("Configurazione prezzi non disponibile. Riprova tra qualche secondo.");
+      return;
+    }
+
+    setLoadingPlan(planTier);
     try {
       const result = await billingApi.createCheckoutSession(
         priceId,
         `${window.location.origin}/settings/billing?success=true`,
         `${window.location.origin}/settings/billing?cancelled=true`
       );
-      if (result?.url) window.location.href = result.url;
-    } catch { /* noop */ }
+      if (result?.url) {
+        window.location.href = result.url;
+      } else {
+        toast.error("Errore nella creazione della sessione di pagamento.");
+      }
+    } catch (e: any) {
+      toast.error(e?.message || "Errore nella creazione della sessione di pagamento.");
+    } finally {
+      setLoadingPlan(null);
+    }
   };
 
   return (
@@ -106,16 +123,18 @@ export default function BillingPage() {
                 Piano attuale: {isLoading ? <Skeleton className="h-5 w-24 inline-block" /> : (u?.plan ?? "Free Trial")}
               </CardTitle>
               <CardDescription className="mt-1">
-                {u?.status === "FreeTrial" || !u?.status
+                {isFreeTrial
                   ? "Prova gratuita"
-                  : u.status === "Active"
+                  : u?.status === "Active"
                     ? "Abbonamento attivo"
-                    : u.status}
+                    : u?.status}
                 {u?.currentPeriodEnd && ` · Rinnovo: ${new Date(u.currentPeriodEnd).toLocaleDateString("it-IT")}`}
                 {u?.trialEndsAt && ` · Scadenza trial: ${new Date(u.trialEndsAt).toLocaleDateString("it-IT")}`}
               </CardDescription>
             </div>
-            <Button onClick={handlePortal}>Gestisci fatturazione</Button>
+            {!isFreeTrial && (
+              <Button onClick={handlePortal}>Gestisci fatturazione</Button>
+            )}
           </div>
         </CardHeader>
         <CardContent>
@@ -150,10 +169,11 @@ export default function BillingPage() {
         <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-6">
           {plans.map((plan) => {
             const isCurrent = u?.plan === plan.tier;
+            const isLoading = loadingPlan === plan.tier;
             return (
               <Card
                 key={plan.name}
-                className={`relative flex flex-col ${plan.popular ? "border-primary shadow-lg ring-1 ring-primary/20" : ""} ${isCurrent ? "bg-muted/30" : ""}`}
+                className={`relative flex flex-col overflow-visible ${plan.popular ? "border-primary shadow-lg ring-1 ring-primary/20" : ""} ${isCurrent ? "bg-muted/30" : ""}`}
               >
                 {plan.popular && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
@@ -187,21 +207,22 @@ export default function BillingPage() {
                     <Button className="w-full" variant="outline" disabled>
                       Piano attuale
                     </Button>
+                  ) : plan.tier === "FreeTrial" ? (
+                    <Button className="w-full" variant="outline" disabled>
+                      {isFreeTrial ? "Piano attuale" : "Non disponibile"}
+                    </Button>
                   ) : (
                     <Button
                       className="w-full"
                       variant={plan.popular ? "default" : "outline"}
-                      onClick={() => {
-                        const priceMap: Record<string, string | undefined> = {
-                          Basic: prices?.basic,
-                          Pro: prices?.pro,
-                          Enterprise: prices?.enterprise,
-                        };
-                        const priceId = priceMap[plan.tier] || plan.stripePriceId || plan.tier;
-                        handleCheckout(priceId);
-                      }}
+                      disabled={isLoading}
+                      onClick={() => handleCheckout(plan.tier)}
                     >
-                      {plan.price === "0" ? "Inizia gratis" : "Scegli piano"}
+                      {isLoading ? (
+                        <><Loader2 className="size-4 animate-spin mr-2" /> Attendere...</>
+                      ) : (
+                        "Scegli piano"
+                      )}
                     </Button>
                   )}
                 </CardFooter>

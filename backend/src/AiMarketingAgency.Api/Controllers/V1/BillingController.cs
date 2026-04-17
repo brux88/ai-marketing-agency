@@ -46,6 +46,16 @@ public class BillingController : ControllerBase
         var plan = subscription?.PlanTier.ToString() ?? "FreeTrial";
         var maxAgencies = subscription?.MaxAgencies ?? 1;
         var maxJobs = subscription?.MaxJobsPerMonth ?? 50;
+
+        // Fix stale limits in DB for FreeTrial
+        if (plan == "FreeTrial" && subscription != null && (subscription.MaxAgencies != 1 || subscription.MaxJobsPerMonth != 50))
+        {
+            subscription.MaxAgencies = 1;
+            subscription.MaxJobsPerMonth = 50;
+            maxAgencies = 1;
+            maxJobs = 50;
+            await _context.SaveChangesAsync(ct);
+        }
         var status = subscription?.Status.ToString() ?? "FreeTrial";
 
         return Ok(ApiResponse<BillingUsageDto>.Ok(new BillingUsageDto
