@@ -48,8 +48,8 @@ class _ContentScreenState extends State<ContentScreen> {
   Future<void> _reject(String id) async {
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await ApiClient.put(
-          '/api/v1/agencies/${widget.agency.id}/approvals/$id/reject', {});
+      await ApiClient.post(
+          '/api/v1/agencies/${widget.agency.id}/content/$id/reject');
       messenger
           .showSnackBar(const SnackBar(content: Text('Contenuto rifiutato')));
       if (mounted) setState(() => _future = _load());

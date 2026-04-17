@@ -1,3 +1,4 @@
+using AiMarketingAgency.Application.Approvals.Commands.RejectContent;
 using AiMarketingAgency.Application.Common.Models;
 using AiMarketingAgency.Application.Content.Commands.ApproveContent;
 using AiMarketingAgency.Application.Content.Dtos;
@@ -55,10 +56,17 @@ public class ContentController : ControllerBase
     }
 
     [HttpPost("{contentId:guid}/approve")]
-    public async Task<ActionResult> Approve(Guid contentId, CancellationToken ct)
+    public async Task<ActionResult> Approve(Guid agencyId, Guid contentId, CancellationToken ct)
     {
         var result = await _mediator.Send(new ApproveContentCommand(contentId), ct);
         if (!result) return NotFound();
+        return Ok(new { success = true });
+    }
+
+    [HttpPost("{contentId:guid}/reject")]
+    public async Task<ActionResult> Reject(Guid agencyId, Guid contentId, CancellationToken ct)
+    {
+        await _mediator.Send(new RejectContentCommand(contentId, agencyId), ct);
         return Ok(new { success = true });
     }
 
