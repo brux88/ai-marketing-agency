@@ -107,9 +107,30 @@ public class CalendarPublishBackgroundService : BackgroundService
 
                         var telegram = scope.ServiceProvider.GetRequiredService<ITelegramBotService>();
                         var msg = result.Success
-                            ? $"📢 <b>Pubblicato su {entry.Platform.Value}</b>\n{contentTitle}\n{result.PostUrl}"
-                            : $"❌ <b>Pubblicazione fallita su {entry.Platform.Value}</b>\n{contentTitle}\n{result.Error}";
+                            ? $"\ud83d\udce2 <b>Pubblicato su {entry.Platform.Value}</b>\n{contentTitle}\n{result.PostUrl}"
+                            : $"\u274c <b>Pubblicazione fallita su {entry.Platform.Value}</b>\n{contentTitle}\n{result.Error}";
                         await telegram.NotifyAgencyAsync(entry.AgencyId, projectId, msg, ct);
+
+                        // Email notification on publication
+                        if (result.Success && projectId.HasValue)
+                        {
+                            var emailNotifier = scope.ServiceProvider.GetRequiredService<IEmailNotificationService>();
+                            var project = await context.Set<Project>()
+                                .AsNoTracking()
+                                .FirstOrDefaultAsync(p => p.Id == projectId.Value, ct);
+
+                            if (project?.NotifyEmailOnPublication == true && !string.IsNullOrWhiteSpace(project.NotificationEmail))
+                            {
+                                var subject = $"Contenuto pubblicato su {entry.Platform.Value} - {contentTitle}";
+                                var htmlBody = $"""
+                                    <h2>Contenuto pubblicato</h2>
+                                    <p>Il contenuto <strong>{contentTitle}</strong> e stato pubblicato su <strong>{entry.Platform.Value}</strong>.</p>
+                                    {(string.IsNullOrEmpty(result.PostUrl) ? "" : $"<p><a href=\"{result.PostUrl}\">Vedi il post</a></p>")}
+                                    """;
+                                await emailNotifier.SendEmailNotificationAsync(
+                                    entry.AgencyId, projectId, subject, htmlBody, ct);
+                            }
+                        }
                     }
                     catch (Exception notifyEx)
                     {

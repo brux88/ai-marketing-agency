@@ -12,17 +12,20 @@ public class PublishContentCommandHandler : IRequestHandler<PublishContentComman
     private readonly IAppDbContext _context;
     private readonly ISocialPublishingServiceFactory _factory;
     private readonly INotificationService _notificationService;
+    private readonly IEmailNotificationService _emailNotificationService;
     private readonly ILogger<PublishContentCommandHandler> _logger;
 
     public PublishContentCommandHandler(
         IAppDbContext context,
         ISocialPublishingServiceFactory factory,
         INotificationService notificationService,
+        IEmailNotificationService emailNotificationService,
         ILogger<PublishContentCommandHandler> logger)
     {
         _context = context;
         _factory = factory;
         _notificationService = notificationService;
+        _emailNotificationService = emailNotificationService;
         _logger = logger;
     }
 
@@ -101,6 +104,25 @@ public class PublishContentCommandHandler : IRequestHandler<PublishContentComman
                 await _notificationService.NotifyPublishResult(
                     content.TenantId, content.AgencyId, content.Id,
                     request.Platform.ToString(), result.Success, result.PostUrl);
+
+                // Email notification on publication
+                if (result.Success && content.ProjectId.HasValue)
+                {
+                    var project = await _context.Projects.AsNoTracking()
+                        .FirstOrDefaultAsync(p => p.Id == content.ProjectId.Value, cancellationToken);
+
+                    if (project?.NotifyEmailOnPublication == true && !string.IsNullOrWhiteSpace(project.NotificationEmail))
+                    {
+                        var emailSubject = $"Contenuto pubblicato su {request.Platform} - {content.Title}";
+                        var emailHtml = $"""
+                            <h2>Contenuto pubblicato</h2>
+                            <p>Il contenuto <strong>{content.Title}</strong> e stato pubblicato su <strong>{request.Platform}</strong>.</p>
+                            {(string.IsNullOrEmpty(result.PostUrl) ? "" : $"<p><a href=\"{result.PostUrl}\">Vedi il post</a></p>")}
+                            """;
+                        await _emailNotificationService.SendEmailNotificationAsync(
+                            content.AgencyId, content.ProjectId, emailSubject, emailHtml, cancellationToken);
+                    }
+                }
             }
             catch (Exception notifyEx)
             {

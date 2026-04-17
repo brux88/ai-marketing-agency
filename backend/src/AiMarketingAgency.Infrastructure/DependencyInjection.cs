@@ -6,11 +6,13 @@ using AiMarketingAgency.Infrastructure.BackgroundJobs;
 using AiMarketingAgency.Infrastructure.Ai.ImageGeneration;
 using AiMarketingAgency.Infrastructure.Ai.Rag;
 using AiMarketingAgency.Infrastructure.Ai.VideoGeneration;
+using AiMarketingAgency.Infrastructure.FileStorage;
 using AiMarketingAgency.Infrastructure.Persistence;
 using AiMarketingAgency.Infrastructure.Email;
 using AiMarketingAgency.Infrastructure.Scheduling;
 using AiMarketingAgency.Infrastructure.Security;
 using AiMarketingAgency.Infrastructure.Social;
+using AiMarketingAgency.Infrastructure.Notifications;
 using AiMarketingAgency.Infrastructure.Telegram;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -64,6 +66,12 @@ public static class DependencyInjection
         // Transactional emails (confirmation, password reset)
         services.Configure<TransactionalEmailOptions>(configuration.GetSection(TransactionalEmailOptions.SectionName));
         services.AddScoped<ITransactionalEmailService, TransactionalEmailService>();
+
+        // File storage (Azure Blob or local fallback)
+        services.AddSingleton<IFileStorageService, AzureBlobStorageService>();
+
+        // Email notifications (project-scoped)
+        services.AddScoped<IEmailNotificationService, EmailNotificationService>();
 
         // Telegram bot
         services.AddScoped<ITelegramBotService, TelegramBotService>();

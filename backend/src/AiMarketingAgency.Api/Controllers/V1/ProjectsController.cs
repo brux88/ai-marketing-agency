@@ -173,7 +173,7 @@ public class ProjectsController : ControllerBase
     public async Task<ActionResult<ApiResponse<object>>> UploadLogo(
         Guid agencyId, Guid projectId,
         IFormFile file,
-        [FromServices] IWebHostEnvironment env,
+        [FromServices] IFileStorageService fileStorage,
         CancellationToken ct)
     {
         if (file == null || file.Length == 0)
@@ -184,16 +184,9 @@ public class ProjectsController : ControllerBase
         if (!allowed.Contains(ext))
             return BadRequest(ApiResponse<object>.Fail("Only PNG/JPG/WEBP allowed."));
 
-        var webRoot = env.WebRootPath ?? Path.Combine(env.ContentRootPath, "wwwroot");
-        var dir = Path.Combine(webRoot, "logos");
-        Directory.CreateDirectory(dir);
         var fileName = $"proj_{projectId:N}_{Guid.NewGuid():N}{ext}";
-        var fullPath = Path.Combine(dir, fileName);
-        await using (var stream = System.IO.File.Create(fullPath))
-        {
-            await file.CopyToAsync(stream, ct);
-        }
-        var publicUrl = $"{Request.Scheme}://{Request.Host}/logos/{fileName}";
+        await using var stream = file.OpenReadStream();
+        var publicUrl = await fileStorage.UploadAsync(stream, fileName, file.ContentType, ct);
         return Ok(ApiResponse<object>.Ok(new { url = publicUrl }));
     }
 

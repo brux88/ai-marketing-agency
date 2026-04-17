@@ -7,4 +7,5 @@ public interface ITransactionalEmailService
     Task SendWelcomeAsync(string toEmail, string fullName, CancellationToken ct = default);
     Task SendAccountDeletionConfirmationAsync(string toEmail, string fullName, string confirmationLink, CancellationToken ct = default);
     Task SendTeamInvitationAsync(string toEmail, string inviterName, string teamName, string invitationLink, CancellationToken ct = default);
+    Task SendGenericAsync(string toEmail, string subject, string htmlBody, CancellationToken ct = default);
 }

@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PenLine, Share2, Mail, BarChart3, Loader2, FileText, Rss, Globe, FolderKanban, Calendar, Images, ImageIcon, Sparkles, Bot, Trash2, Webhook, Plus, X, Pause, Play, Pencil, Zap, Bell, CheckCheck } from "lucide-react";
+import { PenLine, Share2, Mail, BarChart3, Loader2, FileText, Rss, Globe, FolderKanban, Calendar, Images, ImageIcon, Sparkles, Bot, Trash2, Webhook, Plus, X, Pause, Play, Pencil, Zap, Bell, CheckCheck, RefreshCw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { GenerateContentDialog } from "@/components/agency/generate-content-dialog";
@@ -564,6 +564,16 @@ export default function ProjectDetailPage() {
         </TabsContent>
 
         <TabsContent value="content" className="mt-6 space-y-6">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold">Contenuti generati</h3>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => refetchContent()}
+            >
+              <RefreshCw className="size-4 mr-1" /> Aggiorna
+            </Button>
+          </div>
           <Tabs defaultValue="social">
             <TabsList>
               <TabsTrigger value="social">

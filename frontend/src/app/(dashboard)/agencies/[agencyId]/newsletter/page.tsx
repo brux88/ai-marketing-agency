@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Mail, Loader2, Newspaper, Sparkles, Target, Settings2, Users, Plus, Trash2, Send } from "lucide-react";
+import { Mail, Loader2, Newspaper, Sparkles, Target, Settings2, Users, Plus, Trash2, Send, Copy, Code2 } from "lucide-react";
 import { toast } from "sonner";
 
 export default function NewsletterPage() {
@@ -166,6 +166,65 @@ export default function NewsletterPage() {
           )}
         </Button>
       </div>
+
+      {/* Public subscription URL */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Code2 className="size-4" /> Link iscrizione pubblica
+          </CardTitle>
+          <CardDescription>
+            Condividi questo URL o incorpora il form HTML nel tuo sito per raccogliere iscritti.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>URL di iscrizione</Label>
+            <div className="flex gap-2">
+              <Input
+                readOnly
+                value={`https://wepostai-api.azurewebsites.net/api/v1/public/agencies/${agencyId}/newsletter/subscribe`}
+                className="font-mono text-xs"
+              />
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => {
+                  navigator.clipboard.writeText(
+                    `https://wepostai-api.azurewebsites.net/api/v1/public/agencies/${agencyId}/newsletter/subscribe`
+                  );
+                  toast.success("URL copiato!");
+                }}
+              >
+                <Copy className="size-4" />
+              </Button>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Codice HTML da incorporare</Label>
+            <div className="relative">
+              <pre className="p-3 rounded-lg bg-muted text-xs overflow-x-auto whitespace-pre-wrap font-mono">{`<form action="https://wepostai-api.azurewebsites.net/api/v1/public/agencies/${agencyId}/newsletter/subscribe" method="POST">
+  <input type="email" name="email" placeholder="La tua email" required>
+  <input type="text" name="name" placeholder="Il tuo nome">
+  <button type="submit">Iscriviti</button>
+</form>`}</pre>
+              <Button
+                variant="outline"
+                size="sm"
+                className="absolute top-2 right-2"
+                onClick={() => {
+                  navigator.clipboard.writeText(
+                    `<form action="https://wepostai-api.azurewebsites.net/api/v1/public/agencies/${agencyId}/newsletter/subscribe" method="POST">\n  <input type="email" name="email" placeholder="La tua email" required>\n  <input type="text" name="name" placeholder="Il tuo nome">\n  <button type="submit">Iscriviti</button>\n</form>`
+                  );
+                  toast.success("Codice HTML copiato!");
+                }}
+              >
+                <Copy className="size-3.5 mr-1" /> Copia
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Pipeline overview */}
       <div className="grid sm:grid-cols-3 gap-4">

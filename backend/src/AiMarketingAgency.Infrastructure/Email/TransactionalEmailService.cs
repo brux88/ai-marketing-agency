@@ -53,6 +53,12 @@ public class TransactionalEmailService : ITransactionalEmailService
         _logger.LogInformation("Team invitation email sent to {Email}", toEmail);
     }
 
+    public async Task SendGenericAsync(string toEmail, string subject, string htmlBody, CancellationToken ct = default)
+    {
+        await SendAsync(_options.NoReplyEmail, _options.NoReplyPassword, toEmail, subject, htmlBody, ct);
+        _logger.LogInformation("Generic email sent to {Email}: {Subject}", toEmail, subject);
+    }
+
     private async Task SendAsync(string fromEmail, string fromPassword, string toEmail, string subject, string htmlBody, CancellationToken ct)
     {
         var message = new MimeMessage();

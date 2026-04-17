@@ -186,7 +186,7 @@ public class AgenciesController : ControllerBase
     public async Task<ActionResult<ApiResponse<object>>> UploadLogo(
         Guid id,
         IFormFile file,
-        [FromServices] IWebHostEnvironment env,
+        [FromServices] IFileStorageService fileStorage,
         CancellationToken ct)
     {
         if (file == null || file.Length == 0)
@@ -197,18 +197,9 @@ public class AgenciesController : ControllerBase
         if (!allowed.Contains(ext))
             return BadRequest(ApiResponse<object>.Fail("Only PNG/JPG/WEBP allowed."));
 
-        var webRoot = env.WebRootPath ?? Path.Combine(env.ContentRootPath, "wwwroot");
-        var dir = Path.Combine(webRoot, "logos");
-        Directory.CreateDirectory(dir);
-        var fileName = $"{id:N}_{Guid.NewGuid():N}{ext}";
-        var fullPath = Path.Combine(dir, fileName);
-        await using (var stream = System.IO.File.Create(fullPath))
-        {
-            await file.CopyToAsync(stream, ct);
-        }
-
-        var requestBase = $"{Request.Scheme}://{Request.Host}";
-        var publicUrl = $"{requestBase}/logos/{fileName}";
+        var fileName = $"agency_{id:N}_{Guid.NewGuid():N}{ext}";
+        await using var stream = file.OpenReadStream();
+        var publicUrl = await fileStorage.UploadAsync(stream, fileName, file.ContentType, ct);
         return Ok(ApiResponse<object>.Ok(new { url = publicUrl }));
     }
 }

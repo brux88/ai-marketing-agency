@@ -21,6 +21,7 @@ public class AgentJobProcessor : IAgentJobProcessor
     private readonly IImageOverlayService _overlayService;
     private readonly ILlmKeyVault _keyVault;
     private readonly INotificationService _notificationService;
+    private readonly IEmailNotificationService _emailNotificationService;
     private readonly ITelegramBotService _telegramBot;
     private readonly ILogger<AgentJobProcessor> _logger;
 
@@ -33,6 +34,7 @@ public class AgentJobProcessor : IAgentJobProcessor
         IImageOverlayService overlayService,
         ILlmKeyVault keyVault,
         INotificationService notificationService,
+        IEmailNotificationService emailNotificationService,
         ITelegramBotService telegramBot,
         ILogger<AgentJobProcessor> logger)
     {
@@ -44,6 +46,7 @@ public class AgentJobProcessor : IAgentJobProcessor
         _overlayService = overlayService;
         _keyVault = keyVault;
         _notificationService = notificationService;
+        _emailNotificationService = emailNotificationService;
         _telegramBot = telegramBot;
         _logger = logger;
     }
@@ -359,6 +362,31 @@ public class AgentJobProcessor : IAgentJobProcessor
                         await _telegramBot.NotifyAgencyWithContentAsync(
                             job.AgencyId, job.ProjectId, caption, c.ImageUrl,
                             buttons.Count > 0 ? buttons : null, ct);
+                    }
+                }
+
+                // Email notifications for generated content
+                if (result.Success && createdContents.Count > 0)
+                {
+                    var notifyProject = job.ProjectId.HasValue
+                        ? await _context.Projects.AsNoTracking()
+                            .FirstOrDefaultAsync(p => p.Id == job.ProjectId.Value, ct)
+                        : null;
+
+                    if (notifyProject?.NotifyEmailOnGeneration == true && !string.IsNullOrWhiteSpace(notifyProject.NotificationEmail))
+                    {
+                        var titles = string.Join(", ", createdContents.Select(c => c.Title));
+                        var subject = $"Nuovi contenuti generati - {notifyProject.Name}";
+                        var htmlBody = $"""
+                            <h2>Contenuti generati</h2>
+                            <p>Sono stati generati <strong>{createdContents.Count}</strong> nuovi contenuti per il progetto <strong>{notifyProject.Name}</strong>:</p>
+                            <ul>
+                            {string.Join("", createdContents.Select(c => $"<li><strong>{c.Title}</strong> — Stato: {c.Status}</li>"))}
+                            </ul>
+                            <p>Accedi alla piattaforma per revisionarli.</p>
+                            """;
+                        await _emailNotificationService.SendEmailNotificationAsync(
+                            job.AgencyId, job.ProjectId, subject, htmlBody, ct);
                     }
                 }
             }

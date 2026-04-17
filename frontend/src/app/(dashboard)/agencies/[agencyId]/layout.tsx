@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useParams } from "next/navigation";
 import { useEffect } from "react";
-import { Settings, LayoutDashboard, FolderKanban, Users, Send, BarChart3 } from "lucide-react";
+import { Settings, LayoutDashboard, FolderKanban, Users, Send, BarChart3, Mail } from "lucide-react";
 import { useNotifications } from "@/lib/providers/notification-provider";
 
 const tabs = [
@@ -11,6 +11,7 @@ const tabs = [
   { href: "/projects", label: "Progetti", icon: FolderKanban },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/telegram", label: "Telegram", icon: Send },
+  { href: "/newsletter", label: "Newsletter", icon: Mail },
   { href: "/team", label: "Team", icon: Users },
   { href: "/settings", label: "Impostazioni", icon: Settings },
 ];

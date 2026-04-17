@@ -16,11 +16,13 @@ public class ImageOverlayService : IImageOverlayService
     private static readonly HttpClient _httpClient = new();
     private readonly ILogger<ImageOverlayService> _logger;
     private readonly IConfiguration _configuration;
+    private readonly IFileStorageService _fileStorage;
 
-    public ImageOverlayService(ILogger<ImageOverlayService> logger, IConfiguration configuration)
+    public ImageOverlayService(ILogger<ImageOverlayService> logger, IConfiguration configuration, IFileStorageService fileStorage)
     {
         _logger = logger;
         _configuration = configuration;
+        _fileStorage = fileStorage;
     }
 
     public async Task<string> ApplyLogoOverlayAsync(string sourceImageUrl, string logoUrl, LogoPosition position, CancellationToken ct)
@@ -120,18 +122,14 @@ public class ImageOverlayService : IImageOverlayService
 
     private async Task<string> SaveOverlayResult(Image image, CancellationToken ct)
     {
-        var webRoot = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
-        var outputDir = Path.Combine(webRoot, "generated-images");
-        Directory.CreateDirectory(outputDir);
-        var fileName = $"{Guid.NewGuid():N}.png";
-        var outputPath = Path.Combine(outputDir, fileName);
-        await image.SaveAsPngAsync(outputPath, ct);
+        var fileName = $"overlay_{Guid.NewGuid():N}.png";
 
-        var publicBaseUrl = _configuration["PublicBaseUrl"]?.TrimEnd('/');
-        var result = !string.IsNullOrWhiteSpace(publicBaseUrl)
-            ? $"{publicBaseUrl}/generated-images/{fileName}"
-            : $"/generated-images/{fileName}";
-        _logger.LogInformation("Overlay applied successfully → {Result}", result);
+        using var ms = new MemoryStream();
+        await image.SaveAsPngAsync(ms, ct);
+        ms.Position = 0;
+
+        var result = await _fileStorage.UploadAsync(ms, fileName, "image/png", ct);
+        _logger.LogInformation("Overlay applied successfully -> {Result}", result);
         return result;
     }
 
