@@ -2,22 +2,32 @@
 
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { projectsApi } from "@/lib/api/projects.api";
+import { apiClient } from "@/lib/api/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2 } from "lucide-react";
+import { Loader2, Sparkles, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
+import type { ApiResponse, LlmKey } from "@/types/api";
 
 export default function NewProjectPage() {
   const { agencyId } = useParams();
   const router = useRouter();
   const [saving, setSaving] = useState(false);
+  const [extracting, setExtracting] = useState(false);
+
+  const { data: keysData } = useQuery({
+    queryKey: ["llm-keys"],
+    queryFn: () => apiClient.get<ApiResponse<LlmKey[]>>("/api/v1/llmkeys"),
+  });
+  const hasTextKeys = (keysData?.data ?? []).some((k) => k.category === 0 && k.isActive);
 
   const [form, setForm] = useState({
     name: "",
@@ -33,6 +43,30 @@ export default function NewProjectPage() {
     painPoints: "",
   });
 
+  const createProject = async () => {
+    const res = await projectsApi.create(agencyId as string, {
+      name: form.name,
+      description: form.description || null,
+      websiteUrl: form.websiteUrl || null,
+      brandVoice: {
+        tone: form.tone,
+        style: form.style,
+        keywords: form.keywords.split(",").map((k) => k.trim()).filter(Boolean),
+        examplePhrases: [],
+        forbiddenWords: form.forbiddenWords.split(",").map((w) => w.trim()).filter(Boolean),
+        language: "it",
+      },
+      targetAudience: {
+        description: form.audienceDescription,
+        ageRange: form.ageRange || undefined,
+        interests: form.interests.split(",").map((i) => i.trim()).filter(Boolean),
+        painPoints: form.painPoints.split(",").map((p) => p.trim()).filter(Boolean),
+        personas: [],
+      },
+    });
+    return res;
+  };
+
   const handleSubmit = async () => {
     if (!form.name.trim()) {
       toast.error("Il nome del progetto e obbligatorio");
@@ -40,26 +74,7 @@ export default function NewProjectPage() {
     }
     setSaving(true);
     try {
-      await projectsApi.create(agencyId as string, {
-        name: form.name,
-        description: form.description || null,
-        websiteUrl: form.websiteUrl || null,
-        brandVoice: {
-          tone: form.tone,
-          style: form.style,
-          keywords: form.keywords.split(",").map((k) => k.trim()).filter(Boolean),
-          examplePhrases: [],
-          forbiddenWords: form.forbiddenWords.split(",").map((w) => w.trim()).filter(Boolean),
-          language: "it",
-        },
-        targetAudience: {
-          description: form.audienceDescription,
-          ageRange: form.ageRange || undefined,
-          interests: form.interests.split(",").map((i) => i.trim()).filter(Boolean),
-          painPoints: form.painPoints.split(",").map((p) => p.trim()).filter(Boolean),
-          personas: [],
-        },
-      });
+      await createProject();
       toast.success("Progetto creato con successo");
       router.push(`/agencies/${agencyId}/projects`);
     } catch (err: any) {
@@ -67,6 +82,36 @@ export default function NewProjectPage() {
       toast.error(message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSubmitAndExtract = async () => {
+    if (!form.name.trim()) {
+      toast.error("Il nome del progetto e obbligatorio");
+      return;
+    }
+    if (!form.websiteUrl.trim()) {
+      toast.error("Inserisci l'URL del sito prima di estrarre");
+      return;
+    }
+    if (!hasTextKeys) {
+      toast.error("Configura prima una chiave API nella sezione Chiavi API");
+      return;
+    }
+    setSaving(true);
+    setExtracting(true);
+    try {
+      const project = await createProject();
+      toast.success("Progetto creato, estrazione brand in corso...");
+      await projectsApi.extractBrand(agencyId as string, project.id);
+      toast.success("Brand voice estratto dal sito!");
+      router.push(`/agencies/${agencyId}/projects`);
+    } catch (err: any) {
+      const message = err?.message || "Errore durante la creazione";
+      toast.error(message);
+    } finally {
+      setSaving(false);
+      setExtracting(false);
     }
   };
 
@@ -107,7 +152,16 @@ export default function NewProjectPage() {
               onChange={(e) => setForm({ ...form, websiteUrl: e.target.value })}
               placeholder="https://..."
             />
+            <p className="text-xs text-muted-foreground">
+              Inserisci l&apos;URL per estrarre automaticamente brand voice e audience dal sito
+            </p>
           </div>
+          {!hasTextKeys && (
+            <div className="flex items-start gap-2 bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-200 text-sm p-3 rounded-lg">
+              <AlertTriangle className="size-4 shrink-0 mt-0.5" />
+              <span>Nessuna chiave API configurata. <Link href="/settings/api-keys" className="underline font-medium">Configura le chiavi API</Link> per usare l&apos;estrazione automatica dal sito.</span>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -197,14 +251,23 @@ export default function NewProjectPage() {
         </CardContent>
       </Card>
 
-      <div className="flex gap-3">
+      <div className="flex gap-3 flex-wrap">
         <Button onClick={handleSubmit} disabled={saving}>
-          {saving ? (
+          {saving && !extracting ? (
             <><Loader2 className="size-4 animate-spin" /> Creazione...</>
           ) : (
             "Crea progetto"
           )}
         </Button>
+        {form.websiteUrl && hasTextKeys && (
+          <Button onClick={handleSubmitAndExtract} disabled={saving} variant="secondary">
+            {extracting ? (
+              <><Loader2 className="size-4 animate-spin" /> Estrazione in corso...</>
+            ) : (
+              <><Sparkles className="size-4" /> Crea ed Estrai dal sito</>
+            )}
+          </Button>
+        )}
         <Link
           href={`/agencies/${agencyId}/projects`}
           className={cn(buttonVariants({ variant: "outline" }))}

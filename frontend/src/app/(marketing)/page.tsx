@@ -1,12 +1,16 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   PenLine, Share2, Mail, BarChart3, Check, ArrowRight, Zap, Shield,
   Calendar, Bot, Bell, Image, Smartphone, Globe, Users, Clock, MessageSquare,
-  Download, Monitor, ChevronRight
+  Download, Monitor, ChevronRight, Loader2, CheckCircle2
 } from "lucide-react";
 import { WePostAILogo } from "@/components/ui/wepostai-logo";
 
@@ -141,6 +145,65 @@ const blogPosts = [
     href: "/blog/newsletter-ai-powered",
   },
 ];
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+
+function NewsletterForm() {
+  const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/v1/public/newsletter/subscribe`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      if (!res.ok) throw new Error("Errore durante l'iscrizione");
+      setSuccess(true);
+      setEmail("");
+    } catch {
+      setError("Errore durante l'iscrizione. Riprova.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (success) {
+    return (
+      <div className="flex items-center gap-2 justify-center text-emerald-600 dark:text-emerald-400">
+        <CheckCircle2 className="size-5" />
+        <span className="font-medium">Iscrizione completata! Riceverai le nostre novita.</span>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
+      <Input
+        type="email"
+        required
+        placeholder="La tua email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        className="flex-1 h-11 bg-background"
+      />
+      <Button type="submit" disabled={loading} className="h-11 px-6">
+        {loading ? (
+          <><Loader2 className="size-4 animate-spin" /> Iscrizione...</>
+        ) : (
+          <><Mail className="size-4" /> Iscriviti</>
+        )}
+      </Button>
+      {error && <p className="text-destructive text-sm">{error}</p>}
+    </form>
+  );
+}
 
 export default function LandingPage() {
   return (
@@ -399,6 +462,23 @@ export default function LandingPage() {
               </Link>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* Newsletter */}
+      <section className="py-20 px-4 border-t">
+        <div className="max-w-2xl mx-auto text-center space-y-6">
+          <div className="size-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
+            <Mail className="size-7 text-primary" />
+          </div>
+          <h2 className="text-3xl font-bold tracking-tight">Resta aggiornato</h2>
+          <p className="text-muted-foreground max-w-lg mx-auto">
+            Iscriviti alla newsletter per ricevere guide, strategie di AI marketing e novita sulla piattaforma. Niente spam, solo contenuti utili.
+          </p>
+          <NewsletterForm />
+          <p className="text-xs text-muted-foreground">
+            Puoi cancellarti in qualsiasi momento. Leggi la nostra privacy policy.
+          </p>
         </div>
       </section>
 

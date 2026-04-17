@@ -314,9 +314,19 @@ export default function ProjectDetailPage() {
   const [editingContent, setEditingContent] = useState<GeneratedContent | null>(null);
   const [brandExtracting, setBrandExtracting] = useState(false);
 
+  const { data: keysData } = useQuery({
+    queryKey: ["llm-keys"],
+    queryFn: () => apiClient.get<ApiResponse<{ category: number; isActive: boolean }[]>>("/api/v1/llmkeys"),
+  });
+  const hasTextKeys = (keysData?.data ?? []).some((k) => k.category === 0 && k.isActive);
+
   const handleExtractBrand = async () => {
     if (!project?.websiteUrl) {
       toast.error("Imposta prima un URL del sito web per il progetto");
+      return;
+    }
+    if (!hasTextKeys) {
+      toast.error("Configura prima una chiave API nella sezione Chiavi API");
       return;
     }
     setBrandExtracting(true);
@@ -1455,6 +1465,7 @@ function ProjectBrandVoiceCard({
   const [keywords, setKeywords] = useState<string>("");
   const [audienceDesc, setAudienceDesc] = useState<string>("");
   const [audienceInterests, setAudienceInterests] = useState<string>("");
+  const [editWebsiteUrl, setEditWebsiteUrl] = useState<string>("");
 
   useEffect(() => {
     if (project) {
@@ -1463,6 +1474,7 @@ function ProjectBrandVoiceCard({
       setKeywords((project.brandVoice?.keywords ?? []).join(", "));
       setAudienceDesc(project.targetAudience?.description ?? "");
       setAudienceInterests((project.targetAudience?.interests ?? []).join(", "));
+      setEditWebsiteUrl(project.websiteUrl ?? "");
     }
   }, [project]);
 
@@ -1471,7 +1483,7 @@ function ProjectBrandVoiceCard({
       projectsApi.update(agencyId, projectId, {
         name: project.name,
         description: project.description,
-        websiteUrl: project.websiteUrl,
+        websiteUrl: editWebsiteUrl || null,
         logoUrl: project.logoUrl,
         brandVoice: {
           ...(project.brandVoice ?? {}),
@@ -1496,25 +1508,22 @@ function ProjectBrandVoiceCard({
     <Card data-testid="project-brand-voice-card">
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="text-base">Brand Voice &amp; Audience</CardTitle>
-        {project.websiteUrl && (
-          <Button size="sm" variant="outline" onClick={onExtract} disabled={extracting}>
-            {extracting ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
-            Estrai dal sito
-          </Button>
-        )}
+        <Button size="sm" variant="outline" onClick={onExtract} disabled={extracting || !editWebsiteUrl}>
+          {extracting ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+          Estrai dal sito
+        </Button>
       </CardHeader>
       <CardContent className="space-y-3">
         <div>
           <Label className="text-xs">Sito web del progetto</Label>
           <div className="flex items-center gap-2">
             <Input
-              value={project.websiteUrl ?? ""}
-              readOnly
-              placeholder="Nessun sito configurato"
-              className="bg-muted/50"
+              value={editWebsiteUrl}
+              onChange={(e) => setEditWebsiteUrl(e.target.value)}
+              placeholder="https://www.esempio.com"
             />
-            {project.websiteUrl && (
-              <a href={project.websiteUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-xs shrink-0">
+            {editWebsiteUrl && (
+              <a href={editWebsiteUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-xs shrink-0">
                 Apri →
               </a>
             )}

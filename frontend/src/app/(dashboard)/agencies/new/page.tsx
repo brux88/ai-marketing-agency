@@ -2,8 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { agenciesApi } from "@/lib/api/agencies.api";
+import { apiClient } from "@/lib/api/client";
 import { ApprovalMode, LlmProviderType } from "@/types/api";
+import type { ApiResponse, LlmKey } from "@/types/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,10 +15,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import Link from "next/link";
 import {
   ChevronLeft, ChevronRight, Check, Loader2, Sparkles,
   Building2, Users, Mic2, Rss, Brain, ClipboardCheck,
-  Plus, X, Info,
+  Plus, X, Info, AlertTriangle,
 } from "lucide-react";
 
 const STEPS = [
@@ -32,6 +36,12 @@ export default function NewAgencyPage() {
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const { data: keysData } = useQuery({
+    queryKey: ["llm-keys"],
+    queryFn: () => apiClient.get<ApiResponse<LlmKey[]>>("/api/v1/llmkeys"),
+  });
+  const hasTextKeys = (keysData?.data ?? []).some((k) => k.category === 0 && k.isActive);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -146,6 +156,18 @@ export default function NewAgencyPage() {
                 <Label>Website URL</Label>
                 <Input type="url" value={formData.websiteUrl} onChange={(e) => updateField("websiteUrl", e.target.value)}
                   placeholder="https://..." />
+                {formData.websiteUrl && (
+                  <div className="flex items-start gap-2 bg-primary/5 text-sm p-3 rounded-lg">
+                    <Sparkles className="size-4 shrink-0 mt-0.5 text-primary" />
+                    <span>Quando crei un progetto potrai usare <strong>&quot;Estrai dal sito&quot;</strong> per compilare automaticamente brand voice, audience e prompt template.</span>
+                  </div>
+                )}
+                {!hasTextKeys && (
+                  <div className="flex items-start gap-2 bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-200 text-sm p-3 rounded-lg">
+                    <AlertTriangle className="size-4 shrink-0 mt-0.5" />
+                    <span>Nessuna chiave API configurata. <Link href="/settings/api-keys" className="underline font-medium">Configura le chiavi API</Link> per usare le funzionalita AI.</span>
+                  </div>
+                )}
               </div>
             </div>
           )}

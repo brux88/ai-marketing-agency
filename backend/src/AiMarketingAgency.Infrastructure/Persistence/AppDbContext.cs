@@ -34,6 +34,7 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<TelegramConnection> TelegramConnections => Set<TelegramConnection>();
     public DbSet<ContentChunk> ContentChunks => Set<ContentChunk>();
     public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<PlatformSubscriber> PlatformSubscribers => Set<PlatformSubscriber>();
 
     // EF Core evaluates this property per-instance for cached query filters
     private Guid CurrentTenantId => _tenantContext.TenantId;

@@ -149,6 +149,30 @@ public class AdminController : ControllerBase
 
         return Ok(ApiResponse<List<TenantDetailDto>>.Ok(result));
     }
+
+    [HttpGet("platform-subscribers")]
+    public async Task<ActionResult<ApiResponse<List<PlatformSubscriberDto>>>> GetPlatformSubscribers(CancellationToken ct)
+    {
+        if (!await IsSuperAdmin(ct))
+            return Forbid();
+
+        var subscribers = await _context.PlatformSubscribers
+            .IgnoreQueryFilters()
+            .OrderByDescending(s => s.SubscribedAt)
+            .Select(s => new PlatformSubscriberDto
+            {
+                Id = s.Id,
+                Email = s.Email,
+                Name = s.Name,
+                IsActive = s.IsActive,
+                Source = s.Source,
+                SubscribedAt = s.SubscribedAt,
+                UnsubscribedAt = s.UnsubscribedAt
+            })
+            .ToListAsync(ct);
+
+        return Ok(ApiResponse<List<PlatformSubscriberDto>>.Ok(subscribers));
+    }
 }
 
 public class AdminStatsDto
@@ -183,4 +207,15 @@ public class TenantDetailDto
     public int TotalContents { get; set; }
     public decimal TotalCostUsd { get; set; }
     public DateTime CreatedAt { get; set; }
+}
+
+public class PlatformSubscriberDto
+{
+    public Guid Id { get; set; }
+    public string Email { get; set; } = "";
+    public string? Name { get; set; }
+    public bool IsActive { get; set; }
+    public string? Source { get; set; }
+    public DateTime SubscribedAt { get; set; }
+    public DateTime? UnsubscribedAt { get; set; }
 }

@@ -24,6 +24,7 @@ public interface IAppDbContext
     DbSet<TelegramConnection> TelegramConnections { get; }
     DbSet<ContentChunk> ContentChunks { get; }
     DbSet<Notification> Notifications { get; }
+    DbSet<PlatformSubscriber> PlatformSubscribers { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
