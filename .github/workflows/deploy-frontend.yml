@@ -42,12 +42,17 @@ jobs:
           cp -r .next/standalone/. ../artifact/
           cp -r .next/static ../artifact/.next/static
           cp -r public ../artifact/public 2>/dev/null || true
+          echo "Artifact contents:"
+          ls -la ../artifact/
+          echo ".next contents:"
+          ls -la ../artifact/.next/
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: frontend-artifact
           path: ./artifact
+          include-hidden-files: true
 
   deploy:
     runs-on: ubuntu-latest
@@ -61,6 +66,13 @@ jobs:
         with:
           name: frontend-artifact
           path: ./artifact
+
+      - name: Verify artifact
+        run: |
+          echo "Downloaded artifact:"
+          ls -la ./artifact/
+          echo ".next dir:"
+          ls -la ./artifact/.next/ || echo "WARNING: .next directory missing!"
 
       - name: Login to Azure
         uses: azure/login@v2
