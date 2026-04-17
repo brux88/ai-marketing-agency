@@ -5,14 +5,11 @@
       <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:1" />
     </linearGradient>
   </defs>
-  <!-- Rounded square background -->
   <rect width="512" height="512" rx="96" fill="url(#grad)"/>
-  <!-- W letter stylized as send/post arrow -->
-  <path d="M128 160 L200 352 L256 240 L312 352 L384 160"
-        stroke="white" stroke-width="40" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-  <!-- Small send arrow accent -->
-  <path d="M340 120 L400 100 L380 160"
-        stroke="white" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.8"/>
-  <!-- Dot for AI -->
-  <circle cx="400" cy="100" r="12" fill="white" opacity="0.9"/>
+  <!-- Send/paper plane arrow -->
+  <path d="M128 272 L384 144 L288 384 L240 288 Z" fill="white" opacity="0.95"/>
+  <path d="M240 288 L384 144" stroke="white" stroke-width="16" opacity="0.5"/>
+  <!-- AI sparkle dots -->
+  <circle cx="176" cy="176" r="24" fill="white" opacity="0.6"/>
+  <circle cx="144" cy="224" r="12" fill="white" opacity="0.4"/>
 </svg>

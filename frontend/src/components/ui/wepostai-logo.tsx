@@ -13,22 +13,21 @@ export function WePostAILogo({ className = "size-6" }: { className?: string }) {
         </linearGradient>
       </defs>
       <rect width="64" height="64" rx="14" fill="url(#wg)" />
+      {/* Send/paper plane arrow */}
       <path
-        d="M16 20 L25 44 L32 30 L39 44 L48 20"
-        stroke="white"
-        strokeWidth="5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
+        d="M16 34 L48 18 L36 48 L30 36 Z"
+        fill="white"
+        opacity="0.95"
       />
       <path
-        d="M42 14 L50 12 L48 20"
+        d="M30 36 L48 18"
         stroke="white"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        opacity="0.8"
+        strokeWidth="2"
+        opacity="0.5"
       />
-      <circle cx="50" cy="12" r="1.8" fill="white" opacity="0.9" />
+      {/* Small sparkle dot for AI */}
+      <circle cx="22" cy="22" r="3" fill="white" opacity="0.6" />
+      <circle cx="18" cy="28" r="1.5" fill="white" opacity="0.4" />
     </svg>
   );
 }
