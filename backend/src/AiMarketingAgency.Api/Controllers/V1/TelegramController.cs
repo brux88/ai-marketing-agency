@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using AiMarketingAgency.Application.Common;
 using AiMarketingAgency.Application.Common.Interfaces;
 using AiMarketingAgency.Application.Common.Models;
 using AiMarketingAgency.Domain.Entities;
@@ -334,7 +335,10 @@ public class TelegramWebhookController : ControllerBase
                     content.Status = Domain.Enums.ContentStatus.Approved;
                     content.ApprovedAt = DateTime.UtcNow;
                     await _context.SaveChangesAsync(ct);
-                    await _telegramBot.SendMessageAsync(agencyId, content.ProjectId, chatId, $"✅ Contenuto '<b>{content.Title}</b>' approvato!", ct);
+
+                    await CalendarAutoScheduler.TryScheduleAsync(_context, content, _logger, ct);
+
+                    await _telegramBot.SendMessageAsync(agencyId, content.ProjectId, chatId, $"✅ Contenuto '<b>{content.Title}</b>' approvato e aggiunto al calendario!", ct);
                 }
                 else if (content != null)
                 {
