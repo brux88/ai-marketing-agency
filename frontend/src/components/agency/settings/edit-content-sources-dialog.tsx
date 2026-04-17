@@ -125,7 +125,7 @@ export function EditContentSourcesDialog({
     setSuggestions([]);
     try {
       const res = await sourcesApi.discover(agencyId, projectId);
-      const data = res?.data ?? res ?? [];
+      const data = res?.data?.data ?? [];
       setSuggestions(Array.isArray(data) ? data : []);
       if ((Array.isArray(data) ? data : []).length === 0) {
         toast.info("Nessuna fonte suggerita trovata");
