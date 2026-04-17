@@ -52,6 +52,7 @@ public class ContentWriterAgent : IMarketingAgent
         {
             generatePrompt = $"""
                 You are an expert content writer for "{productName}".
+                Today's date is {DateTime.UtcNow:MMMM yyyy, dd/MM/yyyy}.
                 {projectContext}
                 BRAND VOICE:
                 - Tone: {brandVoice.Tone}

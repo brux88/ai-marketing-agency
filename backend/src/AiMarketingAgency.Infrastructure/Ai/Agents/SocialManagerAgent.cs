@@ -84,6 +84,7 @@ public class SocialManagerAgent : IMarketingAgent
         {
         generatePrompt = $"""
             You are an expert social media manager for "{productName}".
+            Today's date is {DateTime.UtcNow:MMMM yyyy, dd/MM/yyyy}.
             {projectContextBlock}
             BRAND VOICE:
             - Tone: {brandVoice.Tone}

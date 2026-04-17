@@ -67,7 +67,7 @@ export function EditContentSourcesDialog({
   const fetchSources = async () => {
     setLoading(true);
     try {
-      const res = await sourcesApi.list(agencyId);
+      const res = await sourcesApi.list(agencyId, projectId);
       setSources(res.data ?? []);
     } catch {
       toast.error("Errore nel caricamento delle fonti");
@@ -96,6 +96,7 @@ export function EditContentSourcesDialog({
         type: newType,
         url: newUrl.trim(),
         name: newName.trim() || undefined,
+        projectId,
       });
       toast.success("Fonte aggiunta");
       setNewUrl("");
@@ -144,6 +145,7 @@ export function EditContentSourcesDialog({
         type: suggestion.type,
         url: suggestion.url,
         name: suggestion.name,
+        projectId,
       });
       toast.success("Fonte aggiunta");
       setSuggestions((prev) => prev.filter((s) => s.url !== suggestion.url));

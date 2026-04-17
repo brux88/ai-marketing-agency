@@ -42,8 +42,8 @@ public class ApproveContentCommandHandler : IRequestHandler<ApproveContentComman
             .FirstOrDefaultAsync(c => c.Id == request.ContentId && c.AgencyId == request.AgencyId, cancellationToken)
             ?? throw new KeyNotFoundException("Content not found.");
 
-        if (content.Status != ContentStatus.InReview && content.Status != ContentStatus.Draft)
-            throw new InvalidOperationException("Only content in review or draft can be approved.");
+        if (content.Status != ContentStatus.InReview && content.Status != ContentStatus.Draft && content.Status != ContentStatus.Rejected)
+            throw new InvalidOperationException("Only content in review, draft, or rejected can be approved.");
 
         content.Status = ContentStatus.Approved;
         content.ApprovedAt = DateTime.UtcNow;

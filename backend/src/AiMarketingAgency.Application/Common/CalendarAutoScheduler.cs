@@ -122,7 +122,8 @@ public static class CalendarAutoScheduler
         ILogger logger,
         CancellationToken ct)
     {
-        if (content.ContentType != ContentType.SocialPost) return false;
+        if (content.ContentType != ContentType.SocialPost
+            && content.ContentType != ContentType.Newsletter) return false;
 
         var agency = await context.Agencies
             .AsNoTracking()
@@ -143,6 +144,28 @@ public static class CalendarAutoScheduler
 
         if (!autoScheduleEnabled) return false;
 
+        // Newsletter: schedule without platform
+        if (content.ContentType == ContentType.Newsletter)
+        {
+            var alreadyScheduledNewsletter = await context.CalendarEntries
+                .AnyAsync(e => e.ContentId == content.Id && e.Platform == null
+                               && e.Status != CalendarEntryStatus.Failed, ct);
+            if (alreadyScheduledNewsletter) return false;
+
+            context.CalendarEntries.Add(new EditorialCalendarEntry
+            {
+                AgencyId = content.AgencyId,
+                TenantId = content.TenantId,
+                ContentId = content.Id,
+                Platform = null,
+                ScheduledAt = DateTime.UtcNow,
+                Status = CalendarEntryStatus.Scheduled
+            });
+            await context.SaveChangesAsync(ct);
+            return true;
+        }
+
+        // Social post: schedule with platform
         var platform = ContentPlatformResolver.DetectFromTitle(content.Title);
         SocialConnector? connector;
         if (platform.HasValue)

@@ -1,5 +1,7 @@
 using AiMarketingAgency.Application.Approvals.Commands.ApproveContent;
 using AiMarketingAgency.Application.Approvals.Commands.RejectContent;
+using AiMarketingAgency.Application.Common;
+using AiMarketingAgency.Application.Common.Interfaces;
 using AiMarketingAgency.Application.Common.Models;
 using AiMarketingAgency.Application.Content.Dtos;
 using AiMarketingAgency.Application.Content.Queries.GetContent;
@@ -7,6 +9,7 @@ using AiMarketingAgency.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace AiMarketingAgency.Api.Controllers.V1;
 
@@ -16,10 +19,14 @@ namespace AiMarketingAgency.Api.Controllers.V1;
 public class ContentController : ControllerBase
 {
     private readonly IMediator _mediator;
+    private readonly IAppDbContext _context;
+    private readonly ILogger<ContentController> _logger;
 
-    public ContentController(IMediator mediator)
+    public ContentController(IMediator mediator, IAppDbContext context, ILogger<ContentController> logger)
     {
         _mediator = mediator;
+        _context = context;
+        _logger = logger;
     }
 
     [HttpGet]
@@ -78,6 +85,22 @@ public class ContentController : ControllerBase
                 agencyId, contentId), ct);
         if (!result) return NotFound();
         return Ok(ApiResponse<object>.Ok(null));
+    }
+
+    [HttpPost("{contentId:guid}/auto-schedule")]
+    public async Task<ActionResult> AutoSchedule(Guid agencyId, Guid contentId, CancellationToken ct)
+    {
+        var content = await _context.GeneratedContents
+            .FirstOrDefaultAsync(c => c.Id == contentId && c.AgencyId == agencyId, ct);
+        if (content == null) return NotFound();
+        if (content.Status != ContentStatus.Approved)
+            return BadRequest(ApiResponse<object>.Fail("Solo i contenuti approvati possono essere programmati."));
+
+        var scheduled = await CalendarAutoScheduler.TryScheduleAsync(_context, content, _logger, ct);
+        if (!scheduled)
+            return BadRequest(ApiResponse<object>.Fail("Impossibile programmare: nessuna programmazione di pubblicazione trovata o contenuto già programmato."));
+
+        return Ok(new { success = true });
     }
 }
 

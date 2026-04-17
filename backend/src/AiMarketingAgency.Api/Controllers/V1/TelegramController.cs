@@ -330,7 +330,7 @@ public class TelegramWebhookController : ControllerBase
                     .IgnoreQueryFilters()
                     .FirstOrDefaultAsync(c => c.Id == contentId && c.AgencyId == agencyId, ct);
 
-                if (content != null && content.Status == Domain.Enums.ContentStatus.InReview)
+                if (content != null && (content.Status == Domain.Enums.ContentStatus.InReview || content.Status == Domain.Enums.ContentStatus.Rejected))
                 {
                     content.Status = Domain.Enums.ContentStatus.Approved;
                     content.ApprovedAt = DateTime.UtcNow;
@@ -356,11 +356,49 @@ public class TelegramWebhookController : ControllerBase
                     .IgnoreQueryFilters()
                     .FirstOrDefaultAsync(c => c.Id == contentId && c.AgencyId == agencyId, ct);
 
-                if (content != null && content.Status == Domain.Enums.ContentStatus.InReview)
+                if (content != null && (content.Status == Domain.Enums.ContentStatus.InReview || content.Status == Domain.Enums.ContentStatus.Rejected))
                 {
                     content.Status = Domain.Enums.ContentStatus.Rejected;
                     await _context.SaveChangesAsync(ct);
                     await _telegramBot.SendMessageAsync(agencyId, content.ProjectId, chatId, $"❌ Contenuto '<b>{content.Title}</b>' rifiutato.", ct);
+                }
+            }
+        }
+        else if (text.StartsWith("viewcontent_") || text.StartsWith("/viewcontent_"))
+        {
+            var contentIdStr = text.Replace("/viewcontent_", "").Replace("viewcontent_", "");
+            if (Guid.TryParse(contentIdStr, out var contentId))
+            {
+                var content = await _context.GeneratedContents
+                    .IgnoreQueryFilters()
+                    .FirstOrDefaultAsync(c => c.Id == contentId && c.AgencyId == agencyId, ct);
+                if (content != null)
+                {
+                    var statusLabel = content.Status switch
+                    {
+                        Domain.Enums.ContentStatus.Draft => "Bozza",
+                        Domain.Enums.ContentStatus.InReview => "In review",
+                        Domain.Enums.ContentStatus.Approved => "Approvato",
+                        Domain.Enums.ContentStatus.Published => "Pubblicato",
+                        Domain.Enums.ContentStatus.Rejected => "Rifiutato",
+                        _ => content.Status.ToString()
+                    };
+                    var caption = $"\ud83d\udcdd <b>{content.Title}</b>\n\n{content.Body}\n\n\u2b50 Score: {content.OverallScore:F1}/10\n\ud83d\udcca Stato: {statusLabel}";
+                    var buttons = new List<TelegramInlineButton>();
+                    if (content.Status == Domain.Enums.ContentStatus.InReview || content.Status == Domain.Enums.ContentStatus.Rejected)
+                    {
+                        buttons.Add(new("\u2705 Approva", $"approve_{content.Id}"));
+                        buttons.Add(new("\u274c Rifiuta", $"reject_{content.Id}"));
+                    }
+                    if (!string.IsNullOrEmpty(content.ImageUrl))
+                    {
+                        var photoCaption = caption.Length > 1024 ? caption[..1020] + "..." : caption;
+                        await _telegramBot.SendPhotoAsync(agencyId, content.ProjectId, chatId, content.ImageUrl, photoCaption, buttons.Count > 0 ? buttons : null, ct);
+                    }
+                    else
+                    {
+                        await _telegramBot.SendMessageWithButtonsAsync(agencyId, content.ProjectId, chatId, caption, buttons, ct);
+                    }
                 }
             }
         }
@@ -493,15 +531,17 @@ public class TelegramWebhookController : ControllerBase
                 foreach (var c in pending)
                 {
                     var body = c.Body.Length > 300 ? c.Body[..300] + "..." : c.Body;
-                    var caption = $"📝 <b>{c.Title}</b>\n\n{body}\n\n⭐ Score: {c.OverallScore:F1}/10";
+                    var caption = $"\ud83d\udcdd <b>{c.Title}</b>\n\n{body}\n\n\u2b50 Score: {c.OverallScore:F1}/10";
                     var btns = new List<TelegramInlineButton>
                     {
-                        new("✅ Approva", $"approve_{c.Id}"),
-                        new("❌ Rifiuta", $"reject_{c.Id}")
+                        new("\ud83d\udc41 Vedi tutto", $"viewcontent_{c.Id}"),
+                        new("\u2705 Approva", $"approve_{c.Id}"),
+                        new("\u274c Rifiuta", $"reject_{c.Id}")
                     };
                     if (!string.IsNullOrEmpty(c.ImageUrl))
                     {
-                        await _telegramBot.SendPhotoAsync(agencyId, c.ProjectId, chatId, c.ImageUrl, caption, btns, ct);
+                        var photoCaption = caption.Length > 1024 ? caption[..1020] + "..." : caption;
+                        await _telegramBot.SendPhotoAsync(agencyId, c.ProjectId, chatId, c.ImageUrl, photoCaption, btns, ct);
                     }
                     else
                     {
@@ -525,13 +565,40 @@ public class TelegramWebhookController : ControllerBase
             }
             else
             {
-                var lines = new List<string> { $"📝 <b>Ultimi contenuti generati</b> ({recent.Count})\n" };
+                await _telegramBot.SendMessageAsync(agencyId, null, chatId,
+                    $"\ud83d\udcdd <b>Ultimi contenuti generati</b> ({recent.Count})\n", ct);
                 foreach (var c in recent)
                 {
-                    var date = c.CreatedAt.ToString("dd/MM HH:mm");
-                    lines.Add($"• <b>{date}</b> [{c.Status}] {c.Title}");
+                    var statusLabel = c.Status switch
+                    {
+                        Domain.Enums.ContentStatus.Draft => "Bozza",
+                        Domain.Enums.ContentStatus.InReview => "In review",
+                        Domain.Enums.ContentStatus.Approved => "Approvato",
+                        Domain.Enums.ContentStatus.Published => "Pubblicato",
+                        Domain.Enums.ContentStatus.Rejected => "Rifiutato",
+                        _ => c.Status.ToString()
+                    };
+                    var body = c.Body.Length > 200 ? c.Body[..200] + "..." : c.Body;
+                    var caption = $"\ud83d\udcdd <b>{c.Title}</b>\n\n{body}\n\n\u2b50 Score: {c.OverallScore:F1}/10\n\ud83d\udcca Stato: {statusLabel}";
+                    var btns = new List<TelegramInlineButton>
+                    {
+                        new("\ud83d\udc41 Vedi tutto", $"viewcontent_{c.Id}")
+                    };
+                    if (c.Status == Domain.Enums.ContentStatus.InReview || c.Status == Domain.Enums.ContentStatus.Rejected)
+                    {
+                        btns.Add(new("\u2705 Approva", $"approve_{c.Id}"));
+                        btns.Add(new("\u274c Rifiuta", $"reject_{c.Id}"));
+                    }
+                    if (!string.IsNullOrEmpty(c.ImageUrl))
+                    {
+                        var photoCaption = caption.Length > 1024 ? caption[..1020] + "..." : caption;
+                        await _telegramBot.SendPhotoAsync(agencyId, c.ProjectId, chatId, c.ImageUrl, photoCaption, btns, ct);
+                    }
+                    else
+                    {
+                        await _telegramBot.SendMessageWithButtonsAsync(agencyId, c.ProjectId, chatId, caption, btns, ct);
+                    }
                 }
-                await _telegramBot.SendMessageAsync(agencyId, null, chatId, string.Join("\n", lines), ct);
             }
         }
         else if (text == "/approvati" || text == "approvati")
@@ -549,13 +616,26 @@ public class TelegramWebhookController : ControllerBase
             }
             else
             {
-                var lines = new List<string> { $"✅ <b>Contenuti approvati</b> ({approved.Count})\n" };
+                await _telegramBot.SendMessageAsync(agencyId, null, chatId,
+                    $"\u2705 <b>Contenuti approvati</b> ({approved.Count})\n", ct);
                 foreach (var c in approved)
                 {
-                    var date = (c.ApprovedAt ?? c.CreatedAt).ToString("dd/MM HH:mm");
-                    lines.Add($"• <b>{date}</b> {c.Title}");
+                    var body = c.Body.Length > 200 ? c.Body[..200] + "..." : c.Body;
+                    var caption = $"\u2705 <b>{c.Title}</b>\n\n{body}\n\n\u2b50 Score: {c.OverallScore:F1}/10";
+                    var btns = new List<TelegramInlineButton>
+                    {
+                        new("\ud83d\udc41 Vedi tutto", $"viewcontent_{c.Id}")
+                    };
+                    if (!string.IsNullOrEmpty(c.ImageUrl))
+                    {
+                        var photoCaption = caption.Length > 1024 ? caption[..1020] + "..." : caption;
+                        await _telegramBot.SendPhotoAsync(agencyId, c.ProjectId, chatId, c.ImageUrl, photoCaption, btns, ct);
+                    }
+                    else
+                    {
+                        await _telegramBot.SendMessageWithButtonsAsync(agencyId, c.ProjectId, chatId, caption, btns, ct);
+                    }
                 }
-                await _telegramBot.SendMessageAsync(agencyId, null, chatId, string.Join("\n", lines), ct);
             }
         }
         else if (text == "/menu" || text == "menu")
@@ -669,11 +749,41 @@ public class TelegramWebhookController : ControllerBase
                 }
                 else
                 {
-                    var lines = new List<string> { $"📝 <b>Contenuti — {projectName}</b> ({contents.Count})\n" };
+                    await _telegramBot.SendMessageAsync(agencyId, projectId, chatId,
+                        $"\ud83d\udcdd <b>Contenuti \u2014 {projectName}</b> ({contents.Count})\n", ct);
                     foreach (var c in contents)
-                        lines.Add($"• <b>{c.CreatedAt:dd/MM HH:mm}</b> [{c.Status}] {c.Title}");
-                    var btns = new List<TelegramInlineButton> { new("⬅️ Torna al progetto", $"project_{projectId}") };
-                    await _telegramBot.SendMessageWithButtonsAsync(agencyId, projectId, chatId, string.Join("\n", lines), btns, ct);
+                    {
+                        var statusLabel = c.Status switch
+                        {
+                            Domain.Enums.ContentStatus.Draft => "Bozza",
+                            Domain.Enums.ContentStatus.InReview => "In review",
+                            Domain.Enums.ContentStatus.Approved => "Approvato",
+                            Domain.Enums.ContentStatus.Published => "Pubblicato",
+                            Domain.Enums.ContentStatus.Rejected => "Rifiutato",
+                            _ => c.Status.ToString()
+                        };
+                        var body = c.Body.Length > 200 ? c.Body[..200] + "..." : c.Body;
+                        var caption = $"\ud83d\udcdd <b>{c.Title}</b>\n\n{body}\n\n\u2b50 Score: {c.OverallScore:F1}/10\n\ud83d\udcca Stato: {statusLabel}";
+                        var btns = new List<TelegramInlineButton>
+                        {
+                            new("\ud83d\udc41 Vedi tutto", $"viewcontent_{c.Id}")
+                        };
+                        if (c.Status == Domain.Enums.ContentStatus.InReview || c.Status == Domain.Enums.ContentStatus.Rejected)
+                        {
+                            btns.Add(new("\u2705 Approva", $"approve_{c.Id}"));
+                            btns.Add(new("\u274c Rifiuta", $"reject_{c.Id}"));
+                        }
+                        btns.Add(new("\u2b05\ufe0f Torna al progetto", $"project_{projectId}"));
+                        if (!string.IsNullOrEmpty(c.ImageUrl))
+                        {
+                            var photoCaption = caption.Length > 1024 ? caption[..1020] + "..." : caption;
+                            await _telegramBot.SendPhotoAsync(agencyId, projectId, chatId, c.ImageUrl, photoCaption, btns, ct);
+                        }
+                        else
+                        {
+                            await _telegramBot.SendMessageWithButtonsAsync(agencyId, projectId, chatId, caption, btns, ct);
+                        }
+                    }
                 }
             }
         }
@@ -705,16 +815,18 @@ public class TelegramWebhookController : ControllerBase
                     foreach (var c in pending)
                     {
                         var body = c.Body.Length > 300 ? c.Body[..300] + "..." : c.Body;
-                        var caption = $"📝 <b>{c.Title}</b>\n\n{body}\n\n⭐ Score: {c.OverallScore:F1}/10";
+                        var caption = $"\ud83d\udcdd <b>{c.Title}</b>\n\n{body}\n\n\u2b50 Score: {c.OverallScore:F1}/10";
                         var btns = new List<TelegramInlineButton>
                         {
-                            new("✅ Approva", $"approve_{c.Id}"),
-                            new("❌ Rifiuta", $"reject_{c.Id}"),
-                            new("⬅️ Torna al progetto", $"project_{projectId}")
+                            new("\ud83d\udc41 Vedi tutto", $"viewcontent_{c.Id}"),
+                            new("\u2705 Approva", $"approve_{c.Id}"),
+                            new("\u274c Rifiuta", $"reject_{c.Id}"),
+                            new("\u2b05\ufe0f Torna al progetto", $"project_{projectId}")
                         };
                         if (!string.IsNullOrEmpty(c.ImageUrl))
                         {
-                            await _telegramBot.SendPhotoAsync(agencyId, projectId, chatId, c.ImageUrl, caption, btns, ct);
+                            var photoCaption = caption.Length > 1024 ? caption[..1020] + "..." : caption;
+                            await _telegramBot.SendPhotoAsync(agencyId, projectId, chatId, c.ImageUrl, photoCaption, btns, ct);
                         }
                         else
                         {
@@ -746,11 +858,27 @@ public class TelegramWebhookController : ControllerBase
                 }
                 else
                 {
-                    var lines = new List<string> { $"✅ <b>Approvati — {projectName}</b> ({approved.Count})\n" };
+                    await _telegramBot.SendMessageAsync(agencyId, projectId, chatId,
+                        $"\u2705 <b>Approvati \u2014 {projectName}</b> ({approved.Count})\n", ct);
                     foreach (var c in approved)
-                        lines.Add($"• <b>{(c.ApprovedAt ?? c.CreatedAt):dd/MM HH:mm}</b> {c.Title}");
-                    var btns = new List<TelegramInlineButton> { new("⬅️ Torna al progetto", $"project_{projectId}") };
-                    await _telegramBot.SendMessageWithButtonsAsync(agencyId, projectId, chatId, string.Join("\n", lines), btns, ct);
+                    {
+                        var body = c.Body.Length > 200 ? c.Body[..200] + "..." : c.Body;
+                        var caption = $"\u2705 <b>{c.Title}</b>\n\n{body}\n\n\u2b50 Score: {c.OverallScore:F1}/10";
+                        var btns = new List<TelegramInlineButton>
+                        {
+                            new("\ud83d\udc41 Vedi tutto", $"viewcontent_{c.Id}"),
+                            new("\u2b05\ufe0f Torna al progetto", $"project_{projectId}")
+                        };
+                        if (!string.IsNullOrEmpty(c.ImageUrl))
+                        {
+                            var photoCaption = caption.Length > 1024 ? caption[..1020] + "..." : caption;
+                            await _telegramBot.SendPhotoAsync(agencyId, projectId, chatId, c.ImageUrl, photoCaption, btns, ct);
+                        }
+                        else
+                        {
+                            await _telegramBot.SendMessageWithButtonsAsync(agencyId, projectId, chatId, caption, btns, ct);
+                        }
+                    }
                 }
             }
         }

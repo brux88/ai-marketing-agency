@@ -380,6 +380,20 @@ export default function ProjectDetailPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const scheduleContent = useMutation({
+    mutationFn: (contentId: string) =>
+      apiClient.post(`/api/v1/agencies/${agencyId}/content/${contentId}/auto-schedule`, {}),
+    onSuccess: () => {
+      toast.success("Contenuto programmato nel calendario");
+      refetchContent();
+    },
+    onError: (e: Error) => toast.error(e.message || "Errore nella programmazione"),
+  });
+
+  const handleScheduleContent = (c: GeneratedContent) => {
+    scheduleContent.mutate(c.id);
+  };
+
   const handleDeleteContent = (c: GeneratedContent) => {
     if (confirm(`Eliminare definitivamente "${c.title}"?`)) {
       deleteContent.mutate(c.id);
@@ -590,13 +604,13 @@ export default function ProjectDetailPage() {
               </TabsTrigger>
             </TabsList>
             <TabsContent value="social" className="mt-4">
-              <ContentSection title="Social" icon={Share2} items={socials} formatDate={formatDate} onClick={setEditingContent} onDelete={handleDeleteContent} />
+              <ContentSection title="Social" icon={Share2} items={socials} formatDate={formatDate} onClick={setEditingContent} onDelete={handleDeleteContent} onSchedule={handleScheduleContent} isScheduling={scheduleContent.isPending} />
             </TabsContent>
             <TabsContent value="blog" className="mt-4">
-              <ContentSection title="Blog" icon={PenLine} items={blogs} formatDate={formatDate} onClick={setEditingContent} onDelete={handleDeleteContent} />
+              <ContentSection title="Blog" icon={PenLine} items={blogs} formatDate={formatDate} onClick={setEditingContent} onDelete={handleDeleteContent} onSchedule={handleScheduleContent} isScheduling={scheduleContent.isPending} />
             </TabsContent>
             <TabsContent value="newsletter" className="mt-4">
-              <ContentSection title="Newsletter" icon={Mail} items={newsletters} formatDate={formatDate} onClick={setEditingContent} onDelete={handleDeleteContent} />
+              <ContentSection title="Newsletter" icon={Mail} items={newsletters} formatDate={formatDate} onClick={setEditingContent} onDelete={handleDeleteContent} onSchedule={handleScheduleContent} isScheduling={scheduleContent.isPending} />
             </TabsContent>
           </Tabs>
         </TabsContent>
@@ -657,6 +671,25 @@ export default function ProjectDetailPage() {
             project={project}
           />
           <ProjectTelegramBot agencyId={agencyId as string} projectId={projectId as string} />
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Mail className="size-4" />
+                Gestisci Newsletter
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Configura l&apos;invio email, gestisci gli iscritti e visualizza il link di iscrizione pubblica alla newsletter.
+              </p>
+              <Button size="sm" variant="outline" asChild>
+                <a href={`/agencies/${agencyId}/newsletter`}>
+                  <Mail className="size-4" />
+                  Vai alla Newsletter
+                </a>
+              </Button>
+            </CardContent>
+          </Card>
           <ProjectDeleteCard agencyId={agencyId as string} projectId={projectId as string} />
         </TabsContent>
       </Tabs>
@@ -690,6 +723,8 @@ function ContentSection({
   formatDate,
   onClick,
   onDelete,
+  onSchedule,
+  isScheduling,
 }: {
   title: string;
   icon: any;
@@ -697,6 +732,8 @@ function ContentSection({
   formatDate: (iso: string) => string;
   onClick: (c: GeneratedContent) => void;
   onDelete: (c: GeneratedContent) => void;
+  onSchedule?: (c: GeneratedContent) => void;
+  isScheduling?: boolean;
 }) {
   const totalCost = items.reduce(
     (acc, c) => acc + (c.aiGenerationCostUsd ?? 0) + (c.aiImageCostUsd ?? 0),
@@ -753,9 +790,22 @@ function ContentSection({
                         </Badge>
                       )}
                       {c.status === ContentStatus.Approved && !c.isScheduled && (
+                        <>
                         <Badge className="bg-blue-500 text-white hover:bg-blue-600 text-[10px]">
                           Approvato{c.approvedAt ? ` · ${new Date(c.approvedAt).toLocaleDateString("it-IT")}` : ""}
                         </Badge>
+                        {onSchedule && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-5 px-1.5 text-[10px] gap-0.5"
+                            disabled={isScheduling}
+                            onClick={(e) => { e.stopPropagation(); onSchedule(c); }}
+                          >
+                            <Calendar className="size-3" /> Programma
+                          </Button>
+                        )}
+                        </>
                       )}
                       {c.status === ContentStatus.Rejected && (
                         <Badge className="bg-red-500 text-white hover:bg-red-600 text-[10px]">

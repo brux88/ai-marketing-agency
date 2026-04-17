@@ -48,6 +48,7 @@ public class NewsletterAgent : IMarketingAgent
         {
         generatePrompt = $"""
             You are an expert newsletter curator and writer for "{productName}".
+            Today's date is {DateTime.UtcNow:MMMM yyyy, dd/MM/yyyy}.
             {projectContextBlock}
             BRAND VOICE:
             - Tone: {brandVoice.Tone}

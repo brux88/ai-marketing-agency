@@ -78,9 +78,13 @@ public class AgentJobProcessor : IAgentJobProcessor
             // Build context
             var kernel = await _kernelFactory.CreateKernelAsync(job.AgencyId, ct);
 
-            var sources = await _context.ContentSources
-                .Where(s => s.AgencyId == job.AgencyId && s.IsActive)
-                .ToListAsync(ct);
+            var sourcesQuery = _context.ContentSources
+                .Where(s => s.AgencyId == job.AgencyId && s.IsActive);
+
+            if (job.ProjectId.HasValue)
+                sourcesQuery = sourcesQuery.Where(s => s.ProjectId == job.ProjectId.Value || s.ProjectId == null);
+
+            var sources = await sourcesQuery.ToListAsync(ct);
 
             var agency = job.Agency;
 

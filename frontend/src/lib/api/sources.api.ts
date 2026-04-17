@@ -2,14 +2,16 @@ import { apiClient } from "./client";
 import type { ApiResponse, ContentSource } from "@/types/api";
 
 export const sourcesApi = {
-  list: (agencyId: string) =>
-    apiClient.get<ApiResponse<ContentSource[]>>(
-      `/api/v1/agencies/${agencyId}/sources`
-    ),
+  list: (agencyId: string, projectId?: string) => {
+    const params = projectId ? `?projectId=${projectId}` : "";
+    return apiClient.get<ApiResponse<ContentSource[]>>(
+      `/api/v1/agencies/${agencyId}/sources${params}`
+    );
+  },
 
   create: (
     agencyId: string,
-    data: { type: number; url: string; name?: string }
+    data: { type: number; url: string; name?: string; projectId?: string }
   ) =>
     apiClient.post<ApiResponse<ContentSource>>(
       `/api/v1/agencies/${agencyId}/sources`,
