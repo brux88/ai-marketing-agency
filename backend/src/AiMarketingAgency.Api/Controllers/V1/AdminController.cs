@@ -38,21 +38,35 @@ public class AdminController : ControllerBase
         var now = DateTime.UtcNow;
         var monthStart = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
 
-        var totalTenants = await _context.Tenants.IgnoreQueryFilters().CountAsync(ct);
-        var activeTenants = await _context.Tenants.IgnoreQueryFilters().CountAsync(t => t.IsActive, ct);
-        var totalUsers = await _context.Users.IgnoreQueryFilters().CountAsync(ct);
-        var totalAgencies = await _context.Agencies.IgnoreQueryFilters().CountAsync(a => a.IsActive, ct);
-        var totalProjects = await _context.Projects.IgnoreQueryFilters().CountAsync(p => p.IsActive, ct);
+        var superAdminTenantIds = await _context.Users.IgnoreQueryFilters()
+            .Where(u => u.Role == UserRole.SuperAdmin)
+            .Select(u => u.TenantId)
+            .ToListAsync(ct);
+
+        var totalTenants = await _context.Tenants.IgnoreQueryFilters()
+            .CountAsync(t => !superAdminTenantIds.Contains(t.Id), ct);
+        var activeTenants = await _context.Tenants.IgnoreQueryFilters()
+            .CountAsync(t => t.IsActive && !superAdminTenantIds.Contains(t.Id), ct);
+        var totalUsers = await _context.Users.IgnoreQueryFilters()
+            .CountAsync(u => u.Role != UserRole.SuperAdmin, ct);
+        var totalAgencies = await _context.Agencies.IgnoreQueryFilters()
+            .CountAsync(a => a.IsActive && !superAdminTenantIds.Contains(a.TenantId), ct);
+        var totalProjects = await _context.Projects.IgnoreQueryFilters()
+            .CountAsync(p => p.IsActive && !superAdminTenantIds.Contains(p.TenantId), ct);
 
         var jobsThisMonth = await _context.AgentJobs.IgnoreQueryFilters()
-            .CountAsync(j => j.CreatedAt >= monthStart, ct);
-        var jobsTotal = await _context.AgentJobs.IgnoreQueryFilters().CountAsync(ct);
+            .CountAsync(j => j.CreatedAt >= monthStart && !superAdminTenantIds.Contains(j.TenantId), ct);
+        var jobsTotal = await _context.AgentJobs.IgnoreQueryFilters()
+            .CountAsync(j => !superAdminTenantIds.Contains(j.TenantId), ct);
 
-        var contentsTotal = await _context.GeneratedContents.IgnoreQueryFilters().CountAsync(ct);
+        var contentsTotal = await _context.GeneratedContents.IgnoreQueryFilters()
+            .CountAsync(c => !superAdminTenantIds.Contains(c.TenantId), ct);
         var contentsThisMonth = await _context.GeneratedContents.IgnoreQueryFilters()
-            .CountAsync(c => c.CreatedAt >= monthStart, ct);
+            .CountAsync(c => c.CreatedAt >= monthStart && !superAdminTenantIds.Contains(c.TenantId), ct);
 
-        var subscriptions = await _context.Subscriptions.IgnoreQueryFilters().ToListAsync(ct);
+        var subscriptions = await _context.Subscriptions.IgnoreQueryFilters()
+            .Where(s => !superAdminTenantIds.Contains(s.TenantId))
+            .ToListAsync(ct);
         var activeSubs = subscriptions.Count(s => s.Status == Domain.Enums.SubscriptionStatus.Active);
         var trialSubs = subscriptions.Count(s => s.Status == Domain.Enums.SubscriptionStatus.Trialing);
 
@@ -93,7 +107,13 @@ public class AdminController : ControllerBase
 
         var monthStart = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc);
 
+        var superAdminTenantIds = await _context.Users.IgnoreQueryFilters()
+            .Where(u => u.Role == UserRole.SuperAdmin)
+            .Select(u => u.TenantId)
+            .ToListAsync(ct);
+
         var tenants = await _context.Tenants.IgnoreQueryFilters()
+            .Where(t => !superAdminTenantIds.Contains(t.Id))
             .Include(t => t.Users)
             .Include(t => t.Agencies)
             .Include(t => t.Subscription)
