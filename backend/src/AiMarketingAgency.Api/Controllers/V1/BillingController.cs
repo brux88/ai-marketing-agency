@@ -84,11 +84,14 @@ public class BillingController : ControllerBase
     [Authorize]
     public ActionResult<ApiResponse<object>> GetPrices()
     {
+        var testMode = _configuration.GetValue<bool>("Stripe:TestMode");
+        var section = testMode ? "Stripe:TestPriceIds" : "Stripe:PriceIds";
         return Ok(ApiResponse<object>.Ok(new
         {
-            basic = _configuration["Stripe:PriceIds:Basic"] ?? "",
-            pro = _configuration["Stripe:PriceIds:Pro"] ?? "",
-            enterprise = _configuration["Stripe:PriceIds:Enterprise"] ?? "",
+            basic = _configuration[$"{section}:Basic"] ?? "",
+            pro = _configuration[$"{section}:Pro"] ?? "",
+            enterprise = _configuration[$"{section}:Enterprise"] ?? "",
+            testMode,
         }));
     }
 

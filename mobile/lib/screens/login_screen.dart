@@ -49,7 +49,19 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.auto_awesome, size: 64, color: cs.primary),
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(18),
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                  ),
+                ),
+                child: const Icon(Icons.send_rounded, size: 40, color: Colors.white),
+              ),
               const SizedBox(height: 16),
               Text('WePostAI',
                   style: Theme.of(context)

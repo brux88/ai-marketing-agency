@@ -23,14 +23,24 @@ void main() async {
 class WePostAIApp extends StatelessWidget {
   const WePostAIApp({super.key});
 
+  static const Color brandIndigo = Color(0xFF6366F1);
+  static const Color brandPurple = Color(0xFF8B5CF6);
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'WePostAI',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: brandIndigo,
+          primary: brandIndigo,
+        ),
         useMaterial3: true,
+        appBarTheme: const AppBarTheme(
+          centerTitle: true,
+          elevation: 0,
+        ),
       ),
       home: FutureBuilder<String?>(
         future: ApiClient.token,

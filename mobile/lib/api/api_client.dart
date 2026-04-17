@@ -3,8 +3,9 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class ApiClient {
+  static const bool _useLocal = false;
   static const String baseUrl =
-      'http://10.0.2.2:5130'; // Android emulator -> host
+      _useLocal ? 'http://10.0.2.2:5130' : 'https://wepostai-api.azurewebsites.net';
   static const _storage = FlutterSecureStorage();
 
   static Future<String?> get token => _storage.read(key: 'access_token');

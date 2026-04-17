@@ -124,21 +124,21 @@ const blogPosts = [
     excerpt: "Scopri come gli agenti AI possono generare contenuti di qualita mantenendo il tono di voce del tuo brand.",
     category: "WePostAI",
     date: "15 Apr 2026",
-    href: "/guide",
+    href: "/blog/ai-content-marketing",
   },
   {
     title: "Guida completa al Social Media Marketing automatizzato",
     excerpt: "Dalla pianificazione alla pubblicazione: come automatizzare il tuo flusso di lavoro sui social media.",
     category: "Social Media",
     date: "12 Apr 2026",
-    href: "/guide",
+    href: "/blog/social-media-automatizzato",
   },
   {
     title: "Newsletter che convertono: strategie AI-powered",
     excerpt: "Come usare l'intelligenza artificiale per creare newsletter che i tuoi iscritti vogliono davvero leggere.",
     category: "Newsletter",
     date: "10 Apr 2026",
-    href: "/guide",
+    href: "/blog/newsletter-ai-powered",
   },
 ];
 

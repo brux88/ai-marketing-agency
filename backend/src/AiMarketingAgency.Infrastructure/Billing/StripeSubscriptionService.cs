@@ -14,6 +14,7 @@ public class StripeSubscriptionService : ISubscriptionService
     private readonly IAppDbContext _context;
     private readonly IConfiguration _configuration;
     private readonly ILogger<StripeSubscriptionService> _logger;
+    private readonly bool _testMode;
 
     public StripeSubscriptionService(
         IAppDbContext context,
@@ -23,8 +24,13 @@ public class StripeSubscriptionService : ISubscriptionService
         _context = context;
         _configuration = configuration;
         _logger = logger;
+        _testMode = configuration.GetValue<bool>("Stripe:TestMode");
 
-        StripeConfiguration.ApiKey = _configuration["Stripe:SecretKey"];
+        StripeConfiguration.ApiKey = _testMode
+            ? _configuration["Stripe:TestSecretKey"]
+            : _configuration["Stripe:SecretKey"];
+
+        _logger.LogInformation("Stripe initialized in {Mode} mode", _testMode ? "TEST" : "LIVE");
     }
 
     public async Task<string> CreateCheckoutSessionAsync(
@@ -102,7 +108,9 @@ public class StripeSubscriptionService : ISubscriptionService
 
     public async Task HandleWebhookAsync(string json, string signature, CancellationToken ct = default)
     {
-        var webhookSecret = _configuration["Stripe:WebhookSecret"]
+        var webhookSecret = (_testMode
+            ? _configuration["Stripe:TestWebhookSecret"]
+            : _configuration["Stripe:WebhookSecret"])
             ?? throw new InvalidOperationException("Stripe webhook secret is not configured.");
 
         var stripeEvent = EventUtility.ConstructEvent(json, signature, webhookSecret, throwOnApiVersionMismatch: false);
@@ -315,9 +323,10 @@ public class StripeSubscriptionService : ISubscriptionService
     {
         if (string.IsNullOrEmpty(priceId)) return PlanTier.FreeTrial;
 
-        var basicPriceId = _configuration["Stripe:PriceIds:Basic"];
-        var proPriceId = _configuration["Stripe:PriceIds:Pro"];
-        var enterprisePriceId = _configuration["Stripe:PriceIds:Enterprise"];
+        var priceSection = _testMode ? "Stripe:TestPriceIds" : "Stripe:PriceIds";
+        var basicPriceId = _configuration[$"{priceSection}:Basic"];
+        var proPriceId = _configuration[$"{priceSection}:Pro"];
+        var enterprisePriceId = _configuration[$"{priceSection}:Enterprise"];
 
         if (!string.IsNullOrEmpty(enterprisePriceId) && priceId == enterprisePriceId)
             return PlanTier.Enterprise;
