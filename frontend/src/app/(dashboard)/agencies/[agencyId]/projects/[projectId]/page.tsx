@@ -682,12 +682,12 @@ export default function ProjectDetailPage() {
               <p className="text-sm text-muted-foreground">
                 Configura l&apos;invio email, gestisci gli iscritti e visualizza il link di iscrizione pubblica alla newsletter.
               </p>
-              <Button size="sm" variant="outline" asChild>
-                <a href={`/agencies/${agencyId}/newsletter`}>
+              <a href={`/agencies/${agencyId}/newsletter`}>
+                <Button size="sm" variant="outline">
                   <Mail className="size-4" />
                   Vai alla Newsletter
-                </a>
-              </Button>
+                </Button>
+              </a>
             </CardContent>
           </Card>
           <ProjectDeleteCard agencyId={agencyId as string} projectId={projectId as string} />
