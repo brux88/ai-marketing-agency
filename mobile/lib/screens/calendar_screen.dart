@@ -5,33 +5,33 @@ import '../models.dart';
 
 class _CalendarEntry {
   final String id;
-  final String agencyId;
   final String contentId;
   final String platform;
   final DateTime scheduledAt;
-  final int status;
+  final String status;
   final String title;
+  final String contentType;
   final String? imageUrl;
 
   _CalendarEntry({
     required this.id,
-    required this.agencyId,
     required this.contentId,
     required this.platform,
     required this.scheduledAt,
     required this.status,
     required this.title,
+    required this.contentType,
     this.imageUrl,
   });
 
   factory _CalendarEntry.fromJson(Map<String, dynamic> j) => _CalendarEntry(
         id: j['id'] ?? '',
-        agencyId: j['agencyId'] ?? '',
         contentId: j['contentId'] ?? '',
-        platform: j['platform'] ?? '',
+        platform: j['platform'] ?? j['contentType'] ?? '',
         scheduledAt: DateTime.parse(j['scheduledAt']),
-        status: j['status'] ?? 0,
-        title: (j['content']?['title'] as String?) ?? '',
+        status: j['status']?.toString() ?? '',
+        title: j['contentTitle'] ?? (j['content']?['title'] as String?) ?? '',
+        contentType: j['contentType'] ?? '',
         imageUrl: j['content']?['imageUrl'] as String?,
       );
 }
@@ -81,31 +81,33 @@ class _CalendarScreenState extends State<CalendarScreen> {
         return Icons.tag;
       case 'Blog':
         return Icons.article;
+      case 'Newsletter':
+        return Icons.email;
       default:
         return Icons.public;
     }
   }
 
-  String _statusLabel(int status) {
+  String _statusLabel(String status) {
     switch (status) {
-      case 0:
+      case 'Scheduled':
         return 'Pianificato';
-      case 1:
+      case 'Published':
         return 'Pubblicato';
-      case 2:
+      case 'Failed':
         return 'Fallito';
       default:
-        return 'Sconosciuto';
+        return status;
     }
   }
 
-  Color _statusColor(int status) {
+  Color _statusColor(String status) {
     switch (status) {
-      case 0:
+      case 'Scheduled':
         return Colors.blue;
-      case 1:
+      case 'Published':
         return Colors.green;
-      case 2:
+      case 'Failed':
         return Colors.red;
       default:
         return Colors.grey;
@@ -232,13 +234,31 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                       const SizedBox(height: 4),
-                                      Text(
-                                        timeFmt.format(
-                                            e.scheduledAt.toLocal()),
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: cs.onSurfaceVariant,
-                                        ),
+                                      Row(
+                                        children: [
+                                          Text(
+                                            timeFmt.format(
+                                                e.scheduledAt.toLocal()),
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: cs.onSurfaceVariant,
+                                            ),
+                                          ),
+                                          if (e.contentType.isNotEmpty) ...[
+                                            const SizedBox(width: 8),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                              decoration: BoxDecoration(
+                                                color: cs.surfaceContainerHighest,
+                                                borderRadius: BorderRadius.circular(8),
+                                              ),
+                                              child: Text(
+                                                e.contentType,
+                                                style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant),
+                                              ),
+                                            ),
+                                          ],
+                                        ],
                                       ),
                                     ],
                                   ),

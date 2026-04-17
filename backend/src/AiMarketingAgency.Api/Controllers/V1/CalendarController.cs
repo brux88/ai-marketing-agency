@@ -24,6 +24,39 @@ public class CalendarController : ControllerBase
         _mediator = mediator;
     }
 
+    [HttpGet("calendar")]
+    public async Task<ActionResult<ApiResponse<List<CalendarEntryDto>>>> GetAgencyCalendar(
+        Guid agencyId,
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to,
+        CancellationToken ct = default)
+    {
+        var query = _context.CalendarEntries
+            .Where(e => e.AgencyId == agencyId);
+
+        if (from.HasValue) query = query.Where(e => e.ScheduledAt >= from.Value);
+        if (to.HasValue) query = query.Where(e => e.ScheduledAt <= to.Value);
+
+        var items = await query
+            .OrderBy(e => e.ScheduledAt)
+            .Select(e => new CalendarEntryDto
+            {
+                Id = e.Id,
+                ContentId = e.ContentId,
+                ContentTitle = e.Content.Title,
+                ContentType = e.Content.ContentType.ToString(),
+                Platform = e.Platform.HasValue ? e.Platform.Value.ToString() : null,
+                ScheduledAt = e.ScheduledAt,
+                PublishedAt = e.PublishedAt,
+                Status = e.Status.ToString(),
+                ErrorMessage = e.ErrorMessage,
+                PostUrl = e.PostUrl
+            })
+            .ToListAsync(ct);
+
+        return Ok(ApiResponse<List<CalendarEntryDto>>.Ok(items));
+    }
+
     [HttpGet("projects/{projectId:guid}/calendar")]
     public async Task<ActionResult<ApiResponse<List<CalendarEntryDto>>>> GetProjectCalendar(
         Guid agencyId,

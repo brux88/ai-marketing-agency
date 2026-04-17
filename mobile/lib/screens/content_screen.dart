@@ -12,13 +12,30 @@ class ContentScreen extends StatefulWidget {
   State<ContentScreen> createState() => _ContentScreenState();
 }
 
-class _ContentScreenState extends State<ContentScreen> {
+class _ContentScreenState extends State<ContentScreen>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
   late Future<List<GeneratedContent>> _future;
+
+  // contentType values: 1=SocialPost, 2=Blog, 3=Newsletter
+  static const _tabs = [
+    _TabDef(null, 'Tutti', Icons.dashboard_outlined),
+    _TabDef(1, 'Social', Icons.share_outlined),
+    _TabDef(2, 'Blog', Icons.article_outlined),
+    _TabDef(3, 'Newsletter', Icons.email_outlined),
+  ];
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: _tabs.length, vsync: this);
     _future = _load();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   Future<List<GeneratedContent>> _load() async {
@@ -109,13 +126,60 @@ class _ContentScreenState extends State<ContentScreen> {
     }
   }
 
+  String _contentTypeLabel(int? t) {
+    switch (t) {
+      case 1:
+        return 'Social';
+      case 2:
+        return 'Blog';
+      case 3:
+        return 'Newsletter';
+      default:
+        return '';
+    }
+  }
+
+  IconData _contentTypeIcon(int? t) {
+    switch (t) {
+      case 1:
+        return Icons.share;
+      case 2:
+        return Icons.article;
+      case 3:
+        return Icons.email;
+      default:
+        return Icons.description;
+    }
+  }
+
+  Color _contentTypeColor(int? t) {
+    switch (t) {
+      case 1:
+        return Colors.indigo;
+      case 2:
+        return Colors.teal;
+      case 3:
+        return Colors.deepPurple;
+      default:
+        return Colors.grey;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final title = widget.project != null
-        ? widget.project!.name
-        : widget.agency.name;
+    final title =
+        widget.project != null ? widget.project!.name : widget.agency.name;
     return Scaffold(
-      appBar: AppBar(title: Text(title)),
+      appBar: AppBar(
+        title: Text(title),
+        bottom: TabBar(
+          controller: _tabController,
+          isScrollable: false,
+          tabs: _tabs
+              .map((t) => Tab(icon: Icon(t.icon, size: 18), text: t.label))
+              .toList(),
+        ),
+      ),
       floatingActionButton: widget.project != null
           ? FloatingActionButton.extended(
               onPressed: () async {
@@ -156,45 +220,62 @@ class _ContentScreenState extends State<ContentScreen> {
               ),
             );
           }
-          final items = snap.data ?? [];
-          if (items.isEmpty) {
-            final cs = Theme.of(context).colorScheme;
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.article_outlined,
-                      size: 64,
-                      color: cs.onSurfaceVariant.withValues(alpha: 0.5)),
-                  const SizedBox(height: 16),
-                  Text('Nessun contenuto',
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleMedium
-                          ?.copyWith(color: cs.onSurfaceVariant)),
-                ],
-              ),
-            );
-          }
-          return RefreshIndicator(
-            onRefresh: () async => setState(() => _future = _load()),
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              itemCount: items.length,
-              itemBuilder: (_, i) {
-                final c = items[i];
-                return _ContentCard(
-                  content: c,
-                  statusColor: _statusColor(c.status),
-                  statusLabel: _statusLabel(c.status),
-                  statusIcon: _statusIcon(c.status),
-                  onApprove:
-                      c.status == 2 ? () => _approve(c.id) : null,
-                  onReject:
-                      c.status == 2 ? () => _reject(c.id) : null,
-                );
-              },
-            ),
+          final allItems = snap.data ?? [];
+          return TabBarView(
+            controller: _tabController,
+            children: _tabs.map((tab) {
+              final items = tab.typeFilter == null
+                  ? allItems
+                  : allItems
+                      .where((c) => c.contentType == tab.typeFilter)
+                      .toList();
+              return _buildContentList(items);
+            }).toList(),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildContentList(List<GeneratedContent> items) {
+    final cs = Theme.of(context).colorScheme;
+    if (items.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.article_outlined,
+                size: 64,
+                color: cs.onSurfaceVariant.withValues(alpha: 0.5)),
+            const SizedBox(height: 16),
+            Text('Nessun contenuto',
+                style: Theme.of(context)
+                    .textTheme
+                    .titleMedium
+                    ?.copyWith(color: cs.onSurfaceVariant)),
+          ],
+        ),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: () async => setState(() => _future = _load()),
+      child: ListView.builder(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        itemCount: items.length,
+        itemBuilder: (_, i) {
+          final c = items[i];
+          return _ContentCard(
+            content: c,
+            statusColor: _statusColor(c.status),
+            statusLabel: _statusLabel(c.status),
+            statusIcon: _statusIcon(c.status),
+            contentTypeLabel: _contentTypeLabel(c.contentType),
+            contentTypeIcon: _contentTypeIcon(c.contentType),
+            contentTypeColor: _contentTypeColor(c.contentType),
+            onApprove:
+                (c.status == 2 || c.status == 5) ? () => _approve(c.id) : null,
+            onReject:
+                (c.status == 2 || c.status == 5) ? () => _reject(c.id) : null,
           );
         },
       ),
@@ -202,11 +283,21 @@ class _ContentScreenState extends State<ContentScreen> {
   }
 }
 
+class _TabDef {
+  final int? typeFilter;
+  final String label;
+  final IconData icon;
+  const _TabDef(this.typeFilter, this.label, this.icon);
+}
+
 class _ContentCard extends StatelessWidget {
   final GeneratedContent content;
   final Color statusColor;
   final String statusLabel;
   final IconData statusIcon;
+  final String contentTypeLabel;
+  final IconData contentTypeIcon;
+  final Color contentTypeColor;
   final VoidCallback? onApprove;
   final VoidCallback? onReject;
 
@@ -215,6 +306,9 @@ class _ContentCard extends StatelessWidget {
     required this.statusColor,
     required this.statusLabel,
     required this.statusIcon,
+    required this.contentTypeLabel,
+    required this.contentTypeIcon,
+    required this.contentTypeColor,
     this.onApprove,
     this.onReject,
   });
@@ -251,7 +345,29 @@ class _ContentCard extends StatelessWidget {
                       color: statusColor,
                       fontWeight: FontWeight.w600)),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
+            if (contentTypeLabel.isNotEmpty)
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: contentTypeColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(contentTypeIcon, size: 12, color: contentTypeColor),
+                    const SizedBox(width: 3),
+                    Text(contentTypeLabel,
+                        style: TextStyle(
+                            fontSize: 10,
+                            color: contentTypeColor,
+                            fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              ),
+            const SizedBox(width: 6),
             Text(
                 'Score ${content.overallScore.toStringAsFixed(1)}/10',
                 style: Theme.of(context)
