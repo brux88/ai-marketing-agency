@@ -10,4 +10,22 @@ export const authApi = {
 
   refresh: (refreshToken: string) =>
     apiClient.post<ApiResponse<AuthResponse>>("/api/v1/auth/refresh", { refreshToken }),
+
+  confirmEmail: (token: string) =>
+    apiClient.post<ApiResponse<string>>("/api/v1/auth/confirm-email", { token }),
+
+  forgotPassword: (email: string) =>
+    apiClient.post<ApiResponse<string>>("/api/v1/auth/forgot-password", { email }),
+
+  resetPassword: (token: string, newPassword: string) =>
+    apiClient.post<ApiResponse<string>>("/api/v1/auth/reset-password", { token, newPassword }),
+
+  resendConfirmation: (email: string) =>
+    apiClient.post<ApiResponse<string>>("/api/v1/auth/resend-confirmation", { email }),
+
+  requestAccountDeletion: () =>
+    apiClient.post<ApiResponse<string>>("/api/v1/auth/request-account-deletion", {}),
+
+  confirmAccountDeletion: (token: string) =>
+    apiClient.post<ApiResponse<string>>("/api/v1/auth/confirm-account-deletion", { token }),
 };

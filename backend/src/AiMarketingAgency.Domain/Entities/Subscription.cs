@@ -13,6 +13,7 @@ public class Subscription : BaseEntity, ITenantScoped
     public DateTime? CurrentPeriodEnd { get; set; }
     public DateTime? TrialEndsAt { get; set; }
     public int MaxAgencies { get; set; } = 1;
+    public int MaxProjects { get; set; } = 3;
     public int MaxJobsPerMonth { get; set; } = 20;
 
     // Navigation

@@ -10,6 +10,7 @@ export interface UserInfo {
   fullName: string;
   tenantId: string;
   role: string;
+  isEmailConfirmed?: boolean;
 }
 
 export interface AuthResponse {

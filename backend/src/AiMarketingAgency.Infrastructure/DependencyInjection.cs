@@ -61,6 +61,10 @@ public static class DependencyInjection
         // Email sending (default SMTP, SendGrid resolved at runtime)
         services.AddScoped<IEmailSendingService, SmtpEmailService>();
 
+        // Transactional emails (confirmation, password reset)
+        services.Configure<TransactionalEmailOptions>(configuration.GetSection(TransactionalEmailOptions.SectionName));
+        services.AddScoped<ITransactionalEmailService, TransactionalEmailService>();
+
         // Telegram bot
         services.AddScoped<ITelegramBotService, TelegramBotService>();
 

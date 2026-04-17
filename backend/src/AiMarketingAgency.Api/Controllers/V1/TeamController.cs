@@ -5,6 +5,7 @@ using AiMarketingAgency.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace AiMarketingAgency.Api.Controllers.V1;
 
@@ -15,11 +16,15 @@ public class TeamController : ControllerBase
 {
     private readonly IAppDbContext _context;
     private readonly ITenantContext _tenantContext;
+    private readonly ITransactionalEmailService _emailService;
+    private readonly IConfiguration _configuration;
 
-    public TeamController(IAppDbContext context, ITenantContext tenantContext)
+    public TeamController(IAppDbContext context, ITenantContext tenantContext, ITransactionalEmailService emailService, IConfiguration configuration)
     {
         _context = context;
         _tenantContext = tenantContext;
+        _emailService = emailService;
+        _configuration = configuration;
     }
 
     [HttpGet("members")]
@@ -96,6 +101,26 @@ public class TeamController : ControllerBase
         _context.TeamInvitations.Add(invitation);
         await _context.SaveChangesAsync(ct);
 
+        var inviter = await _context.Users
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(u => u.Id == _tenantContext.UserId, ct);
+        var tenant = await _context.Tenants
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(t => t.Id == _tenantContext.TenantId, ct);
+
+        var frontendUrl = _configuration["Frontend:Url"] ?? "https://wepostai.com";
+        var invitationLink = $"{frontendUrl}/accept-invitation?token={invitation.Token}";
+
+        try
+        {
+            await _emailService.SendTeamInvitationAsync(
+                request.Email,
+                inviter?.FullName ?? "Un membro del team",
+                tenant?.Name ?? "WePost AI",
+                invitationLink, ct);
+        }
+        catch { /* log but don't fail the invitation */ }
+
         return Ok(ApiResponse<InvitationDto>.Ok(new InvitationDto
         {
             Id = invitation.Id,
@@ -160,6 +185,7 @@ public class TeamController : ControllerBase
                 FullName = request.FullName ?? invitation.Email.Split('@')[0],
                 ExternalId = BCrypt.Net.BCrypt.HashPassword(request.Password),
                 Role = invitation.Role,
+                IsEmailConfirmed = true,
                 AllowedAgencyIds = invitation.AllowedAgencyIds,
                 AllowedProjectIds = invitation.AllowedProjectIds,
                 CanCreateProjects = invitation.CanCreateProjects,

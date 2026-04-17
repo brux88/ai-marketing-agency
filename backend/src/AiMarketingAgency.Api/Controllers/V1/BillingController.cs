@@ -43,16 +43,23 @@ public class BillingController : ControllerBase
             .IgnoreQueryFilters()
             .CountAsync(j => j.TenantId == tenantId && j.CreatedAt >= periodStart, ct);
 
+        var projectCount = await _context.Projects
+            .IgnoreQueryFilters()
+            .CountAsync(p => p.TenantId == tenantId && p.IsActive, ct);
+
         var plan = subscription?.PlanTier.ToString() ?? "FreeTrial";
         var maxAgencies = subscription?.MaxAgencies ?? 1;
+        var maxProjects = subscription?.MaxProjects ?? 3;
         var maxJobs = subscription?.MaxJobsPerMonth ?? 50;
 
         // Fix stale limits in DB for FreeTrial
         if (plan == "FreeTrial" && subscription != null && (subscription.MaxAgencies != 1 || subscription.MaxJobsPerMonth != 50))
         {
             subscription.MaxAgencies = 1;
+            subscription.MaxProjects = 3;
             subscription.MaxJobsPerMonth = 50;
             maxAgencies = 1;
+            maxProjects = 3;
             maxJobs = 50;
             await _context.SaveChangesAsync(ct);
         }
@@ -64,6 +71,8 @@ public class BillingController : ControllerBase
             Status = status,
             AgenciesUsed = agencyCount,
             MaxAgencies = maxAgencies,
+            ProjectsUsed = projectCount,
+            MaxProjects = maxProjects,
             JobsUsed = jobsThisMonth,
             MaxJobs = maxJobs,
             CurrentPeriodEnd = subscription?.CurrentPeriodEnd,
@@ -88,8 +97,12 @@ public class BillingController : ControllerBase
     public async Task<ActionResult<ApiResponse<object>>> CreateCheckoutSession(
         [FromBody] CreateCheckoutRequest request, CancellationToken ct)
     {
+        var user = await _context.Users
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(u => u.Id == _tenantContext.UserId, ct);
+
         var sessionUrl = await _subscriptionService.CreateCheckoutSessionAsync(
-            _tenantContext.TenantId, request.PriceId, request.SuccessUrl, request.CancelUrl, ct);
+            _tenantContext.TenantId, request.PriceId, request.SuccessUrl, request.CancelUrl, user?.Email, ct);
         return Ok(ApiResponse<object>.Ok(new { url = sessionUrl }));
     }
 
@@ -120,6 +133,8 @@ public class BillingUsageDto
     public string Status { get; set; } = "FreeTrial";
     public int AgenciesUsed { get; set; }
     public int MaxAgencies { get; set; }
+    public int ProjectsUsed { get; set; }
+    public int MaxProjects { get; set; }
     public int JobsUsed { get; set; }
     public int MaxJobs { get; set; }
     public DateTime? CurrentPeriodEnd { get; set; }

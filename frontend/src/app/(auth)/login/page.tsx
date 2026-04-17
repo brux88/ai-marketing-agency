@@ -65,6 +65,11 @@ export default function LoginPage() {
               placeholder="La tua password"
             />
           </div>
+          <div className="text-right">
+            <Link href="/forgot-password" className="text-sm text-primary hover:underline">
+              Password dimenticata?
+            </Link>
+          </div>
           <Button type="submit" disabled={loading} className="w-full">
             {loading ? (
               <><Loader2 className="size-4 animate-spin" /> Accesso in corso...</>

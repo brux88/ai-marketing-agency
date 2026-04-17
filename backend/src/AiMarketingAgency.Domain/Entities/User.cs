@@ -11,6 +11,13 @@ public class User : BaseEntity, ITenantScoped
     public string FullName { get; set; } = string.Empty;
     public UserRole Role { get; set; } = UserRole.Member;
 
+    public bool IsEmailConfirmed { get; set; }
+    public string? EmailConfirmationToken { get; set; }
+    public string? PasswordResetToken { get; set; }
+    public DateTime? PasswordResetTokenExpiry { get; set; }
+    public string? AccountDeletionToken { get; set; }
+    public DateTime? AccountDeletionTokenExpiry { get; set; }
+
     public string? AllowedAgencyIds { get; set; }
     public string? AllowedProjectIds { get; set; }
     public bool CanCreateProjects { get; set; }

@@ -962,6 +962,9 @@ namespace AiMarketingAgency.Infrastructure.Persistence.Migrations
                     b.Property<int>("MaxJobsPerMonth")
                         .HasColumnType("integer");
 
+                    b.Property<int>("MaxProjects")
+                        .HasColumnType("integer");
+
                     b.Property<int>("PlanTier")
                         .HasColumnType("integer");
 
@@ -1190,6 +1193,13 @@ namespace AiMarketingAgency.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("AccountDeletionToken")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTime?>("AccountDeletionTokenExpiry")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("AllowedAgencyIds")
                         .HasColumnType("text");
 
@@ -1210,6 +1220,10 @@ namespace AiMarketingAgency.Infrastructure.Persistence.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
 
+                    b.Property<string>("EmailConfirmationToken")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
                     b.Property<string>("ExternalId")
                         .IsRequired()
                         .HasMaxLength(256)
@@ -1219,6 +1233,18 @@ namespace AiMarketingAgency.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
+
+                    b.Property<bool>("IsEmailConfirmed")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("PasswordResetToken")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTime?>("PasswordResetTokenExpiry")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("Role")
                         .HasColumnType("integer");
@@ -1234,8 +1260,7 @@ namespace AiMarketingAgency.Infrastructure.Persistence.Migrations
                     b.HasIndex("Email")
                         .IsUnique();
 
-                    b.HasIndex("ExternalId")
-                        .IsUnique();
+                    b.HasIndex("ExternalId");
 
                     b.HasIndex("TenantId");
 

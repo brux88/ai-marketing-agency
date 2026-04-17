@@ -1,0 +1,3 @@
+superadmin
+  - Email: admin@wepostai.com
+  - Password: WePostAdmin2026!

@@ -5,6 +5,8 @@ using AiMarketingAgency.Api.Services;
 using AiMarketingAgency.Application;
 using AiMarketingAgency.Application.Common.Interfaces;
 using AiMarketingAgency.Infrastructure;
+using AiMarketingAgency.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -123,9 +125,11 @@ app.UseMiddleware<TenantResolutionMiddleware>();
 app.MapControllers();
 app.MapHub<NotificationHub>("/hubs/notifications");
 
-// Seed SuperAdmin on first run
+// Apply pending migrations and seed SuperAdmin
 using (var scope = app.Services.CreateScope())
 {
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    await db.Database.MigrateAsync();
     var authService = scope.ServiceProvider.GetRequiredService<IAuthService>();
     await authService.EnsureSuperAdminAsync(default);
 }

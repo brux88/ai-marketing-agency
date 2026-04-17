@@ -13,6 +13,7 @@ import {
   LogOut,
   ChevronRight,
   Shield,
+  UserCircle,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { NotificationBell } from "@/components/layout/notification-bell";
@@ -23,6 +24,7 @@ const navItems = [
   { href: "/agencies/new", label: "Nuova Agenzia", icon: PlusCircle },
   { href: "/settings/api-keys", label: "Chiavi API", icon: Key },
   { href: "/settings/billing", label: "Abbonamento", icon: CreditCard },
+  { href: "/settings/profile", label: "Profilo", icon: UserCircle },
   { href: "/admin", label: "Admin", icon: Shield, superAdminOnly: true },
 ];
 

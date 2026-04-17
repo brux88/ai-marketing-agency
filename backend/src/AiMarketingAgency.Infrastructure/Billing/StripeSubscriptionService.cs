@@ -28,7 +28,7 @@ public class StripeSubscriptionService : ISubscriptionService
     }
 
     public async Task<string> CreateCheckoutSessionAsync(
-        Guid tenantId, string priceId, string successUrl, string cancelUrl, CancellationToken ct = default)
+        Guid tenantId, string priceId, string successUrl, string cancelUrl, string? customerEmail = null, CancellationToken ct = default)
     {
         var subscription = await _context.Subscriptions
             .IgnoreQueryFilters()
@@ -53,10 +53,14 @@ public class StripeSubscriptionService : ISubscriptionService
             }
         };
 
-        // If we already have a Stripe customer, reuse it
-        if (subscription != null && !string.IsNullOrEmpty(subscription.StripeCustomerId))
+        if (subscription != null && !string.IsNullOrEmpty(subscription.StripeCustomerId)
+            && subscription.StripeCustomerId.StartsWith("cus_"))
         {
             sessionOptions.Customer = subscription.StripeCustomerId;
+        }
+        else if (!string.IsNullOrEmpty(customerEmail))
+        {
+            sessionOptions.CustomerEmail = customerEmail;
         }
 
         var sessionService = new SessionService();
@@ -101,47 +105,64 @@ public class StripeSubscriptionService : ISubscriptionService
         var webhookSecret = _configuration["Stripe:WebhookSecret"]
             ?? throw new InvalidOperationException("Stripe webhook secret is not configured.");
 
-        var stripeEvent = EventUtility.ConstructEvent(json, signature, webhookSecret);
+        var stripeEvent = EventUtility.ConstructEvent(json, signature, webhookSecret, throwOnApiVersionMismatch: false);
+
+        // Parse raw JSON as fallback for cross-version compatibility
+        var rawEvent = System.Text.Json.JsonDocument.Parse(json);
 
         _logger.LogInformation("Handling Stripe webhook event {EventType}", stripeEvent.Type);
+
+        var dataObj = rawEvent.RootElement.GetProperty("data").GetProperty("object");
 
         switch (stripeEvent.Type)
         {
             case EventTypes.CheckoutSessionCompleted:
-                await HandleCheckoutSessionCompleted(stripeEvent, ct);
+                await HandleCheckoutSessionCompleted(dataObj, ct);
                 break;
 
             case EventTypes.CustomerSubscriptionUpdated:
-                await HandleSubscriptionUpdated(stripeEvent, ct);
+                await HandleSubscriptionUpdated(dataObj, ct);
                 break;
 
             case EventTypes.CustomerSubscriptionDeleted:
-                await HandleSubscriptionDeleted(stripeEvent, ct);
+                await HandleSubscriptionDeleted(dataObj, ct);
                 break;
 
             case EventTypes.InvoicePaymentFailed:
-                await HandleInvoicePaymentFailed(stripeEvent, ct);
+                await HandleInvoicePaymentFailed(dataObj, ct);
                 break;
 
             case EventTypes.InvoicePaymentSucceeded:
-                await HandleInvoicePaymentSucceeded(stripeEvent, ct);
+                await HandleInvoicePaymentSucceeded(dataObj, ct);
                 break;
 
             default:
                 _logger.LogInformation("Unhandled Stripe event type: {EventType}", stripeEvent.Type);
                 break;
         }
+
+        rawEvent.Dispose();
     }
 
-    private async Task HandleCheckoutSessionCompleted(Event stripeEvent, CancellationToken ct)
-    {
-        var session = stripeEvent.Data.Object as Session
-            ?? throw new InvalidOperationException("Invalid checkout session event data.");
+    private static string? GetStr(System.Text.Json.JsonElement el, string prop)
+        => el.TryGetProperty(prop, out var v) && v.ValueKind == System.Text.Json.JsonValueKind.String ? v.GetString() : null;
 
-        if (!session.Metadata.TryGetValue("tenantId", out var tenantIdStr) ||
-            !Guid.TryParse(tenantIdStr, out var tenantId))
+    private async Task HandleCheckoutSessionCompleted(System.Text.Json.JsonElement data, CancellationToken ct)
+    {
+        var sessionId = GetStr(data, "id");
+        var customerId = GetStr(data, "customer");
+        var subscriptionId = GetStr(data, "subscription");
+
+        string? tenantIdStr = null;
+        if (data.TryGetProperty("metadata", out var meta) && meta.TryGetProperty("tenantId", out var tid))
+            tenantIdStr = tid.GetString();
+
+        _logger.LogInformation("CheckoutSessionCompleted: session={SessionId}, customer={CustomerId}, subscription={SubId}, tenantId={TenantId}",
+            sessionId, customerId, subscriptionId, tenantIdStr);
+
+        if (string.IsNullOrEmpty(tenantIdStr) || !Guid.TryParse(tenantIdStr, out var tenantId))
         {
-            _logger.LogWarning("Checkout session {SessionId} missing tenantId metadata", session.Id);
+            _logger.LogWarning("Checkout session {SessionId} missing tenantId metadata", sessionId);
             return;
         }
 
@@ -151,76 +172,87 @@ public class StripeSubscriptionService : ISubscriptionService
 
         if (subscription == null)
         {
-            // Create new subscription record
             subscription = new Domain.Entities.Subscription
             {
                 TenantId = tenantId,
-                StripeCustomerId = session.CustomerId ?? string.Empty,
-                StripeSubscriptionId = session.SubscriptionId,
+                StripeCustomerId = customerId ?? string.Empty,
+                StripeSubscriptionId = subscriptionId,
                 Status = SubscriptionStatus.Active,
-                PlanTier = PlanTier.Basic, // Will be updated by subscription.updated event
+                PlanTier = PlanTier.Basic,
             };
             _context.Subscriptions.Add(subscription);
         }
         else
         {
-            subscription.StripeCustomerId = session.CustomerId ?? subscription.StripeCustomerId;
-            subscription.StripeSubscriptionId = session.SubscriptionId;
+            subscription.StripeCustomerId = customerId ?? subscription.StripeCustomerId;
+            subscription.StripeSubscriptionId = subscriptionId;
             subscription.Status = SubscriptionStatus.Active;
         }
 
         await _context.SaveChangesAsync(ct);
 
-        _logger.LogInformation(
-            "Checkout completed for tenant {TenantId}, subscription {SubscriptionId}",
-            tenantId, session.SubscriptionId);
+        _logger.LogInformation("Checkout completed for tenant {TenantId}, subscription {SubscriptionId}", tenantId, subscriptionId);
     }
 
-    private async Task HandleSubscriptionUpdated(Event stripeEvent, CancellationToken ct)
+    private async Task HandleSubscriptionUpdated(System.Text.Json.JsonElement data, CancellationToken ct)
     {
-        var stripeSubscription = stripeEvent.Data.Object as Stripe.Subscription
-            ?? throw new InvalidOperationException("Invalid subscription event data.");
+        var stripeSubId = GetStr(data, "id");
+        var status = GetStr(data, "status");
+
+        string? priceId = null;
+        if (data.TryGetProperty("items", out var items) &&
+            items.TryGetProperty("data", out var itemsData) &&
+            itemsData.GetArrayLength() > 0)
+        {
+            var firstItem = itemsData[0];
+            if (firstItem.TryGetProperty("price", out var price))
+                priceId = GetStr(price, "id");
+        }
+
+        DateTime? currentPeriodEnd = null;
+        if (data.TryGetProperty("current_period_end", out var cpe) && cpe.ValueKind == System.Text.Json.JsonValueKind.Number)
+            currentPeriodEnd = DateTimeOffset.FromUnixTimeSeconds(cpe.GetInt64()).UtcDateTime;
+
+        _logger.LogInformation("SubscriptionUpdated: id={SubId}, status={Status}, priceId={PriceId}", stripeSubId, status, priceId);
 
         var subscription = await _context.Subscriptions
             .IgnoreQueryFilters()
-            .FirstOrDefaultAsync(s => s.StripeSubscriptionId == stripeSubscription.Id, ct);
+            .FirstOrDefaultAsync(s => s.StripeSubscriptionId == stripeSubId, ct);
 
         if (subscription == null)
         {
-            _logger.LogWarning("No local subscription found for Stripe subscription {SubscriptionId}", stripeSubscription.Id);
+            _logger.LogWarning("No local subscription found for Stripe subscription {SubscriptionId}", stripeSubId);
             return;
         }
 
-        subscription.Status = MapStripeStatus(stripeSubscription.Status);
-        subscription.CurrentPeriodEnd = stripeSubscription.CurrentPeriodEnd;
+        subscription.Status = MapStripeStatus(status ?? "active");
+        if (currentPeriodEnd.HasValue)
+            subscription.CurrentPeriodEnd = currentPeriodEnd.Value;
 
-        // Update plan tier based on the price
-        if (stripeSubscription.Items?.Data?.Count > 0)
+        if (!string.IsNullOrEmpty(priceId))
         {
-            var priceId = stripeSubscription.Items.Data[0].Price?.Id;
             subscription.PlanTier = MapPriceToPlanTier(priceId);
             UpdatePlanLimits(subscription);
         }
 
         await _context.SaveChangesAsync(ct);
 
-        _logger.LogInformation(
-            "Subscription updated for tenant {TenantId}: status={Status}, tier={Tier}",
+        _logger.LogInformation("Subscription updated for tenant {TenantId}: status={Status}, tier={Tier}",
             subscription.TenantId, subscription.Status, subscription.PlanTier);
     }
 
-    private async Task HandleSubscriptionDeleted(Event stripeEvent, CancellationToken ct)
+    private async Task HandleSubscriptionDeleted(System.Text.Json.JsonElement data, CancellationToken ct)
     {
-        var stripeSubscription = stripeEvent.Data.Object as Stripe.Subscription
-            ?? throw new InvalidOperationException("Invalid subscription event data.");
+        var stripeSubId = GetStr(data, "id");
+        if (string.IsNullOrEmpty(stripeSubId)) return;
 
         var subscription = await _context.Subscriptions
             .IgnoreQueryFilters()
-            .FirstOrDefaultAsync(s => s.StripeSubscriptionId == stripeSubscription.Id, ct);
+            .FirstOrDefaultAsync(s => s.StripeSubscriptionId == stripeSubId, ct);
 
         if (subscription == null)
         {
-            _logger.LogWarning("No local subscription found for deleted Stripe subscription {SubscriptionId}", stripeSubscription.Id);
+            _logger.LogWarning("No local subscription found for deleted Stripe subscription {SubscriptionId}", stripeSubId);
             return;
         }
 
@@ -230,51 +262,43 @@ public class StripeSubscriptionService : ISubscriptionService
 
         await _context.SaveChangesAsync(ct);
 
-        _logger.LogInformation(
-            "Subscription cancelled for tenant {TenantId}",
-            subscription.TenantId);
+        _logger.LogInformation("Subscription cancelled for tenant {TenantId}", subscription.TenantId);
     }
 
-    private async Task HandleInvoicePaymentFailed(Event stripeEvent, CancellationToken ct)
+    private async Task HandleInvoicePaymentFailed(System.Text.Json.JsonElement data, CancellationToken ct)
     {
-        var invoice = stripeEvent.Data.Object as Invoice
-            ?? throw new InvalidOperationException("Invalid invoice event data.");
-
-        if (string.IsNullOrEmpty(invoice.SubscriptionId)) return;
+        var subscriptionId = GetStr(data, "subscription");
+        if (string.IsNullOrEmpty(subscriptionId)) return;
 
         var subscription = await _context.Subscriptions
             .IgnoreQueryFilters()
-            .FirstOrDefaultAsync(s => s.StripeSubscriptionId == invoice.SubscriptionId, ct);
+            .FirstOrDefaultAsync(s => s.StripeSubscriptionId == subscriptionId, ct);
 
         if (subscription == null) return;
 
         subscription.Status = SubscriptionStatus.PastDue;
         await _context.SaveChangesAsync(ct);
 
-        _logger.LogWarning(
-            "Payment failed for tenant {TenantId}, subscription {SubscriptionId}",
-            subscription.TenantId, invoice.SubscriptionId);
+        _logger.LogWarning("Payment failed for tenant {TenantId}, subscription {SubscriptionId}",
+            subscription.TenantId, subscriptionId);
     }
 
-    private async Task HandleInvoicePaymentSucceeded(Event stripeEvent, CancellationToken ct)
+    private async Task HandleInvoicePaymentSucceeded(System.Text.Json.JsonElement data, CancellationToken ct)
     {
-        var invoice = stripeEvent.Data.Object as Invoice
-            ?? throw new InvalidOperationException("Invalid invoice event data.");
-
-        if (string.IsNullOrEmpty(invoice.SubscriptionId)) return;
+        var subscriptionId = GetStr(data, "subscription");
+        if (string.IsNullOrEmpty(subscriptionId)) return;
 
         var subscription = await _context.Subscriptions
             .IgnoreQueryFilters()
-            .FirstOrDefaultAsync(s => s.StripeSubscriptionId == invoice.SubscriptionId, ct);
+            .FirstOrDefaultAsync(s => s.StripeSubscriptionId == subscriptionId, ct);
 
         if (subscription == null) return;
 
         subscription.Status = SubscriptionStatus.Active;
         await _context.SaveChangesAsync(ct);
 
-        _logger.LogInformation(
-            "Payment succeeded for tenant {TenantId}, subscription {SubscriptionId}",
-            subscription.TenantId, invoice.SubscriptionId);
+        _logger.LogInformation("Payment succeeded for tenant {TenantId}, subscription {SubscriptionId}",
+            subscription.TenantId, subscriptionId);
     }
 
     private static SubscriptionStatus MapStripeStatus(string stripeStatus) => stripeStatus switch
@@ -314,13 +338,13 @@ public class StripeSubscriptionService : ISubscriptionService
 
     private static void UpdatePlanLimits(Domain.Entities.Subscription subscription)
     {
-        (subscription.MaxAgencies, subscription.MaxJobsPerMonth) = subscription.PlanTier switch
+        (subscription.MaxAgencies, subscription.MaxProjects, subscription.MaxJobsPerMonth) = subscription.PlanTier switch
         {
-            PlanTier.FreeTrial => (1, 50),
-            PlanTier.Basic => (3, 100),
-            PlanTier.Pro => (10, 500),
-            PlanTier.Enterprise => (50, 5000),
-            _ => (1, 20)
+            PlanTier.FreeTrial => (1, 3, 50),
+            PlanTier.Basic => (3, 10, 100),
+            PlanTier.Pro => (10, 50, 500),
+            PlanTier.Enterprise => (50, 200, 5000),
+            _ => (1, 3, 20)
         };
     }
 }

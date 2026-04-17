@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6366f1;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="96" fill="url(#grad)"/>
+  <!-- Send/paper plane arrow -->
+  <path d="M128 272 L384 144 L288 384 L240 288 Z" fill="white" opacity="0.95"/>
+  <path d="M240 288 L384 144" stroke="white" stroke-width="16" opacity="0.5"/>
+  <!-- AI sparkle dots -->
+  <circle cx="176" cy="176" r="24" fill="white" opacity="0.6"/>
+  <circle cx="144" cy="224" r="12" fill="white" opacity="0.4"/>
+</svg>

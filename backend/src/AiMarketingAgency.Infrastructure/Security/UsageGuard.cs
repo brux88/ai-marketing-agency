@@ -61,6 +61,21 @@ public class UsageGuard : IUsageGuard
         return agencyCount < subscription.MaxAgencies;
     }
 
+    public async Task<bool> CanCreateProjectAsync(Guid tenantId, CancellationToken ct = default)
+    {
+        var subscription = await _context.Subscriptions
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(s => s.TenantId == tenantId, ct);
+
+        if (subscription == null) return true;
+
+        var projectCount = await _context.Projects
+            .IgnoreQueryFilters()
+            .CountAsync(p => p.TenantId == tenantId && p.IsActive, ct);
+
+        return projectCount < subscription.MaxProjects;
+    }
+
     public async Task IncrementJobCountAsync(Guid tenantId, Guid agencyId, CancellationToken ct = default)
     {
         var period = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc);
