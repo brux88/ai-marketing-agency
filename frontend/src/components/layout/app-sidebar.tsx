@@ -10,13 +10,13 @@ import {
   PlusCircle,
   Key,
   CreditCard,
-  Sparkles,
   LogOut,
   ChevronRight,
   Shield,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { NotificationBell } from "@/components/layout/notification-bell";
+import { WePostAILogo } from "@/components/ui/wepostai-logo";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -34,8 +34,8 @@ export function AppSidebar() {
     <aside className="w-64 bg-sidebar text-sidebar-foreground flex flex-col min-h-screen border-r">
       <div className="p-4 h-16 flex items-center border-b border-sidebar-border">
         <Link href="/dashboard" className="flex items-center gap-2 text-lg font-bold">
-          <Sparkles className="size-5 text-primary" />
-          <span>AI Marketing</span>
+          <WePostAILogo className="size-7" />
+          <span>WePostAI</span>
         </Link>
       </div>
 

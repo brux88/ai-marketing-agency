@@ -51,7 +51,7 @@ class _LoginScreenState extends State<LoginScreen> {
             children: [
               Icon(Icons.auto_awesome, size: 64, color: cs.primary),
               const SizedBox(height: 16),
-              Text('AI Marketing Agency',
+              Text('WePostAI',
                   style: Theme.of(context)
                       .textTheme
                       .headlineMedium

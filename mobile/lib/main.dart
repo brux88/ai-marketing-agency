@@ -15,18 +15,18 @@ void main() async {
   runApp(
     ChangeNotifierProvider(
       create: (_) => AppState(),
-      child: const AiMarketingApp(),
+      child: const WePostAIApp(),
     ),
   );
 }
 
-class AiMarketingApp extends StatelessWidget {
-  const AiMarketingApp({super.key});
+class WePostAIApp extends StatelessWidget {
+  const WePostAIApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'AI Marketing Agency',
+      title: 'WePostAI',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),

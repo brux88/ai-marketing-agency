@@ -83,9 +83,9 @@ class NotificationService {
     String? body,
   }) async {
     const androidDetails = AndroidNotificationDetails(
-      'ai_marketing_channel',
-      'AI Marketing',
-      channelDescription: 'AI Marketing Agency notifications',
+      'wepostai_channel',
+      'WePostAI',
+      channelDescription: 'WePostAI notifications',
       importance: Importance.high,
       priority: Priority.high,
     );

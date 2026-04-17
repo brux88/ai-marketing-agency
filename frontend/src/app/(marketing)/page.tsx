@@ -4,9 +4,10 @@ import { cn } from "@/lib/utils";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
-  PenLine, Share2, Mail, BarChart3, Check, ArrowRight, Sparkles, Zap, Shield,
+  PenLine, Share2, Mail, BarChart3, Check, ArrowRight, Zap, Shield,
   Calendar, Bot, Bell, Image, Smartphone, Globe, Users, Clock, MessageSquare
 } from "lucide-react";
+import { WePostAILogo } from "@/components/ui/wepostai-logo";
 
 const features = [
   {
@@ -120,7 +121,7 @@ const blogPosts = [
   {
     title: "Come l'AI sta rivoluzionando il content marketing",
     excerpt: "Scopri come gli agenti AI possono generare contenuti di qualita mantenendo il tono di voce del tuo brand.",
-    category: "AI Marketing",
+    category: "WePostAI",
     date: "15 Apr 2026",
   },
   {
@@ -145,7 +146,7 @@ export default function LandingPage() {
         <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-background to-background" />
         <div className="relative max-w-4xl mx-auto text-center">
           <Badge variant="secondary" className="mb-6">
-            <Sparkles className="size-3 mr-1" />
+            <WePostAILogo className="size-4 mr-1" />
             Prova gratuita 14 giorni
           </Badge>
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight leading-tight">

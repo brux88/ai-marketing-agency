@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6366f1;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <!-- Rounded square background -->
+  <rect width="512" height="512" rx="96" fill="url(#grad)"/>
+  <!-- W letter stylized as send/post arrow -->
+  <path d="M128 160 L200 352 L256 240 L312 352 L384 160"
+        stroke="white" stroke-width="40" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <!-- Small send arrow accent -->
+  <path d="M340 120 L400 100 L380 160"
+        stroke="white" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.8"/>
+  <!-- Dot for AI -->
+  <circle cx="400" cy="100" r="12" fill="white" opacity="0.9"/>
+</svg>
