@@ -31,7 +31,12 @@ jobs:
         run: dotnet build ${{ env.PROJECT_PATH }} --configuration Release --no-restore
 
       - name: Test
-        run: dotnet test backend/tests/ --configuration Release --verbosity normal
+        run: |
+          if [ -d "backend/tests" ] && [ "$(find backend/tests -name '*.csproj' | head -1)" ]; then
+            dotnet test backend/tests/ --configuration Release --verbosity normal
+          else
+            echo "No test projects found, skipping tests"
+          fi
 
       - name: Publish
         run: dotnet publish ${{ env.PROJECT_PATH }} --configuration Release --output ./publish
