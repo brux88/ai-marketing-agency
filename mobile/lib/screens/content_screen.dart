@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../api/api_client.dart';
 import '../models.dart';
+import 'generate_content_screen.dart';
 
 class ContentScreen extends StatefulWidget {
   final Agency agency;
@@ -115,6 +116,21 @@ class _ContentScreenState extends State<ContentScreen> {
         : widget.agency.name;
     return Scaffold(
       appBar: AppBar(title: Text(title)),
+      floatingActionButton: widget.project != null
+          ? FloatingActionButton.extended(
+              onPressed: () async {
+                await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => GenerateContentScreen(
+                            agency: widget.agency,
+                            project: widget.project!)));
+                setState(() => _future = _load());
+              },
+              icon: const Icon(Icons.auto_awesome),
+              label: const Text('Genera'),
+            )
+          : null,
       body: FutureBuilder<List<GeneratedContent>>(
         future: _future,
         builder: (context, snap) {
@@ -252,7 +268,9 @@ class _ContentCard extends StatelessWidget {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
                 child: CachedNetworkImage(
-                  imageUrl: content.imageUrl!,
+                  imageUrl: content.imageUrl!.replaceAll(
+                      'https://api.wepostai.com',
+                      'https://wepostai-api.azurewebsites.net'),
                   height: 200,
                   width: double.infinity,
                   fit: BoxFit.cover,

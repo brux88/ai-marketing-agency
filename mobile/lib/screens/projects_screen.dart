@@ -4,6 +4,9 @@ import '../models.dart';
 import 'content_screen.dart';
 import 'approvals_screen.dart';
 import 'schedules_screen.dart';
+import 'generate_content_screen.dart';
+import 'calendar_screen.dart';
+import 'agency_settings_screen.dart';
 
 class ProjectsScreen extends StatefulWidget {
   final Agency agency;
@@ -35,6 +38,15 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
         title: Text(widget.agency.name),
         actions: [
           IconButton(
+            icon: const Icon(Icons.calendar_month_outlined),
+            tooltip: 'Calendario',
+            onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) =>
+                        CalendarScreen(agency: widget.agency))),
+          ),
+          IconButton(
             icon: const Icon(Icons.approval_outlined),
             tooltip: 'Approvazioni',
             onPressed: () => Navigator.push(
@@ -42,6 +54,15 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                 MaterialPageRoute(
                     builder: (_) =>
                         ApprovalsScreen(agency: widget.agency))),
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: 'Impostazioni',
+            onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) =>
+                        AgencySettingsScreen(agency: widget.agency))),
           ),
         ],
       ),
@@ -202,8 +223,20 @@ class _ProjectCard extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               // Quick actions row
-              Row(
+              Wrap(
+                spacing: 8,
                 children: [
+                  ActionChip(
+                    avatar: const Icon(Icons.auto_awesome, size: 16),
+                    label: const Text('Genera'),
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => GenerateContentScreen(
+                            agency: agency, project: project),
+                      ),
+                    ),
+                  ),
                   ActionChip(
                     avatar: const Icon(Icons.calendar_month, size: 16),
                     label: const Text('Pianificazione'),
