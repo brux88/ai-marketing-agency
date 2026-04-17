@@ -301,7 +301,7 @@ public class TelegramWebhookController : ControllerBase
             var cbChatId = update.CallbackQuery.Message?.Chat?.Id ?? 0;
             if (cbChatId == 0) return Ok();
 
-            await HandleCommand(agencyId, cbChatId, cbData, ct);
+            await HandleCommand(agencyId, cbChatId, cbData, ct: ct);
             return Ok();
         }
 
@@ -312,11 +312,11 @@ public class TelegramWebhookController : ControllerBase
 
         _logger.LogInformation("Telegram update for agency {AgencyId} from chat {ChatId}: {Text}", agencyId, chatId, text);
 
-        await HandleCommand(agencyId, chatId, text, ct);
+        await HandleCommand(agencyId, chatId, text, update.Message.Chat.Title, update.Message.From?.Username, ct);
         return Ok();
     }
 
-    private async Task HandleCommand(Guid agencyId, long chatId, string text, CancellationToken ct)
+    private async Task HandleCommand(Guid agencyId, long chatId, string text, string? chatTitle = null, string? username = null, CancellationToken ct = default)
     {
         _logger.LogInformation("HandleCommand: agency={AgencyId} chat={ChatId} text={Text}", agencyId, chatId, text);
 
@@ -897,6 +897,38 @@ public class TelegramWebhookController : ControllerBase
         }
         else if (text == "/help" || text == "/start")
         {
+            if (text == "/start")
+            {
+                var alreadyConnected = await _context.TelegramConnections
+                    .IgnoreQueryFilters()
+                    .AnyAsync(c => c.AgencyId == agencyId && c.ChatId == chatId, ct);
+
+                if (!alreadyConnected)
+                {
+                    var agency = await _context.Agencies
+                        .IgnoreQueryFilters()
+                        .FirstOrDefaultAsync(a => a.Id == agencyId, ct);
+
+                    if (agency != null)
+                    {
+                        _context.TelegramConnections.Add(new TelegramConnection
+                        {
+                            TenantId = agency.TenantId,
+                            AgencyId = agencyId,
+                            ChatId = chatId,
+                            ChatTitle = chatTitle ?? "",
+                            Username = username ?? "",
+                            NotifyOnContentGenerated = true,
+                            NotifyOnApprovalNeeded = true,
+                            NotifyOnPublished = true,
+                            AllowCommands = true,
+                            IsActive = true
+                        });
+                        await _context.SaveChangesAsync(ct);
+                    }
+                }
+            }
+
             var help = "<b>🤖 AI Marketing Agency Bot</b>\n\n"
                 + "Comandi disponibili:\n"
                 + "/menu — Menu interattivo con progetti\n"
