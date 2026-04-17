@@ -32,11 +32,9 @@ jobs:
 
       - name: Test
         run: |
-          if [ -d "backend/tests" ] && [ "$(find backend/tests -name '*.csproj' | head -1)" ]; then
-            dotnet test backend/tests/ --configuration Release --verbosity normal
-          else
-            echo "No test projects found, skipping tests"
-          fi
+          for proj in $(find backend/tests -name '*.csproj' 2>/dev/null); do
+            dotnet test "$proj" --configuration Release --verbosity normal --no-restore
+          done
 
       - name: Publish
         run: dotnet publish ${{ env.PROJECT_PATH }} --configuration Release --output ./publish
