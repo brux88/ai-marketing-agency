@@ -63,6 +63,11 @@ export default function BillingPage() {
     refetchInterval: 30000,
   });
 
+  const { data: prices } = useQuery({
+    queryKey: ["billing", "prices"],
+    queryFn: () => billingApi.getPrices(),
+  });
+
   const u = usage;
   const agenciesPct = u ? Math.round((u.agenciesUsed / u.maxAgencies) * 100) : 0;
   const jobsPct = u ? Math.round((u.jobsUsed / u.maxJobs) * 100) : 0;
@@ -186,7 +191,15 @@ export default function BillingPage() {
                     <Button
                       className="w-full"
                       variant={plan.popular ? "default" : "outline"}
-                      onClick={() => handleCheckout(plan.stripePriceId ?? plan.tier)}
+                      onClick={() => {
+                        const priceMap: Record<string, string | undefined> = {
+                          Basic: prices?.basic,
+                          Pro: prices?.pro,
+                          Enterprise: prices?.enterprise,
+                        };
+                        const priceId = priceMap[plan.tier] || plan.stripePriceId || plan.tier;
+                        handleCheckout(priceId);
+                      }}
                     >
                       {plan.price === "0" ? "Inizia gratis" : "Scegli piano"}
                     </Button>

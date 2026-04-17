@@ -287,19 +287,20 @@ public class StripeSubscriptionService : ISubscriptionService
         _ => SubscriptionStatus.Active
     };
 
-    private static readonly Dictionary<string, PlanTier> PriceToTierMap = new()
-    {
-        ["price_1TN5Yz5TWCwEP0KhIgZmFrgH"] = PlanTier.Basic,
-        ["price_1TN5ZG5TWCwEP0KhtI8imdCu"] = PlanTier.Pro,
-        ["price_1TN5ZU5TWCwEP0Kh4tO2WUrJ"] = PlanTier.Enterprise,
-    };
-
-    private static PlanTier MapPriceToPlanTier(string? priceId)
+    private PlanTier MapPriceToPlanTier(string? priceId)
     {
         if (string.IsNullOrEmpty(priceId)) return PlanTier.FreeTrial;
 
-        if (PriceToTierMap.TryGetValue(priceId, out var tier))
-            return tier;
+        var basicPriceId = _configuration["Stripe:PriceIds:Basic"];
+        var proPriceId = _configuration["Stripe:PriceIds:Pro"];
+        var enterprisePriceId = _configuration["Stripe:PriceIds:Enterprise"];
+
+        if (!string.IsNullOrEmpty(enterprisePriceId) && priceId == enterprisePriceId)
+            return PlanTier.Enterprise;
+        if (!string.IsNullOrEmpty(proPriceId) && priceId == proPriceId)
+            return PlanTier.Pro;
+        if (!string.IsNullOrEmpty(basicPriceId) && priceId == basicPriceId)
+            return PlanTier.Basic;
 
         if (priceId.Contains("enterprise", StringComparison.OrdinalIgnoreCase))
             return PlanTier.Enterprise;

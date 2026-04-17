@@ -31,4 +31,9 @@ export const billingApi = {
         returnUrl,
       })
       .then((r) => r.data),
+
+  getPrices: () =>
+    apiClient
+      .get<ApiResponse<{ basic: string; pro: string; enterprise: string }>>("/api/v1/billing/prices")
+      .then((r) => r.data),
 };

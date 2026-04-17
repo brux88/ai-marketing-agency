@@ -13,12 +13,14 @@ public class BillingController : ControllerBase
     private readonly ISubscriptionService _subscriptionService;
     private readonly ITenantContext _tenantContext;
     private readonly IAppDbContext _context;
+    private readonly IConfiguration _configuration;
 
-    public BillingController(ISubscriptionService subscriptionService, ITenantContext tenantContext, IAppDbContext context)
+    public BillingController(ISubscriptionService subscriptionService, ITenantContext tenantContext, IAppDbContext context, IConfiguration configuration)
     {
         _subscriptionService = subscriptionService;
         _tenantContext = tenantContext;
         _context = context;
+        _configuration = configuration;
     }
 
     [HttpGet("usage")]
@@ -56,6 +58,18 @@ public class BillingController : ControllerBase
             MaxJobs = maxJobs,
             CurrentPeriodEnd = subscription?.CurrentPeriodEnd,
             TrialEndsAt = subscription?.TrialEndsAt
+        }));
+    }
+
+    [HttpGet("prices")]
+    [Authorize]
+    public ActionResult<ApiResponse<object>> GetPrices()
+    {
+        return Ok(ApiResponse<object>.Ok(new
+        {
+            basic = _configuration["Stripe:PriceIds:Basic"] ?? "",
+            pro = _configuration["Stripe:PriceIds:Pro"] ?? "",
+            enterprise = _configuration["Stripe:PriceIds:Enterprise"] ?? "",
         }));
     }
 
