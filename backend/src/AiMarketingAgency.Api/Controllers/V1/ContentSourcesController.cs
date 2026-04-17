@@ -1,6 +1,7 @@
 using AiMarketingAgency.Application.Common.Models;
 using AiMarketingAgency.Application.ContentSources.Commands.CreateContentSource;
 using AiMarketingAgency.Application.ContentSources.Commands.DeleteContentSource;
+using AiMarketingAgency.Application.ContentSources.Commands.DiscoverSources;
 using AiMarketingAgency.Application.ContentSources.Dtos;
 using AiMarketingAgency.Application.ContentSources.Queries.GetContentSourcesByAgency;
 using AiMarketingAgency.Domain.Enums;
@@ -47,6 +48,14 @@ public class ContentSourcesController : ControllerBase
 
         var result = await _mediator.Send(command, ct);
         return Ok(ApiResponse<ContentSourceDto>.Ok(result));
+    }
+
+    [HttpPost("discover")]
+    public async Task<ActionResult<ApiResponse<List<SuggestedSource>>>> DiscoverSources(
+        Guid agencyId, [FromQuery] Guid? projectId, CancellationToken ct)
+    {
+        var result = await _mediator.Send(new DiscoverSourcesCommand(agencyId, projectId), ct);
+        return Ok(ApiResponse<List<SuggestedSource>>.Ok(result));
     }
 
     [HttpDelete("{sourceId:guid}")]

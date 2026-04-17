@@ -18,4 +18,12 @@ export const sourcesApi = {
 
   delete: (agencyId: string, sourceId: string) =>
     apiClient.delete(`/api/v1/agencies/${agencyId}/sources/${sourceId}`),
+
+  discover: async (agencyId: string, projectId?: string) => {
+    const params = projectId ? `?projectId=${projectId}` : "";
+    const res = await apiClient.post(
+      `/api/v1/agencies/${agencyId}/sources/discover${params}`
+    );
+    return res.data;
+  },
 };

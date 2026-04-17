@@ -11,16 +11,33 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Plus, Trash2, Rss, Globe, Share2 } from "lucide-react";
+import {
+  Loader2,
+  Plus,
+  Trash2,
+  Rss,
+  Globe,
+  Share2,
+  Sparkles,
+  ExternalLink,
+} from "lucide-react";
 import { toast } from "sonner";
 import { sourcesApi } from "@/lib/api/sources.api";
 import type { ContentSource } from "@/types/api";
 import { ContentSourceType } from "@/types/api";
 
+interface DiscoveredSource {
+  url: string;
+  name: string;
+  description: string;
+  type: number;
+}
+
 interface EditContentSourcesDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   agencyId: string;
+  projectId?: string;
   onSaved: () => void;
 }
 
@@ -34,6 +51,7 @@ export function EditContentSourcesDialog({
   open,
   onOpenChange,
   agencyId,
+  projectId,
   onSaved,
 }: EditContentSourcesDialogProps) {
   const [sources, setSources] = useState<ContentSource[]>([]);
@@ -42,6 +60,9 @@ export function EditContentSourcesDialog({
   const [newType, setNewType] = useState<number>(ContentSourceType.RssFeed);
   const [newUrl, setNewUrl] = useState("");
   const [newName, setNewName] = useState("");
+  const [discovering, setDiscovering] = useState(false);
+  const [suggestions, setSuggestions] = useState<DiscoveredSource[]>([]);
+  const [addingSuggestion, setAddingSuggestion] = useState<string | null>(null);
 
   const fetchSources = async () => {
     setLoading(true);
@@ -60,6 +81,7 @@ export function EditContentSourcesDialog({
       fetchSources();
       setNewUrl("");
       setNewName("");
+      setSuggestions([]);
     }
   }, [open]);
 
@@ -98,12 +120,48 @@ export function EditContentSourcesDialog({
     }
   };
 
+  const handleDiscover = async () => {
+    setDiscovering(true);
+    setSuggestions([]);
+    try {
+      const res = await sourcesApi.discover(agencyId, projectId);
+      const data = res?.data ?? res ?? [];
+      setSuggestions(Array.isArray(data) ? data : []);
+      if ((Array.isArray(data) ? data : []).length === 0) {
+        toast.info("Nessuna fonte suggerita trovata");
+      }
+    } catch {
+      toast.error("Errore durante la ricerca delle fonti");
+    } finally {
+      setDiscovering(false);
+    }
+  };
+
+  const handleAddSuggestion = async (suggestion: DiscoveredSource) => {
+    setAddingSuggestion(suggestion.url);
+    try {
+      await sourcesApi.create(agencyId, {
+        type: suggestion.type,
+        url: suggestion.url,
+        name: suggestion.name,
+      });
+      toast.success("Fonte aggiunta");
+      setSuggestions((prev) => prev.filter((s) => s.url !== suggestion.url));
+      fetchSources();
+      onSaved();
+    } catch (err: any) {
+      toast.error(err?.message || "Errore durante l'aggiunta");
+    } finally {
+      setAddingSuggestion(null);
+    }
+  };
+
   const getTypeInfo = (type: number) =>
     sourceTypeOptions.find((o) => o.value === type) ?? sourceTypeOptions[0];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>Fonti Contenuto</DialogTitle>
         </DialogHeader>
@@ -142,14 +200,29 @@ export function EditContentSourcesDialog({
                 placeholder="es. Blog aziendale"
               />
             </div>
-            <Button onClick={handleAdd} disabled={adding} size="sm">
-              {adding ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Plus className="size-4" />
-              )}
-              Aggiungi
-            </Button>
+            <div className="flex gap-2">
+              <Button onClick={handleAdd} disabled={adding} size="sm">
+                {adding ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Plus className="size-4" />
+                )}
+                Aggiungi
+              </Button>
+              <Button
+                onClick={handleDiscover}
+                disabled={discovering}
+                size="sm"
+                variant="outline"
+              >
+                {discovering ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Sparkles className="size-4" />
+                )}
+                Cerca fonti AI
+              </Button>
+            </div>
           </div>
 
           {/* Source list */}
@@ -204,6 +277,76 @@ export function EditContentSourcesDialog({
               </div>
             )}
           </div>
+
+          {/* AI-discovered suggestions */}
+          {discovering && (
+            <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
+              <Loader2 className="size-4 animate-spin" />
+              Ricerca fonti in corso...
+            </div>
+          )}
+
+          {suggestions.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-muted-foreground">
+                Fonti suggerite dall&apos;AI ({suggestions.length})
+              </p>
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {suggestions.map((suggestion) => {
+                  const typeInfo = getTypeInfo(suggestion.type);
+                  const Icon = typeInfo.icon;
+                  const isAdding = addingSuggestion === suggestion.url;
+                  return (
+                    <div
+                      key={suggestion.url}
+                      className="rounded-lg border border-dashed p-3 space-y-1"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Icon className="size-4 text-muted-foreground shrink-0" />
+                        <span className="text-sm font-semibold truncate flex-1">
+                          {suggestion.name}
+                        </span>
+                        <Badge
+                          variant="secondary"
+                          className="text-xs shrink-0"
+                        >
+                          {typeInfo.label}
+                        </Badge>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={isAdding}
+                          onClick={() => handleAddSuggestion(suggestion)}
+                          className="shrink-0"
+                        >
+                          {isAdding ? (
+                            <Loader2 className="size-3.5 animate-spin" />
+                          ) : (
+                            <Plus className="size-3.5" />
+                          )}
+                          Aggiungi
+                        </Button>
+                      </div>
+                      <a
+                        href={suggestion.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+                      >
+                        {suggestion.url}
+                        <ExternalLink className="size-3" />
+                      </a>
+                      {suggestion.description && (
+                        <p className="text-xs text-muted-foreground">
+                          {suggestion.description}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>
