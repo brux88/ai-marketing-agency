@@ -20,12 +20,12 @@ import { NotificationBell } from "@/components/layout/notification-bell";
 import { WePostAILogo } from "@/components/ui/wepostai-logo";
 
 const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/agencies/new", label: "Nuova Agenzia", icon: PlusCircle },
-  { href: "/settings/api-keys", label: "Chiavi API", icon: Key },
-  { href: "/settings/billing", label: "Abbonamento", icon: CreditCard },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, hideForSuperAdmin: true },
+  { href: "/agencies/new", label: "Nuova Agenzia", icon: PlusCircle, hideForSuperAdmin: true },
+  { href: "/settings/api-keys", label: "Chiavi API", icon: Key, hideForSuperAdmin: true },
+  { href: "/settings/billing", label: "Abbonamento", icon: CreditCard, hideForSuperAdmin: true },
   { href: "/settings/profile", label: "Profilo", icon: UserCircle },
-  { href: "/admin", label: "Admin", icon: Shield, superAdminOnly: true },
+  { href: "/admin", label: "Pannello Admin", icon: Shield, superAdminOnly: true },
 ];
 
 export function AppSidebar() {
@@ -35,7 +35,7 @@ export function AppSidebar() {
   return (
     <aside className="w-64 bg-sidebar text-sidebar-foreground flex flex-col min-h-screen border-r">
       <div className="p-4 h-16 flex items-center border-b border-sidebar-border">
-        <Link href="/dashboard" className="flex items-center gap-2 text-lg font-bold">
+        <Link href={user?.role === "SuperAdmin" ? "/admin" : "/dashboard"} className="flex items-center gap-2 text-lg font-bold">
           <WePostAILogo className="size-7" />
           <span>WePostAI</span>
         </Link>
@@ -43,7 +43,11 @@ export function AppSidebar() {
 
       <nav className="flex-1 p-3 space-y-1">
         {navItems
-          .filter((item) => !item.superAdminOnly || user?.role === "SuperAdmin")
+          .filter((item) => {
+            if (item.superAdminOnly && user?.role !== "SuperAdmin") return false;
+            if (item.hideForSuperAdmin && user?.role === "SuperAdmin") return false;
+            return true;
+          })
           .map((item) => {
           const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
           return (

@@ -4,6 +4,8 @@ import { useAuth } from "@/lib/providers/auth-provider";
 import { useQuery } from "@tanstack/react-query";
 import { agenciesApi } from "@/lib/api/agencies.api";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 import type { Agency } from "@/types/api";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -14,6 +16,15 @@ import { PlusCircle, Rocket, FileText, Rss, CheckCircle2, Clock } from "lucide-r
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (user?.role === "SuperAdmin") {
+      router.replace("/admin");
+    }
+  }, [user, router]);
+
+  if (user?.role === "SuperAdmin") return null;
   const { data, isLoading } = useQuery({
     queryKey: ["agencies"],
     queryFn: agenciesApi.list,
