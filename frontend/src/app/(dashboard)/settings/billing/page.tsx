@@ -23,6 +23,7 @@ const plans = [
   {
     name: "Basic",
     tier: "Basic",
+    stripePriceId: "price_1TN5Yz5TWCwEP0KhIgZmFrgH",
     price: "29",
     period: "mese",
     agencies: "3",
@@ -33,6 +34,7 @@ const plans = [
   {
     name: "Pro",
     tier: "Pro",
+    stripePriceId: "price_1TN5ZG5TWCwEP0KhtI8imdCu",
     price: "79",
     period: "mese",
     agencies: "10",
@@ -44,6 +46,7 @@ const plans = [
   {
     name: "Enterprise",
     tier: "Enterprise",
+    stripePriceId: "price_1TN5ZU5TWCwEP0Kh4tO2WUrJ",
     price: "199",
     period: "mese",
     agencies: "Illimitate",
@@ -183,7 +186,7 @@ export default function BillingPage() {
                     <Button
                       className="w-full"
                       variant={plan.popular ? "default" : "outline"}
-                      onClick={() => handleCheckout(plan.tier)}
+                      onClick={() => handleCheckout(plan.stripePriceId ?? plan.tier)}
                     >
                       {plan.price === "0" ? "Inizia gratis" : "Scegli piano"}
                     </Button>

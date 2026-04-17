@@ -287,11 +287,19 @@ public class StripeSubscriptionService : ISubscriptionService
         _ => SubscriptionStatus.Active
     };
 
+    private static readonly Dictionary<string, PlanTier> PriceToTierMap = new()
+    {
+        ["price_1TN5Yz5TWCwEP0KhIgZmFrgH"] = PlanTier.Basic,
+        ["price_1TN5ZG5TWCwEP0KhtI8imdCu"] = PlanTier.Pro,
+        ["price_1TN5ZU5TWCwEP0Kh4tO2WUrJ"] = PlanTier.Enterprise,
+    };
+
     private static PlanTier MapPriceToPlanTier(string? priceId)
     {
-        // Map Stripe price IDs to plan tiers
-        // These should be configured externally; using convention-based matching for now
         if (string.IsNullOrEmpty(priceId)) return PlanTier.FreeTrial;
+
+        if (PriceToTierMap.TryGetValue(priceId, out var tier))
+            return tier;
 
         if (priceId.Contains("enterprise", StringComparison.OrdinalIgnoreCase))
             return PlanTier.Enterprise;
