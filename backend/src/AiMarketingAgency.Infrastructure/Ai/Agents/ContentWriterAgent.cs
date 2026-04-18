@@ -34,6 +34,32 @@ public class ContentWriterAgent : IMarketingAgent
             ? $"\n\nPROJECT CONTEXT (extracted from website):\n{project!.ExtractedContext}\n"
             : string.Empty;
 
+        // Build recent content history block
+        var recentHistoryBlock = string.Empty;
+        if (context.RecentContents != null && context.RecentContents.Count > 0)
+        {
+            var recentTitles = string.Join("\n", context.RecentContents.Select(r =>
+                $"  - [{r.CreatedAt:dd/MM}] {r.Title}"));
+            recentHistoryBlock = $"""
+
+            RECENTLY PUBLISHED/GENERATED ARTICLES (DO NOT repeat these topics):
+            {recentTitles}
+
+            CONTENT DIVERSITY STRATEGY:
+            You MUST write about a COMPLETELY DIFFERENT topic or angle from the articles listed above.
+            Rotate among these content pillars:
+            - Deep-dive into a SPECIFIC feature or capability not yet covered
+            - Tutorial / step-by-step guide on a particular use case
+            - Problem-solution article addressing a specific audience pain point
+            - Industry trends and how the product relates to them
+            - Comparison or best practices article
+            - Case study or real-world application scenario
+            - Educational content about the broader domain
+            - Tips, tricks, or lesser-known aspects of the product
+            Choose the pillar LEAST represented in the recent articles list above.
+            """;
+        }
+
         // If a custom per-project template is set, use it (with placeholders substituted)
         string generatePrompt;
         if (!string.IsNullOrWhiteSpace(project?.BlogPromptTemplate))
@@ -46,6 +72,7 @@ public class ContentWriterAgent : IMarketingAgent
                 .Replace("{sources}", sourcesContext)
                 .Replace("{projectContext}", project.ExtractedContext ?? string.Empty)
                 .Replace("{task}", context.Input ?? "Scrivi un articolo blog di alta qualità rilevante per questo progetto.");
+            generatePrompt += recentHistoryBlock;
             generatePrompt += "\n\nFORMAT YOUR RESPONSE AS:\nTITLE: [article title]\nMETA_DESCRIPTION: [150-160 char meta description]\n---\n[article body in markdown]";
         }
         else
@@ -70,6 +97,7 @@ public class ContentWriterAgent : IMarketingAgent
 
                 CONTENT SOURCES (for context and inspiration):
                 {sourcesContext}
+                {recentHistoryBlock}
 
                 TASK: {context.Input ?? "Write a high-quality blog post about a relevant topic for our audience. Stay strictly within the project's domain and expertise as described above — do NOT write generic marketing/AI content unless that is the actual topic of the project."}
 

@@ -104,13 +104,36 @@ public class AgentJobProcessor : IAgentJobProcessor
                     .FirstOrDefaultAsync(s => s.Id == job.ScheduleId.Value, ct);
             }
 
+            // Load recent content to avoid repetition
+            var recentQuery = _context.GeneratedContents
+                .Where(c => c.AgencyId == job.AgencyId)
+                .AsNoTracking();
+            if (job.ProjectId.HasValue)
+                recentQuery = recentQuery.Where(c => c.ProjectId == job.ProjectId.Value);
+            // Filter by agent type to get relevant content history
+            var agentContentType = job.AgentType switch
+            {
+                AgentType.SocialManager => ContentType.SocialPost,
+                AgentType.ContentWriter => ContentType.BlogPost,
+                AgentType.Newsletter => ContentType.Newsletter,
+                _ => (ContentType?)null
+            };
+            if (agentContentType.HasValue)
+                recentQuery = recentQuery.Where(c => c.ContentType == agentContentType.Value);
+            var recentContents = await recentQuery
+                .OrderByDescending(c => c.CreatedAt)
+                .Take(15)
+                .Select(c => new Application.Agents.RecentContentSummary(c.Title, c.ContentType, c.CreatedAt))
+                .ToListAsync(ct);
+
             var jobContext = new AgentJobContext(
                 Kernel: kernel,
                 Agency: agency,
                 Input: job.Input,
                 Sources: sources,
                 Project: project,
-                Schedule: schedule);
+                Schedule: schedule,
+                RecentContents: recentContents);
 
             _logger.LogInformation(
                 "Executing agent {AgentType} for job {JobId}, agency {AgencyId}",

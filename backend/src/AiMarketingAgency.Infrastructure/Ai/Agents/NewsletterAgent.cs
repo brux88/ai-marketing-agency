@@ -32,6 +32,32 @@ public class NewsletterAgent : IMarketingAgent
         var sourcesContext = string.Join("\n", context.Sources.Select(s =>
             $"- [{s.Name ?? s.Type.ToString()}] {s.Url}"));
 
+        // Build recent content history block
+        var recentHistoryBlock = string.Empty;
+        if (context.RecentContents != null && context.RecentContents.Count > 0)
+        {
+            var recentTitles = string.Join("\n", context.RecentContents.Select(r =>
+                $"  - [{r.CreatedAt:dd/MM}] {r.Title}"));
+            recentHistoryBlock = $"""
+
+            PREVIOUSLY SENT NEWSLETTERS (DO NOT repeat these themes):
+            {recentTitles}
+
+            CONTENT DIVERSITY STRATEGY:
+            Each newsletter MUST have a COMPLETELY DIFFERENT main theme from those listed above.
+            Rotate the featured story focus among:
+            - Product update or new feature spotlight
+            - Industry analysis and market trends
+            - Practical tutorial or how-to guide
+            - Customer use case or success scenario
+            - Expert insights or thought leadership
+            - Seasonal/timely content tied to current events
+            - FAQ or common challenges addressed
+            - Behind-the-scenes or company culture
+            Choose the theme LEAST covered in the previous newsletters above.
+            """;
+        }
+
         string generatePrompt;
         if (!string.IsNullOrWhiteSpace(project?.NewsletterPromptTemplate))
         {
@@ -42,6 +68,7 @@ public class NewsletterAgent : IMarketingAgent
                 .Replace("{projectContext}", project.ExtractedContext ?? string.Empty)
                 .Replace("{sources}", sourcesContext)
                 .Replace("{task}", context.Input ?? "Crea una newsletter rilevante per il dominio del progetto.")
+                + recentHistoryBlock
                 + "\n\nFORMAT YOUR RESPONSE AS:\nTITLE: [newsletter subject]\n---\n[newsletter body]";
         }
         else
@@ -64,6 +91,7 @@ public class NewsletterAgent : IMarketingAgent
 
             CONTENT SOURCES (curate from these):
             {sourcesContext}
+            {recentHistoryBlock}
 
             TASK: {context.Input ?? "Create a compelling weekly newsletter for our audience. Stay strictly within the project's actual domain — do NOT write generic marketing/AI content unless that is the project's actual topic."}
 

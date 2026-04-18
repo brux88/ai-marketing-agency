@@ -66,6 +66,32 @@ public class SocialManagerAgent : IMarketingAgent
             ? $"If the post includes a call-to-action link, use EXACTLY this URL: {projectUrl}. NEVER write placeholder text like [Link Demo], [link], [URL], [tuo link], [website]. Either write the real URL or omit the link entirely."
             : "Do NOT include any placeholder text like [Link Demo], [link], [URL], [tuo link], [website] or similar brackets. Either write a real URL or omit the link entirely.";
 
+        // Build recent content history block
+        var recentHistoryBlock = string.Empty;
+        if (context.RecentContents != null && context.RecentContents.Count > 0)
+        {
+            var recentTitles = string.Join("\n", context.RecentContents.Select(r =>
+                $"  - [{r.CreatedAt:dd/MM}] {r.Title}"));
+            recentHistoryBlock = $"""
+
+            RECENTLY PUBLISHED/GENERATED CONTENT (DO NOT repeat these topics or angles):
+            {recentTitles}
+
+            CONTENT DIVERSITY STRATEGY:
+            You MUST create content that is COMPLETELY DIFFERENT from the above list.
+            Use a different angle, topic, feature, or theme each time. Rotate among these approaches:
+            - Highlight a SPECIFIC feature or capability of the product (pick one not covered recently)
+            - Address a specific pain point or use case of the target audience
+            - Share a practical tip, tutorial, or how-to
+            - Tell a customer success story or use case scenario
+            - Discuss an industry trend relevant to the product's domain
+            - Create educational content about the problem the product solves
+            - Compare approaches or methodologies relevant to the audience
+            - Share behind-the-scenes insights, updates, or news about the product
+            Pick the approach LEAST represented in the recent content list above.
+            """;
+        }
+
         string generatePrompt;
         if (!string.IsNullOrWhiteSpace(project?.SocialPromptTemplate))
         {
@@ -76,6 +102,7 @@ public class SocialManagerAgent : IMarketingAgent
                 .Replace("{projectContext}", project.ExtractedContext ?? string.Empty)
                 .Replace("{sources}", sourcesContext)
                 .Replace("{task}", context.Input ?? "Crea post social rilevanti per il dominio specifico del progetto.")
+                + recentHistoryBlock
                 + $"\n\nCTA / LINK RULE: {ctaRule}"
                 + $"\n\nGenerate ONLY for the following platforms:\n{platformDescriptions}"
                 + $"\n\nFORMAT YOUR RESPONSE EXACTLY AS:\n{platformFormatBlocks}";
@@ -100,6 +127,7 @@ public class SocialManagerAgent : IMarketingAgent
 
             CONTENT SOURCES (for context and inspiration):
             {sourcesContext}
+            {recentHistoryBlock}
 
             TASK: {context.Input ?? "Create engaging social media posts about a relevant topic for our audience. Stay strictly within the project's actual domain — do NOT write generic marketing content."}
 
