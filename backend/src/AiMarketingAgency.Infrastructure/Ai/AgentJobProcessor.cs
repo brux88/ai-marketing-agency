@@ -123,7 +123,11 @@ public class AgentJobProcessor : IAgentJobProcessor
             var recentContents = await recentQuery
                 .OrderByDescending(c => c.CreatedAt)
                 .Take(15)
-                .Select(c => new Application.Agents.RecentContentSummary(c.Title, c.ContentType, c.CreatedAt))
+                .Select(c => new Application.Agents.RecentContentSummary(
+                    c.Title,
+                    c.Body.Length > 200 ? c.Body.Substring(0, 200) : c.Body,
+                    c.ContentType,
+                    c.CreatedAt))
                 .ToListAsync(ct);
 
             // Load project documents for RAG context
@@ -359,6 +363,13 @@ public class AgentJobProcessor : IAgentJobProcessor
             if (!result.Success)
                 job.ErrorMessage = result.Output;
 
+            var agentLabel = job.AgentType switch
+            {
+                AgentType.SocialManager => "Social Manager",
+                AgentType.ContentWriter => "Blog Writer",
+                AgentType.Newsletter => "Newsletter",
+                _ => job.AgentType.ToString()
+            };
             _context.Notifications.Add(new Notification
             {
                 TenantId = job.TenantId,
@@ -367,8 +378,8 @@ public class AgentJobProcessor : IAgentJobProcessor
                 ProjectId = job.ProjectId,
                 Type = result.Success ? "job.completed" : "job.failed",
                 Title = result.Success
-                    ? $"{job.AgentType} completato ({result.Contents.Count} contenuti)"
-                    : $"{job.AgentType} fallito",
+                    ? $"{agentLabel} completato ({result.Contents.Count} contenuti)"
+                    : $"{agentLabel} fallito",
                 Body = result.Success ? result.Output : (job.ErrorMessage ?? "Errore sconosciuto"),
                 Link = "/jobs",
                 Read = false
@@ -394,7 +405,14 @@ public class AgentJobProcessor : IAgentJobProcessor
                 {
                     foreach (var c in createdContents)
                     {
-                        var caption = $"📝 <b>{c.Title}</b>\n\n{Truncate(c.Body, 800)}\n\n<i>Stato: {c.Status}</i>";
+                        var typeEmoji = c.ContentType switch
+                        {
+                            ContentType.SocialPost => "📱 Social",
+                            ContentType.BlogPost => "📝 Blog",
+                            ContentType.Newsletter => "📧 Newsletter",
+                            _ => "📄 Contenuto"
+                        };
+                        var caption = $"{typeEmoji} | <b>{c.Title}</b>\n\n{Truncate(c.Body, 800)}\n\n<i>Stato: {c.Status}</i>";
                         var buttons = new List<TelegramInlineButton>();
                         if (c.Status == ContentStatus.InReview)
                         {

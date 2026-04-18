@@ -81,29 +81,32 @@ public class SocialManagerAgent : IMarketingAgent
             ? $"If the post includes a call-to-action link, use EXACTLY this URL: {projectUrl}. NEVER write placeholder text like [Link Demo], [link], [URL], [tuo link], [website]. Either write the real URL or omit the link entirely."
             : "Do NOT include any placeholder text like [Link Demo], [link], [URL], [tuo link], [website] or similar brackets. Either write a real URL or omit the link entirely.";
 
-        // Build recent content history block
+        // Build recent content history block with body excerpts for better diversity
         var recentHistoryBlock = string.Empty;
         if (context.RecentContents != null && context.RecentContents.Count > 0)
         {
-            var recentTitles = string.Join("\n", context.RecentContents.Select(r =>
-                $"  - [{r.CreatedAt:dd/MM}] {r.Title}"));
+            var recentEntries = string.Join("\n", context.RecentContents.Select(r =>
+                $"  - [{r.CreatedAt:dd/MM}] {r.Title}\n    Summary: {r.BodyExcerpt ?? "(no excerpt)"}"));
             recentHistoryBlock = $"""
 
-            RECENTLY PUBLISHED/GENERATED CONTENT (DO NOT repeat these topics or angles):
-            {recentTitles}
+            ⚠️ CRITICAL — CONTENT DIVERSITY REQUIREMENT (THIS IS MANDATORY):
+            The following content has ALREADY been created. You MUST NOT repeat any of these topics, angles, or themes.
 
-            CONTENT DIVERSITY STRATEGY:
-            You MUST create content that is COMPLETELY DIFFERENT from the above list.
-            Use a different angle, topic, feature, or theme each time. Rotate among these approaches:
-            - Highlight a SPECIFIC feature or capability of the product (pick one not covered recently)
-            - Address a specific pain point or use case of the target audience
-            - Share a practical tip, tutorial, or how-to
-            - Tell a customer success story or use case scenario
-            - Discuss an industry trend relevant to the product's domain
-            - Create educational content about the problem the product solves
-            - Compare approaches or methodologies relevant to the audience
-            - Share behind-the-scenes insights, updates, or news about the product
-            Pick the approach LEAST represented in the recent content list above.
+            RECENTLY PUBLISHED/GENERATED CONTENT:
+            {recentEntries}
+
+            DIVERSITY RULES:
+            1. Your new content MUST cover a COMPLETELY DIFFERENT topic from ALL items above
+            2. Do NOT rephrase or reword the same ideas — find genuinely new angles
+            3. Rotate among these content pillars (pick the LEAST used above):
+               - A SPECIFIC product feature not yet covered
+               - A specific audience pain point or use case
+               - A practical tip, tutorial, or how-to
+               - A customer success story or scenario
+               - An industry trend relevant to the domain
+               - Educational content about the problem space
+               - Behind-the-scenes or company updates
+            4. If all pillars have been used recently, go deeper into one with a sub-topic not yet explored
             """;
         }
 
@@ -178,11 +181,15 @@ public class SocialManagerAgent : IMarketingAgent
         // Score each post
         foreach (var (platformTag, title, body) in posts)
         {
+            var recentTitlesForScore = context.RecentContents != null && context.RecentContents.Count > 0
+                ? string.Join(", ", context.RecentContents.Take(5).Select(r => $"\"{r.Title}\""))
+                : "(none)";
             var scorePrompt = $"""
                 Score this {platformTag} social media post from 1-10 on each criterion.
 
                 BRAND VOICE: Tone={brandVoice.Tone}, Style={brandVoice.Style}
                 TARGET AUDIENCE: {targetAudience.Description}
+                RECENT CONTENT (for diversity check): {recentTitlesForScore}
 
                 POST TITLE: {title}
                 POST CONTENT: {body}
@@ -192,7 +199,8 @@ public class SocialManagerAgent : IMarketingAgent
                 RELEVANCE: [score]
                 SEO: [score]
                 BRAND_VOICE: [score]
-                OVERALL: [score]
+                DIVERSITY: [score — 1 if topic/angle is identical to recent content, 10 if completely fresh]
+                OVERALL: [score — average of all above, penalize heavily if DIVERSITY < 5]
                 EXPLANATION: [brief explanation]
                 """;
 

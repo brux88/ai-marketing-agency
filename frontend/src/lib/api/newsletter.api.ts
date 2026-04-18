@@ -31,4 +31,14 @@ export const newsletterApi = {
 
   send: (agencyId: string, contentId: string) =>
     apiClient.post<ApiResponse<EmailSendResult>>(`${base(agencyId)}/send/${contentId}`),
+
+  // Project-level subscribers
+  getProjectSubscribers: (agencyId: string, projectId: string) =>
+    apiClient.get<ApiResponse<NewsletterSubscriber[]>>(`${base(agencyId)}/projects/${projectId}/subscribers`),
+
+  addProjectSubscriber: (agencyId: string, projectId: string, data: { email: string; name?: string }) =>
+    apiClient.post<ApiResponse<NewsletterSubscriber>>(`${base(agencyId)}/projects/${projectId}/subscribers`, data),
+
+  removeProjectSubscriber: (agencyId: string, projectId: string, subscriberId: string) =>
+    apiClient.delete<ApiResponse<object>>(`${base(agencyId)}/projects/${projectId}/subscribers/${subscriberId}`),
 };

@@ -74,9 +74,13 @@ public class ApproveContentCommandHandler : IRequestHandler<ApproveContentComman
 
                 if (connector != null)
                 {
-                    var subscribers = await _context.NewsletterSubscribers
-                        .Where(s => s.AgencyId == content.AgencyId && s.IsActive)
-                        .ToListAsync(cancellationToken);
+                    var subsQuery = _context.NewsletterSubscribers
+                        .Where(s => s.AgencyId == content.AgencyId && s.IsActive);
+                    if (content.ProjectId.HasValue)
+                        subsQuery = subsQuery.Where(s => s.ProjectId == content.ProjectId.Value);
+                    else
+                        subsQuery = subsQuery.Where(s => s.ProjectId == null);
+                    var subscribers = await subsQuery.ToListAsync(cancellationToken);
 
                     if (subscribers.Count > 0)
                     {

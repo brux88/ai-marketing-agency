@@ -66,6 +66,32 @@ public class NewsletterController : ControllerBase
         return Ok(ApiResponse<object>.Ok(null));
     }
 
+    // ── Project-level subscribers ──
+
+    [HttpGet("projects/{projectId:guid}/subscribers")]
+    public async Task<ActionResult<ApiResponse<List<SubscriberDto>>>> GetProjectSubscribers(
+        Guid agencyId, Guid projectId, CancellationToken ct)
+    {
+        var result = await _mediator.Send(new GetSubscribersQuery(agencyId, projectId), ct);
+        return Ok(ApiResponse<List<SubscriberDto>>.Ok(result));
+    }
+
+    [HttpPost("projects/{projectId:guid}/subscribers")]
+    public async Task<ActionResult<ApiResponse<SubscriberDto>>> AddProjectSubscriber(
+        Guid agencyId, Guid projectId, [FromBody] AddSubscriberRequest body, CancellationToken ct)
+    {
+        var result = await _mediator.Send(new AddSubscriberCommand(agencyId, body.Email, body.Name, projectId), ct);
+        return Ok(ApiResponse<SubscriberDto>.Ok(result));
+    }
+
+    [HttpDelete("projects/{projectId:guid}/subscribers/{subscriberId:guid}")]
+    public async Task<ActionResult<ApiResponse<object>>> RemoveProjectSubscriber(
+        Guid agencyId, Guid projectId, Guid subscriberId, CancellationToken ct)
+    {
+        await _mediator.Send(new RemoveSubscriberCommand(agencyId, subscriberId), ct);
+        return Ok(ApiResponse<object>.Ok(null));
+    }
+
     // Send newsletter
     [HttpPost("send/{contentId:guid}")]
     public async Task<ActionResult<ApiResponse<EmailSendResult>>> SendNewsletter(

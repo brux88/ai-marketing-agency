@@ -18,7 +18,9 @@ public class AddSubscriberCommandHandler : IRequestHandler<AddSubscriberCommand,
     public async Task<SubscriberDto> Handle(AddSubscriberCommand request, CancellationToken cancellationToken)
     {
         var existing = await _context.NewsletterSubscribers
-            .FirstOrDefaultAsync(s => s.AgencyId == request.AgencyId && s.Email == request.Email, cancellationToken);
+            .FirstOrDefaultAsync(s => s.AgencyId == request.AgencyId
+                && s.ProjectId == request.ProjectId
+                && s.Email == request.Email, cancellationToken);
 
         if (existing != null)
         {
@@ -31,6 +33,7 @@ public class AddSubscriberCommandHandler : IRequestHandler<AddSubscriberCommand,
             existing = new NewsletterSubscriber
             {
                 AgencyId = request.AgencyId,
+                ProjectId = request.ProjectId,
                 Email = request.Email,
                 Name = request.Name,
                 IsActive = true,

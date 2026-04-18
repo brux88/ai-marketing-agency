@@ -39,6 +39,7 @@ export function GenerateContentDialog({
   const [input, setInput] = useState("");
   const [imageMode, setImageMode] = useState<ImageGenerationMode>(ImageGenerationMode.Single);
   const [imageCount, setImageCount] = useState(4);
+  const [quantity, setQuantity] = useState(1);
   const isSocial = agentType === "social-manager";
   const ALL_PLATFORMS = ["TWITTER", "LINKEDIN", "INSTAGRAM", "FACEBOOK"] as const;
   const PLATFORM_LABELS: Record<string, string> = {
@@ -54,6 +55,7 @@ export function GenerateContentDialog({
     setInput("");
     setImageMode(ImageGenerationMode.Single);
     setImageCount(4);
+    setQuantity(1);
     setSelectedPlatforms([...ALL_PLATFORMS]);
     if (isSocial && projectId) {
       projectsApi.get(agencyId, projectId).then((res: any) => {
@@ -88,13 +90,18 @@ export function GenerateContentDialog({
           selectedPlatforms.join(",")
         );
       }
-      await apiClient.post(`/api/v1/agencies/${agencyId}/agents/${agentType}/run`, {
-        input: input || null,
-        projectId: projectId || null,
-        imageMode,
-        imageCount,
-      });
-      toast.success(`${agentLabel} avviato!`);
+      const count = Math.max(1, Math.min(quantity, 50));
+      for (let i = 0; i < count; i++) {
+        await apiClient.post(`/api/v1/agencies/${agencyId}/agents/${agentType}/run`, {
+          input: input || null,
+          projectId: projectId || null,
+          imageMode,
+          imageCount,
+        });
+      }
+      toast.success(count > 1
+        ? `${agentLabel}: ${count} job avviati!`
+        : `${agentLabel} avviato!`);
       queryClient.invalidateQueries({ queryKey: ["jobs"] });
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
       onStarted?.();
@@ -158,6 +165,25 @@ export function GenerateContentDialog({
               />
             </div>
           )}
+
+          <div className="space-y-2">
+            <Label>Quantita contenuti</Label>
+            <div className="flex items-center gap-3">
+              <Slider
+                value={[quantity]}
+                onValueChange={(val) => setQuantity(Array.isArray(val) ? val[0] : val)}
+                min={1}
+                max={30}
+                className="flex-1"
+              />
+              <span className="text-sm font-medium tabular-nums w-8 text-center">{quantity}</span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {quantity > 1
+                ? `Verranno creati ${quantity} job separati. Ogni contenuto sara unico grazie alla strategia di diversificazione.`
+                : "Un singolo contenuto."}
+            </p>
+          </div>
 
           <div className="space-y-2">
             <Label>Modalita immagine</Label>

@@ -40,9 +40,15 @@ public class SendNewsletterCommandHandler : IRequestHandler<SendNewsletterComman
                 cancellationToken)
             ?? throw new InvalidOperationException("No email connector configured for this agency or project.");
 
-        var subscribers = await _context.NewsletterSubscribers
-            .Where(s => s.AgencyId == request.AgencyId && s.IsActive)
-            .ToListAsync(cancellationToken);
+        // Load project-specific subscribers if content belongs to a project, otherwise agency-level
+        var subscribersQuery = _context.NewsletterSubscribers
+            .Where(s => s.AgencyId == request.AgencyId && s.IsActive);
+        if (content.ProjectId.HasValue)
+            subscribersQuery = subscribersQuery.Where(s => s.ProjectId == content.ProjectId.Value);
+        else
+            subscribersQuery = subscribersQuery.Where(s => s.ProjectId == null);
+
+        var subscribers = await subscribersQuery.ToListAsync(cancellationToken);
 
         if (subscribers.Count == 0)
             return new EmailSendResult(true, 0, 0, "No active subscribers.");

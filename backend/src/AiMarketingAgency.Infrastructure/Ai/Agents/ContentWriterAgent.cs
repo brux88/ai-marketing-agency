@@ -50,25 +50,29 @@ public class ContentWriterAgent : IMarketingAgent
             """;
         }
 
-        // Build recent content history block
+        // Build recent content history block with body excerpts for better diversity
         var recentHistoryBlock = string.Empty;
         if (context.RecentContents != null && context.RecentContents.Count > 0)
         {
-            var recentTitles = string.Join("\n", context.RecentContents.Select(r =>
-                $"  - [{r.CreatedAt:dd/MM}] {r.Title}"));
+            var recentEntries = string.Join("\n", context.RecentContents.Select(r =>
+                $"  - [{r.CreatedAt:dd/MM}] {r.Title}\n    Summary: {r.BodyExcerpt ?? "(no excerpt)"}"));
             recentHistoryBlock = $"""
 
-            RECENTLY PUBLISHED/GENERATED ARTICLES (DO NOT repeat these topics):
-            {recentTitles}
+            ⚠️ CRITICAL — CONTENT DIVERSITY REQUIREMENT (THIS IS MANDATORY):
+            The following articles have ALREADY been written. You MUST NOT repeat any of these topics, angles, or themes.
 
-            CONTENT DIVERSITY STRATEGY:
-            You MUST write about a COMPLETELY DIFFERENT topic or angle from the articles listed above.
-            Rotate among these content pillars:
-            - Deep-dive into a SPECIFIC feature or capability not yet covered
-            - Tutorial / step-by-step guide on a particular use case
-            - Problem-solution article addressing a specific audience pain point
-            - Industry trends and how the product relates to them
-            - Comparison or best practices article
+            RECENTLY PUBLISHED/GENERATED ARTICLES:
+            {recentEntries}
+
+            DIVERSITY RULES:
+            1. Your new article MUST cover a COMPLETELY DIFFERENT topic from ALL items above
+            2. Do NOT rephrase or reword the same ideas — find genuinely new angles
+            3. Rotate among these content pillars (pick the LEAST used above):
+               - Deep-dive into a SPECIFIC feature or capability not yet covered
+               - Tutorial / step-by-step guide on a particular use case
+               - Problem-solution article addressing a specific audience pain point
+               - Industry trends and how the product relates to them
+               - Comparison or best practices article
             - Case study or real-world application scenario
             - Educational content about the broader domain
             - Tips, tricks, or lesser-known aspects of the product
@@ -148,6 +152,9 @@ public class ContentWriterAgent : IMarketingAgent
         var (title, body) = ParseGeneratedContent(generatedText);
 
         // Step 3: Score the content
+        var recentTitlesForScore = context.RecentContents != null && context.RecentContents.Count > 0
+            ? string.Join(", ", context.RecentContents.Take(5).Select(r => $"\"{r.Title}\""))
+            : "(none)";
         var scorePrompt = $"""
             You are a content quality analyst. Score the following article on a scale of 1-10 for each criterion.
 
@@ -157,6 +164,7 @@ public class ContentWriterAgent : IMarketingAgent
             - Forbidden words: {string.Join(", ", brandVoice.ForbiddenWords)}
 
             TARGET AUDIENCE: {targetAudience.Description}
+            RECENT ARTICLES (for diversity check): {recentTitlesForScore}
 
             ARTICLE:
             Title: {title}
@@ -167,7 +175,8 @@ public class ContentWriterAgent : IMarketingAgent
             RELEVANCE: [score]
             SEO: [score]
             BRAND_VOICE: [score]
-            OVERALL: [score]
+            DIVERSITY: [score — 1 if topic/angle is identical to recent articles, 10 if completely fresh]
+            OVERALL: [score — average of all above, penalize heavily if DIVERSITY < 5]
             EXPLANATION: [one paragraph explaining the scores]
             """;
 

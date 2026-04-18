@@ -16,8 +16,14 @@ public class GetSubscribersQueryHandler : IRequestHandler<GetSubscribersQuery, L
 
     public async Task<List<SubscriberDto>> Handle(GetSubscribersQuery request, CancellationToken cancellationToken)
     {
-        return await _context.NewsletterSubscribers
-            .Where(s => s.AgencyId == request.AgencyId)
+        var query = _context.NewsletterSubscribers
+            .Where(s => s.AgencyId == request.AgencyId);
+        if (request.ProjectId.HasValue)
+            query = query.Where(s => s.ProjectId == request.ProjectId.Value);
+        else
+            query = query.Where(s => s.ProjectId == null);
+
+        return await query
             .OrderByDescending(s => s.SubscribedAt)
             .Select(s => new SubscriberDto
             {

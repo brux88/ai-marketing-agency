@@ -48,29 +48,33 @@ public class NewsletterAgent : IMarketingAgent
             """;
         }
 
-        // Build recent content history block
+        // Build recent content history block with body excerpts for better diversity
         var recentHistoryBlock = string.Empty;
         if (context.RecentContents != null && context.RecentContents.Count > 0)
         {
-            var recentTitles = string.Join("\n", context.RecentContents.Select(r =>
-                $"  - [{r.CreatedAt:dd/MM}] {r.Title}"));
+            var recentEntries = string.Join("\n", context.RecentContents.Select(r =>
+                $"  - [{r.CreatedAt:dd/MM}] {r.Title}\n    Summary: {r.BodyExcerpt ?? "(no excerpt)"}"));
             recentHistoryBlock = $"""
 
-            PREVIOUSLY SENT NEWSLETTERS (DO NOT repeat these themes):
-            {recentTitles}
+            ⚠️ CRITICAL — CONTENT DIVERSITY REQUIREMENT (THIS IS MANDATORY):
+            The following newsletters have ALREADY been sent. You MUST NOT repeat any of these themes.
 
-            CONTENT DIVERSITY STRATEGY:
-            Each newsletter MUST have a COMPLETELY DIFFERENT main theme from those listed above.
-            Rotate the featured story focus among:
-            - Product update or new feature spotlight
-            - Industry analysis and market trends
-            - Practical tutorial or how-to guide
-            - Customer use case or success scenario
-            - Expert insights or thought leadership
-            - Seasonal/timely content tied to current events
-            - FAQ or common challenges addressed
-            - Behind-the-scenes or company culture
-            Choose the theme LEAST covered in the previous newsletters above.
+            PREVIOUSLY SENT NEWSLETTERS:
+            {recentEntries}
+
+            DIVERSITY RULES:
+            1. Your new newsletter MUST have a COMPLETELY DIFFERENT main theme from ALL items above
+            2. Do NOT rephrase or reword the same ideas — find genuinely new angles
+            3. Rotate the featured story focus among (pick the LEAST used above):
+               - Product update or new feature spotlight
+               - Industry analysis and market trends
+               - Practical tutorial or how-to guide
+               - Customer use case or success scenario
+               - Expert insights or thought leadership
+               - Seasonal/timely content tied to current events
+               - FAQ or common challenges addressed
+               - Behind-the-scenes or company culture
+            4. If all themes have been covered recently, go deeper with a sub-topic not yet explored
             """;
         }
 
@@ -142,11 +146,15 @@ public class NewsletterAgent : IMarketingAgent
         var (title, body) = ParseContent(generatedText);
 
         // Score the newsletter
+        var recentTitlesForScore = context.RecentContents != null && context.RecentContents.Count > 0
+            ? string.Join(", ", context.RecentContents.Take(5).Select(r => $"\"{r.Title}\""))
+            : "(none)";
         var scorePrompt = $"""
             Score this newsletter from 1-10 on each criterion.
 
             BRAND VOICE: Tone={brandVoice.Tone}, Style={brandVoice.Style}
             TARGET AUDIENCE: {targetAudience.Description}
+            RECENT NEWSLETTERS (for diversity check): {recentTitlesForScore}
 
             SUBJECT: {title}
             CONTENT:
@@ -157,7 +165,8 @@ public class NewsletterAgent : IMarketingAgent
             RELEVANCE: [score]
             SEO: [score]
             BRAND_VOICE: [score]
-            OVERALL: [score]
+            DIVERSITY: [score — 1 if theme is identical to recent newsletters, 10 if completely fresh]
+            OVERALL: [score — average of all above, penalize heavily if DIVERSITY < 5]
             EXPLANATION: [brief explanation]
             """;
 

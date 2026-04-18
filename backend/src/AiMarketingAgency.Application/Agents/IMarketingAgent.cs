@@ -22,6 +22,7 @@ public record AgentJobContext(
 
 public record RecentContentSummary(
     string Title,
+    string? BodyExcerpt,
     ContentType ContentType,
     DateTime CreatedAt);
 

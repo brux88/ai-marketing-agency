@@ -332,13 +332,26 @@ public class TelegramWebhookController : ControllerBase
 
                 if (content != null && (content.Status == Domain.Enums.ContentStatus.InReview || content.Status == Domain.Enums.ContentStatus.Rejected))
                 {
+                    // Set tenant context so CalendarAutoScheduler queries work correctly
+                    var tenantCtx = HttpContext.RequestServices.GetRequiredService<ITenantContext>();
+                    tenantCtx.SetTenant(content.TenantId, Guid.Empty);
+
                     content.Status = Domain.Enums.ContentStatus.Approved;
                     content.ApprovedAt = DateTime.UtcNow;
                     await _context.SaveChangesAsync(ct);
 
-                    await CalendarAutoScheduler.TryScheduleAsync(_context, content, _logger, ct);
+                    var scheduled = await CalendarAutoScheduler.TryScheduleAsync(_context, content, _logger, ct);
 
-                    await _telegramBot.SendMessageAsync(agencyId, content.ProjectId, chatId, $"✅ Contenuto '<b>{content.Title}</b>' approvato e aggiunto al calendario!", ct);
+                    var contentTypeLabel = content.ContentType switch
+                    {
+                        Domain.Enums.ContentType.SocialPost => "📱 Social",
+                        Domain.Enums.ContentType.BlogPost => "📝 Blog",
+                        Domain.Enums.ContentType.Newsletter => "📧 Newsletter",
+                        _ => "📄 Contenuto"
+                    };
+                    var scheduleMsg = scheduled ? " e aggiunto al calendario" : "";
+                    await _telegramBot.SendMessageAsync(agencyId, content.ProjectId, chatId,
+                        $"✅ {contentTypeLabel} '<b>{content.Title}</b>' approvato{scheduleMsg}!", ct);
                 }
                 else if (content != null)
                 {

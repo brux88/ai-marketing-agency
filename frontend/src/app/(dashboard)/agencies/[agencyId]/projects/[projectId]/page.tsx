@@ -2237,8 +2237,8 @@ function ProjectNewsletterSection({ agencyId, projectId }: { agencyId: string; p
   });
 
   const { data: subsData, isLoading: subsLoading } = useQuery({
-    queryKey: ["newsletter-subscribers", agencyId],
-    queryFn: () => newsletterApi.getSubscribers(agencyId),
+    queryKey: ["newsletter-subscribers", agencyId, projectId],
+    queryFn: () => newsletterApi.getProjectSubscribers(agencyId, projectId),
   });
 
   const configs: EmailConnectorDto[] = configData?.data ?? [];
@@ -2292,9 +2292,9 @@ function ProjectNewsletterSection({ agencyId, projectId }: { agencyId: string; p
   });
 
   const addSubMutation = useMutation({
-    mutationFn: () => newsletterApi.addSubscriber(agencyId, { email: subEmail, name: subName || undefined }),
+    mutationFn: () => newsletterApi.addProjectSubscriber(agencyId, projectId, { email: subEmail, name: subName || undefined }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["newsletter-subscribers", agencyId] });
+      queryClient.invalidateQueries({ queryKey: ["newsletter-subscribers", agencyId, projectId] });
       toast.success("Iscritto aggiunto!");
       setSubEmail("");
       setSubName("");
@@ -2304,7 +2304,7 @@ function ProjectNewsletterSection({ agencyId, projectId }: { agencyId: string; p
   });
 
   const removeSubMutation = useMutation({
-    mutationFn: (subscriberId: string) => newsletterApi.removeSubscriber(agencyId, subscriberId),
+    mutationFn: (subscriberId: string) => newsletterApi.removeProjectSubscriber(agencyId, projectId, subscriberId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["newsletter-subscribers", agencyId] });
       toast.success("Iscritto rimosso.");
@@ -2493,7 +2493,7 @@ function ProjectNewsletterSection({ agencyId, projectId }: { agencyId: string; p
           <div className="flex gap-2">
             <Input
               readOnly
-              value={`https://wepostai-api.azurewebsites.net/api/v1/public/agencies/${agencyId}/newsletter/subscribe`}
+              value={`https://wepostai-api.azurewebsites.net/api/v1/public/agencies/${agencyId}/projects/${projectId}/newsletter/subscribe`}
               className="font-mono text-xs"
             />
             <Button
@@ -2501,7 +2501,7 @@ function ProjectNewsletterSection({ agencyId, projectId }: { agencyId: string; p
               size="sm"
               onClick={() => {
                 navigator.clipboard.writeText(
-                  `https://wepostai-api.azurewebsites.net/api/v1/public/agencies/${agencyId}/newsletter/subscribe`
+                  `https://wepostai-api.azurewebsites.net/api/v1/public/agencies/${agencyId}/projects/${projectId}/newsletter/subscribe`
                 );
                 toast.success("URL copiato!");
               }}
@@ -3304,10 +3304,16 @@ function ProjectNotificationsSection({ agencyId, projectId }: { agencyId: string
     return <Badge variant="outline" className="text-[10px]">{status}</Badge>;
   };
 
+  const handleRefresh = () => {
+    queryClient.invalidateQueries({ queryKey: ["notifications", "project", projectId] });
+    queryClient.invalidateQueries({ queryKey: ["jobs", "project", projectId] });
+    toast.success("Aggiornato");
+  };
+
   return (
     <div className="space-y-4">
       {/* Tab buttons */}
-      <div className="flex border-b border-border">
+      <div className="flex items-center border-b border-border">
         <button
           type="button"
           onClick={() => setActiveTab("notifiche")}
@@ -3335,6 +3341,16 @@ function ProjectNotificationsSection({ agencyId, projectId }: { agencyId: string
           <Bot className="size-4" />
           Jobs
         </button>
+        <div className="ml-auto flex items-center gap-2 pb-1">
+          {unread.length > 0 && activeTab === "notifiche" && (
+            <Button size="sm" variant="ghost" onClick={() => markAllRead.mutate()} disabled={markAllRead.isPending}>
+              <CheckCheck className="size-3.5 mr-1" /> Segna lette
+            </Button>
+          )}
+          <Button size="sm" variant="ghost" onClick={handleRefresh}>
+            <RefreshCw className="size-3.5" />
+          </Button>
+        </div>
       </div>
 
       {/* Notifiche tab content */}
@@ -3401,7 +3417,11 @@ function ProjectNotificationsSection({ agencyId, projectId }: { agencyId: string
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-medium text-sm">{j.agentType}</span>
+                          <span className="font-medium text-sm">
+                            {j.agentType === "SocialManager" ? "📱 Social Manager" :
+                             j.agentType === "ContentWriter" ? "📝 Blog Writer" :
+                             j.agentType === "Newsletter" ? "📧 Newsletter" : j.agentType}
+                          </span>
                           {jobStatusBadge(j.status)}
                         </div>
                         {j.errorMessage && <p className="text-xs text-destructive mt-1 line-clamp-2">{j.errorMessage}</p>}

@@ -140,6 +140,84 @@ public class PublicController : ControllerBase
         };
     }
 
+    // ── Project-level newsletter subscribe ──
+
+    [HttpPost("agencies/{agencyId:guid}/projects/{projectId:guid}/newsletter/subscribe")]
+    public async Task<ActionResult<ApiResponse<object>>> SubscribeToProjectNewsletter(
+        Guid agencyId, Guid projectId, [FromBody] AgencySubscribeRequest request, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(request.Email))
+            return BadRequest(ApiResponse<object>.Fail("Email obbligatoria"));
+
+        var project = await _context.Projects
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(p => p.Id == projectId && p.AgencyId == agencyId, ct);
+        if (project == null)
+            return NotFound(ApiResponse<object>.Fail("Progetto non trovato"));
+
+        var email = request.Email.Trim().ToLowerInvariant();
+
+        var existing = await _context.NewsletterSubscribers
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(s => s.AgencyId == agencyId && s.ProjectId == projectId && s.Email == email, ct);
+
+        if (existing != null)
+        {
+            if (existing.IsActive)
+                return Ok(ApiResponse<object>.Ok(null!));
+            existing.IsActive = true;
+            existing.UnsubscribedAt = null;
+            existing.Name = request.Name ?? existing.Name;
+        }
+        else
+        {
+            _context.NewsletterSubscribers.Add(new NewsletterSubscriber
+            {
+                AgencyId = agencyId,
+                TenantId = project.TenantId,
+                ProjectId = projectId,
+                Email = email,
+                Name = request.Name,
+                IsActive = true,
+                SubscribedAt = DateTime.UtcNow
+            });
+        }
+
+        await _context.SaveChangesAsync(ct);
+        return Ok(ApiResponse<object>.Ok(null!));
+    }
+
+    [HttpGet("agencies/{agencyId:guid}/projects/{projectId:guid}/newsletter/unsubscribe")]
+    public async Task<ContentResult> UnsubscribeFromProjectNewsletter(
+        Guid agencyId, Guid projectId, [FromQuery] string email, CancellationToken ct)
+    {
+        if (!string.IsNullOrWhiteSpace(email))
+        {
+            var subscriber = await _context.NewsletterSubscribers
+                .IgnoreQueryFilters()
+                .FirstOrDefaultAsync(s => s.AgencyId == agencyId && s.ProjectId == projectId
+                    && s.Email == email.Trim().ToLowerInvariant(), ct);
+            if (subscriber != null && subscriber.IsActive)
+            {
+                subscriber.IsActive = false;
+                subscriber.UnsubscribedAt = DateTime.UtcNow;
+                await _context.SaveChangesAsync(ct);
+            }
+        }
+
+        return new ContentResult
+        {
+            ContentType = "text/html",
+            Content = """
+                <html><body style="font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f5f5f5">
+                <div style="text-align:center;padding:2rem;background:white;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.1)">
+                <h2>Disiscrizione completata</h2>
+                <p>Non riceverai piu le newsletter di questo progetto.</p>
+                </div></body></html>
+                """
+        };
+    }
+
     [HttpGet("newsletter/unsubscribe")]
     public async Task<ContentResult> Unsubscribe([FromQuery] string email, CancellationToken ct)
     {
