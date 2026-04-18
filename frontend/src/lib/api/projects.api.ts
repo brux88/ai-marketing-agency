@@ -140,7 +140,40 @@ export const projectsApi = {
     );
     return res.data;
   },
+
+  // ── Project Documents (RAG) ──
+
+  listDocuments: async (agencyId: string, projectId: string) => {
+    const res = await apiClient.get<ApiResponse<ProjectDocument[]>>(
+      `/api/v1/agencies/${agencyId}/projects/${projectId}/documents`
+    );
+    return res.data;
+  },
+
+  uploadDocument: async (agencyId: string, projectId: string, file: File, name?: string) => {
+    const form = new FormData();
+    form.append("file", file);
+    if (name) form.append("name", name);
+    return apiClient.postForm<ApiResponse<ProjectDocument>>(
+      `/api/v1/agencies/${agencyId}/projects/${projectId}/documents`,
+      form
+    );
+  },
+
+  deleteDocument: async (agencyId: string, projectId: string, documentId: string) =>
+    apiClient.delete(`/api/v1/agencies/${agencyId}/projects/${projectId}/documents/${documentId}`),
 };
+
+export interface ProjectDocument {
+  id: string;
+  name: string;
+  fileName: string;
+  fileUrl: string;
+  fileSizeBytes: number;
+  hasExtractedText: boolean;
+  extractedTextLength: number;
+  createdAt: string;
+}
 
 export interface ProjectPrompts {
   blogPromptTemplate?: string | null;

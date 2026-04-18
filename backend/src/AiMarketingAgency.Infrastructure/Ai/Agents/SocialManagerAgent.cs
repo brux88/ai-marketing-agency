@@ -29,6 +29,21 @@ public class SocialManagerAgent : IMarketingAgent
             ? $"\nPROJECT CONTEXT (from website):\n{project!.ExtractedContext}\n"
             : string.Empty;
 
+        // Build document context block (RAG)
+        var documentsBlock = string.Empty;
+        if (context.Documents != null && context.Documents.Count > 0)
+        {
+            var docTexts = string.Join("\n\n", context.Documents.Select(d =>
+                $"── {d.Name} ──\n{(d.ExtractedText.Length > 3000 ? d.ExtractedText[..3000] + "..." : d.ExtractedText)}"));
+            documentsBlock = $"""
+
+            ADDITIONAL CONTEXT DOCUMENTS (use these as knowledge base):
+            {docTexts}
+
+            Use specific details, data, and insights from these documents in your posts.
+            """;
+        }
+
         var allPlatforms = new[]
         {
             (Platform: SocialPlatform.Twitter, Name: "Twitter/X", Tag: "TWITTER", MaxLength: 280, ToneHint: "concise, punchy, use hashtags"),
@@ -103,6 +118,7 @@ public class SocialManagerAgent : IMarketingAgent
                 .Replace("{sources}", sourcesContext)
                 .Replace("{task}", context.Input ?? "Crea post social rilevanti per il dominio specifico del progetto.")
                 + recentHistoryBlock
+                + documentsBlock
                 + $"\n\nCTA / LINK RULE: {ctaRule}"
                 + $"\n\nGenerate ONLY for the following platforms:\n{platformDescriptions}"
                 + $"\n\nFORMAT YOUR RESPONSE EXACTLY AS:\n{platformFormatBlocks}";
@@ -128,6 +144,7 @@ public class SocialManagerAgent : IMarketingAgent
             CONTENT SOURCES (for context and inspiration):
             {sourcesContext}
             {recentHistoryBlock}
+            {documentsBlock}
 
             TASK: {context.Input ?? "Create engaging social media posts about a relevant topic for our audience. Stay strictly within the project's actual domain — do NOT write generic marketing content."}
 

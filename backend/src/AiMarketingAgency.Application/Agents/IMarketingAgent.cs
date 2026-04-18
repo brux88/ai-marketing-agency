@@ -17,12 +17,17 @@ public record AgentJobContext(
     IReadOnlyList<ContentSource> Sources,
     Project? Project = null,
     ContentSchedule? Schedule = null,
-    IReadOnlyList<RecentContentSummary>? RecentContents = null);
+    IReadOnlyList<RecentContentSummary>? RecentContents = null,
+    IReadOnlyList<ProjectDocumentSummary>? Documents = null);
 
 public record RecentContentSummary(
     string Title,
     ContentType ContentType,
     DateTime CreatedAt);
+
+public record ProjectDocumentSummary(
+    string Name,
+    string ExtractedText);
 
 public record AgentJobResult(
     bool Success,

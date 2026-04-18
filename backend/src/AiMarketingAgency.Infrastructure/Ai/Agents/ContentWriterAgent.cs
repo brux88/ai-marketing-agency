@@ -34,6 +34,22 @@ public class ContentWriterAgent : IMarketingAgent
             ? $"\n\nPROJECT CONTEXT (extracted from website):\n{project!.ExtractedContext}\n"
             : string.Empty;
 
+        // Build document context block (RAG)
+        var documentsBlock = string.Empty;
+        if (context.Documents != null && context.Documents.Count > 0)
+        {
+            var docTexts = string.Join("\n\n", context.Documents.Select(d =>
+                $"── {d.Name} ──\n{(d.ExtractedText.Length > 5000 ? d.ExtractedText[..5000] + "..." : d.ExtractedText)}"));
+            documentsBlock = $"""
+
+            ADDITIONAL CONTEXT DOCUMENTS (use these as knowledge base for content creation):
+            {docTexts}
+
+            Use the information from these documents to create more accurate, detailed and grounded content.
+            Reference specific data, features, or insights from the documents when relevant.
+            """;
+        }
+
         // Build recent content history block
         var recentHistoryBlock = string.Empty;
         if (context.RecentContents != null && context.RecentContents.Count > 0)
@@ -73,6 +89,7 @@ public class ContentWriterAgent : IMarketingAgent
                 .Replace("{projectContext}", project.ExtractedContext ?? string.Empty)
                 .Replace("{task}", context.Input ?? "Scrivi un articolo blog di alta qualità rilevante per questo progetto.");
             generatePrompt += recentHistoryBlock;
+            generatePrompt += documentsBlock;
             generatePrompt += "\n\nFORMAT YOUR RESPONSE AS:\nTITLE: [article title]\nMETA_DESCRIPTION: [150-160 char meta description]\n---\n[article body in markdown]";
         }
         else
@@ -98,6 +115,7 @@ public class ContentWriterAgent : IMarketingAgent
                 CONTENT SOURCES (for context and inspiration):
                 {sourcesContext}
                 {recentHistoryBlock}
+                {documentsBlock}
 
                 TASK: {context.Input ?? "Write a high-quality blog post about a relevant topic for our audience. Stay strictly within the project's domain and expertise as described above — do NOT write generic marketing/AI content unless that is the actual topic of the project."}
 

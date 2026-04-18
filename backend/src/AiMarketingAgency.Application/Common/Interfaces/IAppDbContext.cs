@@ -25,6 +25,7 @@ public interface IAppDbContext
     DbSet<ContentChunk> ContentChunks { get; }
     DbSet<Notification> Notifications { get; }
     DbSet<PlatformSubscriber> PlatformSubscribers { get; }
+    DbSet<ProjectDocument> ProjectDocuments { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

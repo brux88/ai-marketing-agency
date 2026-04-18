@@ -35,6 +35,7 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<ContentChunk> ContentChunks => Set<ContentChunk>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<PlatformSubscriber> PlatformSubscribers => Set<PlatformSubscriber>();
+    public DbSet<ProjectDocument> ProjectDocuments => Set<ProjectDocument>();
 
     // EF Core evaluates this property per-instance for cached query filters
     private Guid CurrentTenantId => _tenantContext.TenantId;

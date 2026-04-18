@@ -126,6 +126,20 @@ public class AgentJobProcessor : IAgentJobProcessor
                 .Select(c => new Application.Agents.RecentContentSummary(c.Title, c.ContentType, c.CreatedAt))
                 .ToListAsync(ct);
 
+            // Load project documents for RAG context
+            List<Application.Agents.ProjectDocumentSummary>? documents = null;
+            if (job.ProjectId.HasValue)
+            {
+                documents = await _context.ProjectDocuments
+                    .AsNoTracking()
+                    .Where(d => d.ProjectId == job.ProjectId.Value && d.IsActive
+                                && d.ExtractedText != null && d.ExtractedText != "")
+                    .OrderByDescending(d => d.CreatedAt)
+                    .Take(20)
+                    .Select(d => new Application.Agents.ProjectDocumentSummary(d.Name, d.ExtractedText!))
+                    .ToListAsync(ct);
+            }
+
             var jobContext = new AgentJobContext(
                 Kernel: kernel,
                 Agency: agency,
@@ -133,7 +147,8 @@ public class AgentJobProcessor : IAgentJobProcessor
                 Sources: sources,
                 Project: project,
                 Schedule: schedule,
-                RecentContents: recentContents);
+                RecentContents: recentContents,
+                Documents: documents);
 
             _logger.LogInformation(
                 "Executing agent {AgentType} for job {JobId}, agency {AgencyId}",

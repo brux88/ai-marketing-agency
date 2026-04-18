@@ -306,6 +306,143 @@ public class ProjectsController : ControllerBase
             LogoUrl = project.LogoUrl
         }));
     }
+
+    // ── Project Documents (RAG context) ──────────────────────────────
+
+    [HttpGet("{projectId:guid}/documents")]
+    public async Task<ActionResult<ApiResponse<List<ProjectDocumentDto>>>> GetDocuments(
+        Guid agencyId, Guid projectId, CancellationToken ct)
+    {
+        var docs = await _context.ProjectDocuments
+            .AsNoTracking()
+            .Where(d => d.AgencyId == agencyId && d.ProjectId == projectId && d.IsActive)
+            .OrderByDescending(d => d.CreatedAt)
+            .Select(d => new ProjectDocumentDto
+            {
+                Id = d.Id,
+                Name = d.Name,
+                FileName = d.FileName,
+                FileUrl = d.FileUrl,
+                FileSizeBytes = d.FileSizeBytes,
+                HasExtractedText = !string.IsNullOrEmpty(d.ExtractedText),
+                ExtractedTextLength = d.ExtractedText != null ? d.ExtractedText.Length : 0,
+                CreatedAt = d.CreatedAt
+            })
+            .ToListAsync(ct);
+
+        return Ok(ApiResponse<List<ProjectDocumentDto>>.Ok(docs));
+    }
+
+    [HttpPost("{projectId:guid}/documents")]
+    [RequestSizeLimit(10 * 1024 * 1024)] // 10 MB
+    public async Task<ActionResult<ApiResponse<ProjectDocumentDto>>> UploadDocument(
+        Guid agencyId, Guid projectId,
+        IFormFile file,
+        [FromForm] string? name,
+        [FromServices] IFileStorageService fileStorage,
+        CancellationToken ct)
+    {
+        if (file == null || file.Length == 0)
+            return BadRequest(ApiResponse<ProjectDocumentDto>.Fail("File is required."));
+
+        var allowed = new[] { ".txt", ".md", ".pdf", ".csv", ".json" };
+        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+        if (!allowed.Contains(ext))
+            return BadRequest(ApiResponse<ProjectDocumentDto>.Fail("Only TXT, MD, PDF, CSV, JSON files are allowed."));
+
+        var project = await _context.Projects
+            .FirstOrDefaultAsync(p => p.Id == projectId && p.AgencyId == agencyId && p.IsActive, ct);
+        if (project == null) return NotFound();
+
+        // Upload to blob storage
+        var blobName = $"docs/{projectId:N}/{Guid.NewGuid():N}{ext}";
+        await using var stream = file.OpenReadStream();
+        var publicUrl = await fileStorage.UploadAsync(stream, blobName, file.ContentType, ct);
+
+        // Extract text content
+        string? extractedText = null;
+        try
+        {
+            if (ext is ".txt" or ".md" or ".csv" or ".json")
+            {
+                stream.Position = 0;
+                using var reader = new StreamReader(stream);
+                extractedText = await reader.ReadToEndAsync(ct);
+            }
+            // PDF extraction would require a library like PdfPig; for now store null and
+            // the user can see it wasn't extracted. We handle it gracefully.
+        }
+        catch
+        {
+            // Text extraction is best-effort
+        }
+
+        // If stream wasn't seekable (e.g. after upload), re-read from file
+        if (extractedText == null && ext is ".txt" or ".md" or ".csv" or ".json")
+        {
+            try
+            {
+                using var ms = new MemoryStream();
+                using var rereadStream = file.OpenReadStream();
+                await rereadStream.CopyToAsync(ms, ct);
+                ms.Position = 0;
+                using var reader = new StreamReader(ms);
+                extractedText = await reader.ReadToEndAsync(ct);
+            }
+            catch { /* best effort */ }
+        }
+
+        // Truncate to avoid storing excessively large text (max ~200KB chars)
+        if (extractedText != null && extractedText.Length > 200_000)
+            extractedText = extractedText[..200_000];
+
+        var doc = new Domain.Entities.ProjectDocument
+        {
+            AgencyId = agencyId,
+            TenantId = project.TenantId,
+            ProjectId = projectId,
+            Name = name ?? Path.GetFileNameWithoutExtension(file.FileName),
+            FileName = file.FileName,
+            FileUrl = publicUrl,
+            FileSizeBytes = file.Length,
+            ExtractedText = extractedText
+        };
+
+        _context.ProjectDocuments.Add(doc);
+        await _context.SaveChangesAsync(ct);
+
+        var dto = new ProjectDocumentDto
+        {
+            Id = doc.Id,
+            Name = doc.Name,
+            FileName = doc.FileName,
+            FileUrl = doc.FileUrl,
+            FileSizeBytes = doc.FileSizeBytes,
+            HasExtractedText = !string.IsNullOrEmpty(doc.ExtractedText),
+            ExtractedTextLength = doc.ExtractedText?.Length ?? 0,
+            CreatedAt = doc.CreatedAt
+        };
+
+        return Ok(ApiResponse<ProjectDocumentDto>.Ok(dto));
+    }
+
+    [HttpDelete("{projectId:guid}/documents/{documentId:guid}")]
+    public async Task<ActionResult<ApiResponse<object>>> DeleteDocument(
+        Guid agencyId, Guid projectId, Guid documentId,
+        [FromServices] IFileStorageService fileStorage,
+        CancellationToken ct)
+    {
+        var doc = await _context.ProjectDocuments
+            .FirstOrDefaultAsync(d => d.Id == documentId && d.AgencyId == agencyId && d.ProjectId == projectId, ct);
+        if (doc == null) return NotFound();
+
+        try { await fileStorage.DeleteAsync(doc.FileUrl, ct); } catch { /* best effort */ }
+
+        doc.IsActive = false;
+        await _context.SaveChangesAsync(ct);
+
+        return Ok(ApiResponse<object>.Ok(null));
+    }
 }
 
 public record UpdatePromptsRequest(
@@ -372,4 +509,16 @@ public class ProjectCostStatsDto
     public decimal Last30DaysImageCostUsd { get; set; }
     public decimal TotalCostUsd => TotalTextCostUsd + TotalImageCostUsd;
     public decimal Last30DaysCostUsd => Last30DaysTextCostUsd + Last30DaysImageCostUsd;
+}
+
+public class ProjectDocumentDto
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string FileName { get; set; } = string.Empty;
+    public string FileUrl { get; set; } = string.Empty;
+    public long FileSizeBytes { get; set; }
+    public bool HasExtractedText { get; set; }
+    public int ExtractedTextLength { get; set; }
+    public DateTime CreatedAt { get; set; }
 }

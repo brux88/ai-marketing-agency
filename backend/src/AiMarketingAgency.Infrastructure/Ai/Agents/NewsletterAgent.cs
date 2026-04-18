@@ -32,6 +32,22 @@ public class NewsletterAgent : IMarketingAgent
         var sourcesContext = string.Join("\n", context.Sources.Select(s =>
             $"- [{s.Name ?? s.Type.ToString()}] {s.Url}"));
 
+        // Build document context block (RAG)
+        var documentsBlock = string.Empty;
+        if (context.Documents != null && context.Documents.Count > 0)
+        {
+            var docTexts = string.Join("\n\n", context.Documents.Select(d =>
+                $"── {d.Name} ──\n{(d.ExtractedText.Length > 5000 ? d.ExtractedText[..5000] + "..." : d.ExtractedText)}"));
+            documentsBlock = $"""
+
+            ADDITIONAL CONTEXT DOCUMENTS (use these as knowledge base for newsletter content):
+            {docTexts}
+
+            Use the information from these documents to create more accurate and detailed newsletter content.
+            Reference specific data, features, or insights from the documents when relevant.
+            """;
+        }
+
         // Build recent content history block
         var recentHistoryBlock = string.Empty;
         if (context.RecentContents != null && context.RecentContents.Count > 0)
@@ -69,6 +85,7 @@ public class NewsletterAgent : IMarketingAgent
                 .Replace("{sources}", sourcesContext)
                 .Replace("{task}", context.Input ?? "Crea una newsletter rilevante per il dominio del progetto.")
                 + recentHistoryBlock
+                + documentsBlock
                 + "\n\nFORMAT YOUR RESPONSE AS:\nTITLE: [newsletter subject]\n---\n[newsletter body]";
         }
         else
@@ -92,6 +109,7 @@ public class NewsletterAgent : IMarketingAgent
             CONTENT SOURCES (curate from these):
             {sourcesContext}
             {recentHistoryBlock}
+            {documentsBlock}
 
             TASK: {context.Input ?? "Create a compelling weekly newsletter for our audience. Stay strictly within the project's actual domain — do NOT write generic marketing/AI content unless that is the project's actual topic."}
 

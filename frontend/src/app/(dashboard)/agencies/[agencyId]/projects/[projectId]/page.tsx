@@ -2,7 +2,7 @@
 
 import { useParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { projectsApi } from "@/lib/api/projects.api";
+import { projectsApi, type ProjectDocument } from "@/lib/api/projects.api";
 import { agenciesApi } from "@/lib/api/agencies.api";
 import { schedulesApi } from "@/lib/api/schedules.api";
 import { notificationsApi, type NotificationItem } from "@/lib/api/notifications.api";
@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PenLine, Share2, Mail, BarChart3, Loader2, FileText, Rss, Globe, FolderKanban, Calendar, Images, ImageIcon, Sparkles, Bot, Trash2, Webhook, Plus, X, Pause, Play, Pencil, Zap, Bell, CheckCheck, RefreshCw, Users, Settings2, Copy, Code2, Send, ExternalLink } from "lucide-react";
+import { PenLine, Share2, Mail, BarChart3, Loader2, FileText, Rss, Globe, FolderKanban, Calendar, Images, ImageIcon, Sparkles, Bot, Trash2, Webhook, Plus, X, Pause, Play, Pencil, Zap, Bell, CheckCheck, RefreshCw, Users, Settings2, Copy, Code2, Send, ExternalLink, Upload, FileUp } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { GenerateContentDialog } from "@/components/agency/generate-content-dialog";
@@ -651,6 +651,7 @@ export default function ProjectDetailPage() {
           />
           <ProjectContentSourcesSection agencyId={agencyId as string} projectId={projectId as string} />
           <ProjectPromptsSection agencyId={agencyId as string} projectId={projectId as string} />
+          <ProjectDocumentsSection agencyId={agencyId as string} projectId={projectId as string} />
         </TabsContent>
 
         <TabsContent value="settings" className="mt-6 space-y-6">
@@ -3452,5 +3453,137 @@ function ProjectNotificationsSection({ agencyId, projectId }: { agencyId: string
         </div>
       )}
     </div>
+  );
+}
+
+// ── Project Documents (RAG Context) ──────────────────────────────
+
+function ProjectDocumentsSection({ agencyId, projectId }: { agencyId: string; projectId: string }) {
+  const qc = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const { data: documents = [], isLoading } = useQuery({
+    queryKey: ["project-documents", agencyId, projectId],
+    queryFn: () => projectsApi.listDocuments(agencyId, projectId),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (docId: string) => projectsApi.deleteDocument(agencyId, projectId, docId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["project-documents", agencyId, projectId] });
+      toast.success("Documento eliminato");
+    },
+    onError: () => toast.error("Errore nell'eliminazione"),
+  });
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    setUploading(true);
+    try {
+      for (const file of Array.from(files)) {
+        await projectsApi.uploadDocument(agencyId, projectId, file);
+      }
+      qc.invalidateQueries({ queryKey: ["project-documents", agencyId, projectId] });
+      toast.success(`${files.length} documento/i caricato/i`);
+    } catch {
+      toast.error("Errore nel caricamento");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const formatSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="text-base flex items-center gap-2">
+              <FileUp className="size-4" /> Documenti di contesto (RAG)
+            </CardTitle>
+            <CardDescription className="mt-1">
+              Carica documenti per arricchire il contesto di generazione dei contenuti. I testi estratti verranno usati come knowledge base dagli agenti AI.
+            </CardDescription>
+          </div>
+          <div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".txt,.md,.pdf,.csv,.json"
+              multiple
+              onChange={handleUpload}
+              className="hidden"
+            />
+            <Button
+              size="sm"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+            >
+              {uploading ? <Loader2 className="size-4 animate-spin mr-1" /> : <Upload className="size-4 mr-1" />}
+              Carica documento
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="space-y-2">
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+          </div>
+        ) : documents.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground text-sm">
+            <FileText className="size-8 mx-auto mb-2 opacity-40" />
+            <p>Nessun documento caricato</p>
+            <p className="text-xs mt-1">Formati supportati: TXT, MD, PDF, CSV, JSON (max 10MB)</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {documents.map((doc: ProjectDocument) => (
+              <div key={doc.id} className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30">
+                <FileText className="size-5 text-muted-foreground shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{doc.name}</p>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span>{doc.fileName}</span>
+                    <span>{formatSize(doc.fileSizeBytes)}</span>
+                    {doc.hasExtractedText && (
+                      <Badge variant="secondary" className="text-[10px]">
+                        {doc.extractedTextLength.toLocaleString()} chars estratti
+                      </Badge>
+                    )}
+                    {!doc.hasExtractedText && (
+                      <Badge variant="outline" className="text-[10px] text-amber-600">
+                        Testo non estratto
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="shrink-0 text-destructive hover:text-destructive"
+                  onClick={() => deleteMutation.mutate(doc.id)}
+                  disabled={deleteMutation.isPending}
+                >
+                  <Trash2 className="size-4" />
+                </Button>
+              </div>
+            ))}
+            <p className="text-xs text-muted-foreground pt-2">
+              {documents.length} documento/i caricato/i. I contenuti estratti vengono inclusi automaticamente nella generazione.
+            </p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
