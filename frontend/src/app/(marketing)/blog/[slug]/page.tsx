@@ -6,9 +6,9 @@ import { Badge } from "@/components/ui/badge";
 const blogPosts: Record<string, { title: string; category: string; date: string; content: string }> = {
   "ai-content-marketing": {
     title: "Come l'AI sta rivoluzionando il content marketing",
-    category: "weposteai.com",
+    category: "wepostai.com",
     date: "15 Apr 2026",
-    content: `L'intelligenza artificiale sta trasformando radicalmente il modo in cui le aziende creano e distribuiscono contenuti di marketing. Gli agenti AI di weposteai.com rappresentano l'evoluzione naturale di questo trend, offrendo la possibilita di generare contenuti originali e di qualita in modo completamente automatizzato.
+    content: `L'intelligenza artificiale sta trasformando radicalmente il modo in cui le aziende creano e distribuiscono contenuti di marketing. Gli agenti AI di wepostai.com rappresentano l'evoluzione naturale di questo trend, offrendo la possibilita di generare contenuti originali e di qualita in modo completamente automatizzato.
 
 ## Il problema del content marketing tradizionale
 
@@ -16,7 +16,7 @@ Creare contenuti di qualita richiede tempo, competenze e risorse. Un team di mar
 
 ## Come gli agenti AI risolvono il problema
 
-Gli agenti AI di weposteai.com analizzano il tono di voce del tuo brand, le tendenze del settore e le fonti di contenuto che configuri. Da queste informazioni, generano post originali che mantengono coerenza con la tua identita aziendale.
+Gli agenti AI di wepostai.com analizzano il tono di voce del tuo brand, le tendenze del settore e le fonti di contenuto che configuri. Da queste informazioni, generano post originali che mantengono coerenza con la tua identita aziendale.
 
 ### Vantaggi chiave:
 
@@ -25,7 +25,7 @@ Gli agenti AI di weposteai.com analizzano il tono di voce del tuo brand, le tend
 - **Multicanalita**: Un singolo contenuto adattato per ogni piattaforma
 - **Ottimizzazione continua**: L'AI migliora nel tempo basandosi sui risultati
 
-## Il flusso di lavoro con weposteai.com
+## Il flusso di lavoro con wepostai.com
 
 1. **Configura le fonti**: Aggiungi feed RSS, siti web e argomenti di interesse
 2. **Definisci il brand**: Imposta tono di voce, lingua e stile comunicativo
@@ -34,7 +34,7 @@ Gli agenti AI di weposteai.com analizzano il tono di voce del tuo brand, le tend
 
 ## Risultati concreti
 
-Le aziende che utilizzano weposteai.com registrano un aumento medio del 300% nella frequenza di pubblicazione, mantenendo o migliorando la qualita percepita dei contenuti. Il tempo risparmiato puo essere reinvestito in strategie di alto livello.`,
+Le aziende che utilizzano wepostai.com registrano un aumento medio del 300% nella frequenza di pubblicazione, mantenendo o migliorando la qualita percepita dei contenuti. Il tempo risparmiato puo essere reinvestito in strategie di alto livello.`,
   },
   "social-media-automatizzato": {
     title: "Guida completa al Social Media Marketing automatizzato",
@@ -47,13 +47,13 @@ Le aziende che utilizzano weposteai.com registrano un aumento medio del 300% nel
 Il processo di social media marketing comprende diverse fasi, ognuna delle quali puo beneficiare dell'automazione:
 
 ### 1. Ricerca e ispirazione
-weposteai.com monitora automaticamente le fonti che configuri — feed RSS, blog di settore, siti di news — e identifica gli argomenti piu rilevanti per il tuo pubblico.
+wepostai.com monitora automaticamente le fonti che configuri — feed RSS, blog di settore, siti di news — e identifica gli argomenti piu rilevanti per il tuo pubblico.
 
 ### 2. Creazione dei contenuti
 L'agente AI genera post adattati per ogni piattaforma: testi brevi per Twitter/X, post piu articolati per LinkedIn, contenuti visivi per Instagram e Facebook.
 
 ### 3. Pianificazione intelligente
-Lo scheduler di weposteai.com permette di configurare:
+Lo scheduler di wepostai.com permette di configurare:
 - **Frequenza di pubblicazione**: Giornaliera, settimanale o personalizzata
 - **Fasce orarie**: Pubblica quando il tuo pubblico e piu attivo
 - **Distribuzione multi-piattaforma**: Un contenuto, piu canali
@@ -65,7 +65,7 @@ Puoi scegliere tra due modalita:
 
 ## Connettori supportati
 
-weposteai.com supporta la pubblicazione diretta su:
+wepostai.com supporta la pubblicazione diretta su:
 - Facebook (pagine aziendali)
 - Instagram (post e storie)
 - LinkedIn (profili e pagine aziendali)
@@ -96,15 +96,15 @@ La maggior parte delle newsletter viene ignorata o cancellata perche:
 ## Come l'AI trasforma le newsletter
 
 ### Contenuti sempre freschi
-weposteai.com genera contenuti per le tue newsletter basandosi sulle fonti che configuri. Ogni edizione e unica e rilevante per il tuo settore.
+wepostai.com genera contenuti per le tue newsletter basandosi sulle fonti che configuri. Ogni edizione e unica e rilevante per il tuo settore.
 
 ### Frequenza costante
-Con lo scheduler automatico, le tue newsletter partono sempre puntuali. Configura la frequenza — settimanale, bisettimanale o mensile — e weposteai.com si occupa del resto.
+Con lo scheduler automatico, le tue newsletter partono sempre puntuali. Configura la frequenza — settimanale, bisettimanale o mensile — e wepostai.com si occupa del resto.
 
 ### Personalizzazione del messaggio
 L'AI adatta il tono e lo stile in base al tuo brand. Che tu preferisca un approccio formale o colloquiale, il risultato sara sempre coerente.
 
-## Configurare la newsletter in weposteai.com
+## Configurare la newsletter in wepostai.com
 
 1. **Configura il connettore email**: Collega il tuo server SMTP o account SendGrid
 2. **Gestisci gli iscritti**: Importa o aggiungi manualmente i contatti

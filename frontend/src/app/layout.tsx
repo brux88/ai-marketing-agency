@@ -26,7 +26,7 @@ const instrumentSerif = Instrument_Serif({
 });
 
 export const metadata: Metadata = {
-  title: "weposteai.com — AI marketing agency",
+  title: "wepostai.com — AI marketing agency",
   description:
     "Un'agenzia di marketing fatta di agenti AI. Social, blog, newsletter — mentre dormi.",
   icons: {

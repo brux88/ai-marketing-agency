@@ -9,7 +9,7 @@ export function GuideScreenshots({ src, alt }: { src: string; alt: string }) {
         <span className="size-3 rounded-full bg-red-400" />
         <span className="size-3 rounded-full bg-yellow-400" />
         <span className="size-3 rounded-full bg-green-400" />
-        <span className="ml-2 text-xs text-muted-foreground">weposteai.com</span>
+        <span className="ml-2 text-xs text-muted-foreground">wepostai.com</span>
       </div>
       <LightboxImage src={src} alt={alt} className="w-full h-auto" />
     </div>
