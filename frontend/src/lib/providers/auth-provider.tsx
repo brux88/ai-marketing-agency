@@ -16,18 +16,80 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function isTokenExpired(token: string): boolean {
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    // Consider expired if less than 60 seconds remaining
+    return payload.exp * 1000 < Date.now() + 60_000;
+  } catch {
+    return true;
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem("accessToken");
-    const userData = localStorage.getItem("user");
-    if (token && userData) {
-      apiClient.setToken(token);
-      setUser(JSON.parse(userData));
-    }
-    setIsLoading(false);
+    const restoreSession = async () => {
+      const accessToken = localStorage.getItem("accessToken");
+      const refreshToken = localStorage.getItem("refreshToken");
+      const userData = localStorage.getItem("user");
+
+      if (!accessToken || !userData) {
+        setIsLoading(false);
+        return;
+      }
+
+      // If access token is still valid, use it directly
+      if (!isTokenExpired(accessToken)) {
+        apiClient.setToken(accessToken);
+        setUser(JSON.parse(userData));
+        setIsLoading(false);
+        return;
+      }
+
+      // Access token expired - try refresh
+      if (refreshToken && !isTokenExpired(refreshToken)) {
+        try {
+          const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+          const response = await fetch(`${API_URL}/api/v1/auth/refresh`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ refreshToken }),
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            const newAccessToken = data.data.accessToken;
+            const newRefreshToken = data.data.refreshToken;
+            const newUser = data.data.user;
+
+            apiClient.setToken(newAccessToken);
+            localStorage.setItem("accessToken", newAccessToken);
+            localStorage.setItem("refreshToken", newRefreshToken);
+            if (newUser) {
+              localStorage.setItem("user", JSON.stringify(newUser));
+              setUser(newUser);
+            } else {
+              setUser(JSON.parse(userData));
+            }
+            setIsLoading(false);
+            return;
+          }
+        } catch {
+          // Refresh failed
+        }
+      }
+
+      // Both tokens invalid - clear and require login
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("refreshToken");
+      localStorage.removeItem("user");
+      setIsLoading(false);
+    };
+
+    restoreSession();
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {

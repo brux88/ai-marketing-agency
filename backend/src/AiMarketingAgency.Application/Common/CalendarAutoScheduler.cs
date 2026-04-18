@@ -44,7 +44,30 @@ public static class CalendarAutoScheduler
         var maxPerPlatform = matchingSchedule.MaxPostsPerPlatform ?? 1;
         bool created = false;
 
-        if (content.ContentType is ContentType.SocialPost or ContentType.Carousel)
+        if (content.ContentType is ContentType.BlogPost)
+        {
+            // Blog posts: schedule without platform, like newsletters
+            var alreadyScheduled = await context.CalendarEntries
+                .IgnoreQueryFilters()
+                .AnyAsync(e => e.ContentId == content.Id
+                               && e.Platform == null
+                               && e.Status != CalendarEntryStatus.Failed, ct);
+            if (!alreadyScheduled)
+            {
+                var scheduledAt = ComputeNextSlot(matchingSchedule, 0);
+                context.CalendarEntries.Add(new EditorialCalendarEntry
+                {
+                    AgencyId = content.AgencyId,
+                    TenantId = content.TenantId,
+                    ContentId = content.Id,
+                    Platform = null,
+                    ScheduledAt = scheduledAt,
+                    Status = CalendarEntryStatus.Scheduled
+                });
+                created = true;
+            }
+        }
+        else if (content.ContentType is ContentType.SocialPost or ContentType.Carousel)
         {
             var targetPlatform = ContentPlatformResolver.DetectFromTitle(content.Title);
             var platforms = targetPlatform.HasValue
@@ -123,7 +146,8 @@ public static class CalendarAutoScheduler
         CancellationToken ct)
     {
         if (content.ContentType != ContentType.SocialPost
-            && content.ContentType != ContentType.Newsletter) return false;
+            && content.ContentType != ContentType.Newsletter
+            && content.ContentType != ContentType.BlogPost) return false;
 
         var agency = await context.Agencies
             .AsNoTracking()
@@ -144,13 +168,13 @@ public static class CalendarAutoScheduler
 
         if (!autoScheduleEnabled) return false;
 
-        // Newsletter: schedule without platform
-        if (content.ContentType == ContentType.Newsletter)
+        // Newsletter or BlogPost: schedule without platform
+        if (content.ContentType == ContentType.Newsletter || content.ContentType == ContentType.BlogPost)
         {
-            var alreadyScheduledNewsletter = await context.CalendarEntries
+            var alreadyScheduledNoPlatform = await context.CalendarEntries
                 .AnyAsync(e => e.ContentId == content.Id && e.Platform == null
                                && e.Status != CalendarEntryStatus.Failed, ct);
-            if (alreadyScheduledNewsletter) return false;
+            if (alreadyScheduledNoPlatform) return false;
 
             context.CalendarEntries.Add(new EditorialCalendarEntry
             {
