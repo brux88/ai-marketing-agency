@@ -10,8 +10,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ChevronLeft, ChevronRight, CalendarDays, Clock } from "lucide-react";
+import { ChevronLeft, ChevronRight, CalendarDays, Clock, Eye, ChevronUp } from "lucide-react";
 import { useState, useMemo } from "react";
+import { resolveImageUrl } from "@/lib/utils";
 
 const DAYS = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"];
 const MONTHS = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"];
@@ -247,21 +248,58 @@ export default function CalendarPage() {
               ) : (
                 <div className="space-y-2">
                   {selectedContents.map((c) => (
-                    <div key={c.id} className="flex items-center justify-between p-3 rounded-lg border">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className={`size-2 rounded-full ${statusColors[c.status]}`} />
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium truncate">{c.title}</p>
-                          <p className="text-xs text-muted-foreground">Score: {c.overallScore}/10</p>
-                        </div>
-                      </div>
-                      <Badge variant="outline">{contentTypeLabels[c.contentType] || "Altro"}</Badge>
-                    </div>
+                    <CalendarContentCard key={c.id} content={c} />
                   ))}
                 </div>
               )}
             </CardContent>
           </Card>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CalendarContentCard({ content: c }: { content: GeneratedContent }) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div className="rounded-lg border overflow-hidden">
+      <div className="flex items-center justify-between p-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className={`size-2 rounded-full shrink-0 ${statusColors[c.status]}`} />
+          <div className="min-w-0">
+            <p className="text-sm font-medium truncate">{c.title}</p>
+            <p className="text-xs text-muted-foreground">Score: {c.overallScore}/10</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <Badge variant="outline">{contentTypeLabels[c.contentType] || "Altro"}</Badge>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => setExpanded(!expanded)}
+            title={expanded ? "Chiudi dettaglio" : "Vedi dettaglio"}
+          >
+            {expanded ? <ChevronUp className="size-4" /> : <Eye className="size-4" />}
+          </Button>
+        </div>
+      </div>
+      {expanded && (
+        <div className="border-t px-3 pb-3 pt-2 space-y-2">
+          <div className="bg-muted/50 rounded p-3 text-sm whitespace-pre-wrap max-h-80 overflow-y-auto">
+            {c.body}
+          </div>
+          {c.imageUrl && (
+            <img
+              src={resolveImageUrl(c.imageUrl)}
+              alt={c.title}
+              className="rounded-lg max-h-48 object-cover"
+            />
+          )}
+          {c.scoreExplanation && (
+            <p className="text-xs text-muted-foreground">{c.scoreExplanation}</p>
+          )}
         </div>
       )}
     </div>

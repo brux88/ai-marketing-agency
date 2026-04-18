@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { ClipboardCheck, Check, X, Star } from "lucide-react";
+import { ClipboardCheck, Check, X, Star, Eye, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 
 const contentTypeLabels: Record<number, string> = {
@@ -214,6 +214,9 @@ function ApprovalCard({
   onReject: () => void;
   isPending: boolean;
 }) {
+  const [expanded, setExpanded] = useState(false);
+  const isLong = item.body.length > 500;
+
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -233,6 +236,14 @@ function ApprovalCard({
           <div className="flex gap-2">
             <Button
               size="sm"
+              variant="ghost"
+              onClick={() => setExpanded(!expanded)}
+            >
+              {expanded ? <ChevronUp className="size-4" /> : <Eye className="size-4" />}
+              {expanded ? "Chiudi" : "Dettaglio"}
+            </Button>
+            <Button
+              size="sm"
               variant="outline"
               className="text-destructive hover:text-destructive"
               onClick={onReject}
@@ -248,8 +259,8 @@ function ApprovalCard({
       </CardHeader>
       <CardContent>
         <div className="prose prose-sm max-w-none dark:prose-invert">
-          <div className="bg-muted/50 rounded-lg p-4 max-h-64 overflow-y-auto text-sm whitespace-pre-wrap">
-            {item.body.length > 500 ? item.body.substring(0, 500) + "..." : item.body}
+          <div className={`bg-muted/50 rounded-lg p-4 text-sm whitespace-pre-wrap ${expanded ? "max-h-none" : "max-h-64 overflow-y-auto"}`}>
+            {expanded || !isLong ? item.body : item.body.substring(0, 500) + "..."}
           </div>
         </div>
         {item.imageUrl && (
@@ -257,12 +268,22 @@ function ApprovalCard({
             <img
               src={resolveImageUrl(item.imageUrl)}
               alt={item.title}
-              className="rounded-lg max-h-48 object-cover"
+              className={`rounded-lg object-cover ${expanded ? "max-h-none" : "max-h-48"}`}
             />
           </div>
         )}
         {item.scoreExplanation && (
           <p className="text-xs text-muted-foreground mt-3">{item.scoreExplanation}</p>
+        )}
+        {expanded && isLong && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="mt-2 text-xs"
+            onClick={() => setExpanded(false)}
+          >
+            <ChevronUp className="size-3" /> Riduci
+          </Button>
         )}
       </CardContent>
     </Card>
