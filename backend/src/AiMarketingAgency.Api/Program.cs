@@ -124,6 +124,24 @@ var webRootPath = app.Environment.WebRootPath ?? Path.Combine(app.Environment.Co
 Directory.CreateDirectory(Path.Combine(webRootPath, "generated-images"));
 app.UseStaticFiles();
 
+// Handle CORS preflight for public endpoints (any origin)
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path.StartsWithSegments("/api/v1/public"))
+    {
+        context.Response.Headers["Access-Control-Allow-Origin"] = "*";
+        context.Response.Headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS";
+        context.Response.Headers["Access-Control-Allow-Headers"] = "Content-Type";
+
+        if (context.Request.Method == "OPTIONS")
+        {
+            context.Response.StatusCode = 204;
+            return;
+        }
+    }
+
+    await next();
+});
 app.UseCors("AllowFrontend");
 app.UseAuthentication();
 app.UseAuthorization();
