@@ -29,7 +29,7 @@ class ProfileScreen extends StatelessWidget {
                         size: 40, color: cs.onPrimaryContainer),
                   ),
                   const SizedBox(height: 16),
-                  Text('WePostAI',
+                  Text('weposteai.com',
                       style: Theme.of(context)
                           .textTheme
                           .titleLarge

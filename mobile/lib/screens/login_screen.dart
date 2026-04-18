@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../api/api_client.dart';
 import '../services/app_state.dart';
+import '../theme/brand_logo.dart';
+import '../theme/brand_colors.dart';
 import 'home_shell.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -54,20 +56,14 @@ class _LoginScreenState extends State<LoginScreen> {
                 height: 80,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(18),
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                  ),
+                  border: Border.all(color: BrandColors.line, width: 2),
                 ),
-                child: const Icon(Icons.send_rounded, size: 40, color: Colors.white),
+                child: const Center(
+                  child: BrandLogo(size: 18),
+                ),
               ),
               const SizedBox(height: 16),
-              Text('WePostAI',
-                  style: Theme.of(context)
-                      .textTheme
-                      .headlineMedium
-                      ?.copyWith(fontWeight: FontWeight.bold)),
+              const BrandLogo(size: 28),
               const SizedBox(height: 8),
               Text('Accedi al tuo account',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(

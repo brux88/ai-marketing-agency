@@ -1,5 +1,5 @@
 name: wepostai_mobile
-description: "WePostAI mobile app."
+description: "weposteai.com mobile app."
 publish_to: 'none'
 
 version: 1.0.0+1
@@ -33,7 +33,7 @@ flutter_launcher_icons:
   android: true
   ios: true
   image_path: "assets/app_icon.png"
-  adaptive_icon_background: "#6366F1"
+  adaptive_icon_background: "#0A0A0B"
   adaptive_icon_foreground: "assets/app_icon.png"
   remove_alpha_ios: true
 

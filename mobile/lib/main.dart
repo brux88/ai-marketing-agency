@@ -5,6 +5,7 @@ import 'services/app_state.dart';
 import 'services/notification_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_shell.dart';
+import 'theme/brand_colors.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,27 +16,29 @@ void main() async {
   runApp(
     ChangeNotifierProvider(
       create: (_) => AppState(),
-      child: const WePostAIApp(),
+      child: const WePosteAIApp(),
     ),
   );
 }
 
-class WePostAIApp extends StatelessWidget {
-  const WePostAIApp({super.key});
-
-  static const Color brandIndigo = Color(0xFF6366F1);
-  static const Color brandPurple = Color(0xFF8B5CF6);
+class WePosteAIApp extends StatelessWidget {
+  const WePosteAIApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'WePostAI',
+      title: 'weposteai.com',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: brandIndigo,
-          primary: brandIndigo,
+        colorScheme: BrandColors.lightScheme,
+        useMaterial3: true,
+        appBarTheme: const AppBarTheme(
+          centerTitle: true,
+          elevation: 0,
         ),
+      ),
+      darkTheme: ThemeData(
+        colorScheme: BrandColors.darkScheme,
         useMaterial3: true,
         appBarTheme: const AppBarTheme(
           centerTitle: true,

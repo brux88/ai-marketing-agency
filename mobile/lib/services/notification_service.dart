@@ -84,8 +84,8 @@ class NotificationService {
   }) async {
     const androidDetails = AndroidNotificationDetails(
       'wepostai_channel',
-      'WePostAI',
-      channelDescription: 'WePostAI notifications',
+      'weposteai.com',
+      channelDescription: 'weposteai.com notifications',
       importance: Importance.high,
       priority: Priority.high,
     );
