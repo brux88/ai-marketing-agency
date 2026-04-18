@@ -8,7 +8,7 @@ import {
   Clock, MessageSquare, CheckCircle2,
   Play, Repeat, Target, FileText, Globe
 } from "lucide-react";
-import { WePostAILogo } from "@/components/ui/wepostai-logo";
+import { Logo } from "@/components/shared/Logo";
 import { GuideScreenshots } from "./guide-screenshots";
 
 const steps = [
@@ -119,7 +119,7 @@ const steps = [
   {
     id: "apikeys",
     title: "Chiavi API e Provider LLM",
-    desc: "WePostAI supporta diversi provider AI. Puoi configurare le tue chiavi API per OpenAI (GPT-4), Anthropic (Claude), NanoBanana o qualsiasi endpoint compatibile con l'API OpenAI. Ogni chiave viene testata automaticamente al salvataggio per verificarne la validita.",
+    desc: "weposteai.com supporta diversi provider AI. Puoi configurare le tue chiavi API per OpenAI (GPT-4), Anthropic (Claude), NanoBanana o qualsiasi endpoint compatibile con l'API OpenAI. Ogni chiave viene testata automaticamente al salvataggio per verificarne la validita.",
     screenshot: "/screenshots/10-chiavi-api.png",
     details: [
       "Provider supportati: OpenAI, Anthropic Claude, NanoBanana",
@@ -245,11 +245,11 @@ export default function GuidePage() {
       <section className="py-16 px-4 border-b bg-gradient-to-b from-primary/5 to-background">
         <div className="max-w-4xl mx-auto text-center">
           <Badge variant="secondary" className="mb-4">
-            <WePostAILogo className="size-4 mr-1" />
+            <Logo variant="mark" size="sm" />
             Guida completa
           </Badge>
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight">
-            Come funziona WePostAI
+            Come funziona weposteai.com
           </h1>
           <p className="text-lg text-muted-foreground mt-4 max-w-2xl mx-auto">
             Scopri tutte le funzionalita della piattaforma: dalla configurazione iniziale alla pubblicazione automatica dei contenuti.
@@ -412,7 +412,7 @@ export default function GuidePage() {
           </div>
           <h2 className="text-3xl font-bold tracking-tight">Disponibile ovunque</h2>
           <p className="text-lg text-muted-foreground mt-4 max-w-2xl mx-auto">
-            Gestisci WePostAI dalla web app, dall&apos;app mobile per iOS e Android, o direttamente dal tuo bot Telegram.
+            Gestisci weposteai.com dalla web app, dall&apos;app mobile per iOS e Android, o direttamente dal tuo bot Telegram.
             Approva contenuti, avvia generazioni e ricevi notifiche ovunque tu sia.
           </p>
           <div className="flex justify-center gap-4 mt-8">
@@ -441,7 +441,7 @@ export default function GuidePage() {
             Pronto a iniziare?
           </h2>
           <p className="text-lg text-muted-foreground mt-4">
-            Prova WePostAI gratis per 14 giorni. Nessuna carta di credito richiesta.
+            Prova weposteai.com gratis per 14 giorni. Nessuna carta di credito richiesta.
           </p>
           <div className="mt-8">
             <Link href="/register" className={cn(buttonVariants({ size: "lg" }), "gap-1")}>

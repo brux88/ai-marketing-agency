@@ -12,7 +12,7 @@ import {
   Calendar, Bot, Bell, Image, Smartphone, Globe, Users, Clock, MessageSquare,
   Download, Monitor, ChevronRight, Loader2, CheckCircle2
 } from "lucide-react";
-import { WePostAILogo } from "@/components/ui/wepostai-logo";
+import { Logo } from "@/components/shared/Logo";
 
 const features = [
   {
@@ -126,7 +126,7 @@ const blogPosts = [
   {
     title: "Come l'AI sta rivoluzionando il content marketing",
     excerpt: "Scopri come gli agenti AI possono generare contenuti di qualita mantenendo il tono di voce del tuo brand.",
-    category: "WePostAI",
+    category: "weposteai.com",
     date: "15 Apr 2026",
     href: "/blog/ai-content-marketing",
   },
@@ -213,7 +213,7 @@ export default function LandingPage() {
         <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-background to-background" />
         <div className="relative max-w-4xl mx-auto text-center">
           <Badge variant="secondary" className="mb-6">
-            <WePostAILogo className="size-4 mr-1" />
+            <Logo variant="mark" size="sm" />
             Prova gratuita 14 giorni
           </Badge>
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight leading-tight">
@@ -345,7 +345,7 @@ export default function LandingPage() {
           <div className="text-center mb-12">
             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">Gestisci tutto dal tuo smartphone</h2>
             <p className="text-muted-foreground mt-3 max-w-2xl mx-auto">
-              Scarica l&apos;app WePostAI per iOS e Android. Approva contenuti, avvia generazioni AI e monitora le performance ovunque tu sia.
+              Scarica l&apos;app weposteai.com per iOS e Android. Approva contenuti, avvia generazioni AI e monitora le performance ovunque tu sia.
             </p>
           </div>
           <div className="grid sm:grid-cols-3 gap-6 max-w-3xl mx-auto">
