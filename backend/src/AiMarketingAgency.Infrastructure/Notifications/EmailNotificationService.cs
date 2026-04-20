@@ -24,20 +24,33 @@ public class EmailNotificationService : IEmailNotificationService
     {
         try
         {
-            if (!projectId.HasValue) return;
+            string? notificationEmail = null;
 
-            var project = await _context.Projects
-                .AsNoTracking()
-                .Where(p => p.Id == projectId.Value && p.AgencyId == agencyId)
-                .Select(p => new { p.NotificationEmail, p.NotifyEmailOnGeneration, p.NotifyEmailOnPublication, p.NotifyEmailOnApprovalNeeded })
-                .FirstOrDefaultAsync(ct);
+            if (projectId.HasValue)
+            {
+                notificationEmail = await _context.Projects
+                    .AsNoTracking()
+                    .Where(p => p.Id == projectId.Value && p.AgencyId == agencyId)
+                    .Select(p => p.NotificationEmail)
+                    .FirstOrDefaultAsync(ct);
+            }
 
-            if (project == null || string.IsNullOrWhiteSpace(project.NotificationEmail))
-                return;
+            // Fall back to agency-level notification email (also used by
+            // agency-scoped events like new agency-newsletter subscribers).
+            if (string.IsNullOrWhiteSpace(notificationEmail))
+            {
+                notificationEmail = await _context.Agencies
+                    .AsNoTracking()
+                    .Where(a => a.Id == agencyId)
+                    .Select(a => a.NotificationEmail)
+                    .FirstOrDefaultAsync(ct);
+            }
 
-            await _emailService.SendGenericAsync(project.NotificationEmail, subject, htmlBody, ct);
-            _logger.LogInformation("Email notification sent to {Email} for project {ProjectId}: {Subject}",
-                project.NotificationEmail, projectId, subject);
+            if (string.IsNullOrWhiteSpace(notificationEmail)) return;
+
+            await _emailService.SendGenericAsync(notificationEmail, subject, htmlBody, ct);
+            _logger.LogInformation("Email notification sent to {Email} for agency {AgencyId}, project {ProjectId}: {Subject}",
+                notificationEmail, agencyId, projectId, subject);
         }
         catch (Exception ex)
         {
