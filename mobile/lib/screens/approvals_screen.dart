@@ -143,7 +143,7 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
   }
 }
 
-class _ApprovalCard extends StatelessWidget {
+class _ApprovalCard extends StatefulWidget {
   final PendingApproval approval;
   final String contentTypeLabel;
   final VoidCallback onApprove;
@@ -157,8 +157,17 @@ class _ApprovalCard extends StatelessWidget {
   });
 
   @override
+  State<_ApprovalCard> createState() => _ApprovalCardState();
+}
+
+class _ApprovalCardState extends State<_ApprovalCard> {
+  bool _expanded = false;
+
+  @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final approval = widget.approval;
+    final contentTypeLabel = widget.contentTypeLabel;
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       clipBehavior: Clip.antiAlias,
@@ -257,19 +266,44 @@ class _ApprovalCard extends StatelessWidget {
                         .titleMedium
                         ?.copyWith(fontWeight: FontWeight.w600)),
                 const SizedBox(height: 8),
-                // Body preview
+                // Body preview (truncated unless expanded)
                 Text(
                   approval.body,
-                  maxLines: 6,
-                  overflow: TextOverflow.ellipsis,
+                  maxLines: _expanded ? null : 3,
+                  overflow: _expanded
+                      ? TextOverflow.visible
+                      : TextOverflow.ellipsis,
                   style: Theme.of(context)
                       .textTheme
                       .bodyMedium
                       ?.copyWith(color: cs.onSurfaceVariant),
                 ),
-                if (approval.scoreExplanation != null &&
+                const SizedBox(height: 4),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      minimumSize: const Size(0, 32),
+                      tapTargetSize:
+                          MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    icon: Icon(
+                      _expanded
+                          ? Icons.keyboard_arrow_up
+                          : Icons.keyboard_arrow_down,
+                      size: 18,
+                    ),
+                    label: Text(_expanded ? 'Comprimi' : 'Dettagli'),
+                    onPressed: () =>
+                        setState(() => _expanded = !_expanded),
+                  ),
+                ),
+                if (_expanded &&
+                    approval.scoreExplanation != null &&
                     approval.scoreExplanation!.isNotEmpty) ...[
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
@@ -304,7 +338,7 @@ class _ApprovalCard extends StatelessWidget {
                       child: FilledButton.icon(
                         icon: const Icon(Icons.check, size: 18),
                         label: const Text('Approva'),
-                        onPressed: onApprove,
+                        onPressed: widget.onApprove,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -317,7 +351,7 @@ class _ApprovalCard extends StatelessWidget {
                         style: OutlinedButton.styleFrom(
                           side: BorderSide(color: cs.error),
                         ),
-                        onPressed: onReject,
+                        onPressed: widget.onReject,
                       ),
                     ),
                   ],

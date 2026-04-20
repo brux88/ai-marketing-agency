@@ -798,7 +798,7 @@ function ContentSection({
                       )}
                       {c.status === ContentStatus.Approved && c.isScheduled && (
                         <Badge className="bg-amber-500 text-white hover:bg-amber-600 text-[10px]">
-                          Programmato
+                          Programmato{c.scheduledAt ? ` · ${new Date(c.scheduledAt).toLocaleString("it-IT", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" })}` : ""}
                         </Badge>
                       )}
                       {c.status === ContentStatus.Approved && !c.isScheduled && (
