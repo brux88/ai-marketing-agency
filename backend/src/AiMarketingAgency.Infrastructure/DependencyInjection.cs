@@ -73,6 +73,9 @@ public static class DependencyInjection
         // Email notifications (project-scoped)
         services.AddScoped<IEmailNotificationService, EmailNotificationService>();
 
+        // Push notifications (FCM; no-op when Firebase credentials not configured)
+        services.AddScoped<IPushNotificationService, FcmPushNotificationService>();
+
         // Telegram bot
         services.AddScoped<ITelegramBotService, TelegramBotService>();
 

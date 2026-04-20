@@ -49,6 +49,11 @@ public class Project : BaseEntity, ITenantScoped, ISoftDeletable
     public bool NotifyEmailOnApprovalNeeded { get; set; }
     public string? NotificationEmail { get; set; }
 
+    // Push notification settings (mobile app via FCM)
+    public bool NotifyPushOnGeneration { get; set; }
+    public bool NotifyPushOnPublication { get; set; }
+    public bool NotifyPushOnApprovalNeeded { get; set; }
+
     // Navigation
     public Agency Agency { get; set; } = null!;
     public Tenant Tenant { get; set; } = null!;

@@ -26,6 +26,7 @@ public interface IAppDbContext
     DbSet<Notification> Notifications { get; }
     DbSet<PlatformSubscriber> PlatformSubscribers { get; }
     DbSet<ProjectDocument> ProjectDocuments { get; }
+    DbSet<UserDeviceToken> UserDeviceTokens { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
