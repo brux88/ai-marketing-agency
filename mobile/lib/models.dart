@@ -31,10 +31,14 @@ class GeneratedContent {
   final String body;
   final int status;
   final double overallScore;
+  final String? scoreExplanation;
   final String? imageUrl;
   final DateTime createdAt;
   final String? projectName;
   final int? contentType;
+  final bool isScheduled;
+  final DateTime? scheduledAt;
+  final DateTime? publishedAt;
 
   GeneratedContent({
     required this.id,
@@ -42,10 +46,14 @@ class GeneratedContent {
     required this.body,
     required this.status,
     required this.overallScore,
+    this.scoreExplanation,
     this.imageUrl,
     required this.createdAt,
     this.projectName,
     this.contentType,
+    this.isScheduled = false,
+    this.scheduledAt,
+    this.publishedAt,
   });
 
   factory GeneratedContent.fromJson(Map<String, dynamic> j) =>
@@ -55,10 +63,18 @@ class GeneratedContent {
         body: j['body'] ?? '',
         status: j['status'] ?? 1,
         overallScore: (j['overallScore'] ?? 0).toDouble(),
+        scoreExplanation: j['scoreExplanation'],
         imageUrl: j['imageUrl'],
         createdAt: DateTime.parse(j['createdAt']),
         projectName: j['projectName'],
         contentType: j['contentType'],
+        isScheduled: j['isScheduled'] ?? false,
+        scheduledAt: j['scheduledAt'] != null
+            ? DateTime.parse(j['scheduledAt'])
+            : null,
+        publishedAt: j['publishedAt'] != null
+            ? DateTime.parse(j['publishedAt'])
+            : null,
       );
 }
 

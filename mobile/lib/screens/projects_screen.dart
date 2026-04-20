@@ -7,6 +7,7 @@ import 'schedules_screen.dart';
 import 'generate_content_screen.dart';
 import 'calendar_screen.dart';
 import 'agency_settings_screen.dart';
+import 'project_settings_screen.dart';
 
 class ProjectsScreen extends StatefulWidget {
   final Agency agency;
@@ -244,6 +245,17 @@ class _ProjectCard extends StatelessWidget {
                       context,
                       MaterialPageRoute(
                         builder: (_) => SchedulesScreen(
+                            agency: agency, project: project),
+                      ),
+                    ),
+                  ),
+                  ActionChip(
+                    avatar: const Icon(Icons.tune, size: 16),
+                    label: const Text('Impostazioni'),
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ProjectSettingsScreen(
                             agency: agency, project: project),
                       ),
                     ),

@@ -115,6 +115,39 @@ class _CalendarScreenState extends State<CalendarScreen> {
     }
   }
 
+  Future<void> _deleteEntry(_CalendarEntry entry) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Elimina programmazione'),
+        content: const Text(
+            'Vuoi rimuovere questa pubblicazione dal calendario? Il contenuto resta disponibile.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annulla'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Elimina'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ApiClient.delete(
+          '/api/v1/agencies/${widget.agency.id}/calendar/${entry.id}');
+      messenger.showSnackBar(
+          const SnackBar(content: Text('Programmazione rimossa')));
+      if (mounted) setState(() => _future = _load());
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Errore: $e')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -283,6 +316,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                     ),
                                   ),
                                 ),
+                                if (e.status != 'Published') ...[
+                                  const SizedBox(width: 4),
+                                  IconButton(
+                                    icon: Icon(Icons.delete_outline,
+                                        size: 20, color: cs.error),
+                                    tooltip: 'Elimina programmazione',
+                                    onPressed: () => _deleteEntry(e),
+                                  ),
+                                ],
                               ],
                             ),
                           ),

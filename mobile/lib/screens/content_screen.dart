@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:intl/intl.dart';
 import '../api/api_client.dart';
 import '../models.dart';
 import 'generate_content_screen.dart';
@@ -368,12 +369,42 @@ class _ContentCard extends StatelessWidget {
                 ),
               ),
             const SizedBox(width: 6),
-            Text(
-                'Score ${content.overallScore.toStringAsFixed(1)}/10',
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(color: cs.onSurfaceVariant)),
+            Flexible(
+              child: Text(
+                  'Score ${content.overallScore.toStringAsFixed(1)}/10',
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(color: cs.onSurfaceVariant)),
+            ),
+            if (content.isScheduled && content.scheduledAt != null) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.calendar_month,
+                        size: 11, color: Colors.blue),
+                    const SizedBox(width: 3),
+                    Text(
+                      DateFormat('d MMM HH:mm', 'it_IT')
+                          .format(content.scheduledAt!.toLocal()),
+                      style: const TextStyle(
+                          fontSize: 10,
+                          color: Colors.blue,
+                          fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
         children: [
