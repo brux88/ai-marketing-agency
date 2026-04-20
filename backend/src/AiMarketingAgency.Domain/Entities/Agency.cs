@@ -26,6 +26,15 @@ public class Agency : BaseEntity, ITenantScoped, ISoftDeletable
     public string? BrandBannerColor { get; set; } // hex like "#003366"
     public string? TelegramBotToken { get; set; }
     public string? TelegramBotUsername { get; set; }
+    // Master kill switch for all Telegram notifications on this agency.
+    public bool TelegramNotificationsEnabled { get; set; } = true;
+
+    // Notifications fired when someone subscribes to the agency newsletter.
+    public bool NotifyEmailOnSubscribed { get; set; } = true;
+    public bool NotifyPushOnSubscribed { get; set; } = true;
+    public bool NotifyTelegramOnSubscribed { get; set; } = true;
+    public string? NotificationEmail { get; set; }
+
     public bool IsActive { get; set; } = true;
 
     // Navigation

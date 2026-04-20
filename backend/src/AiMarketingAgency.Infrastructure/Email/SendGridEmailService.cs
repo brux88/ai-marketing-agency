@@ -15,11 +15,14 @@ public class SendGridEmailService : IEmailSendingService
         _httpClient = httpClient;
     }
 
+    private const string UnsubscribePlaceholder = "{{UNSUBSCRIBE_URL}}";
+
     public async Task<EmailSendResult> SendNewsletterAsync(
         EmailConnector config,
         List<NewsletterSubscriber> recipients,
         string subject,
-        string htmlBody,
+        string htmlBodyTemplate,
+        Func<NewsletterSubscriber, string> unsubscribeUrlFactory,
         CancellationToken ct)
     {
         var sentCount = 0;
@@ -32,22 +35,26 @@ public class SendGridEmailService : IEmailSendingService
 
             var activeRecipients = recipients.Where(s => s.IsActive).ToList();
 
-            // SendGrid supports up to 1000 personalizations per request
-            foreach (var batch in activeRecipients.Chunk(1000))
+            // One request per recipient so we can bake a unique unsubscribe
+            // URL into each HTML body. Fine for our scale; swap for SendGrid
+            // dynamic templates if the list ever gets large.
+            foreach (var r in activeRecipients)
             {
                 ct.ThrowIfCancellationRequested();
 
+                var personalHtml = htmlBodyTemplate.Replace(UnsubscribePlaceholder, unsubscribeUrlFactory(r));
+
                 var payload = new
                 {
-                    personalizations = batch.Select(r => new
+                    personalizations = new[]
                     {
-                        to = new[] { new { email = r.Email, name = r.Name ?? r.Email } }
-                    }).ToArray(),
+                        new { to = new[] { new { email = r.Email, name = r.Name ?? r.Email } } }
+                    },
                     from = new { email = config.FromEmail, name = config.FromName },
                     subject,
                     content = new[]
                     {
-                        new { type = "text/html", value = htmlBody }
+                        new { type = "text/html", value = personalHtml }
                     }
                 };
 
@@ -57,9 +64,9 @@ public class SendGridEmailService : IEmailSendingService
                 var response = await _httpClient.PostAsync("https://api.sendgrid.com/v3/mail/send", content, ct);
 
                 if (response.IsSuccessStatusCode)
-                    sentCount += batch.Length;
+                    sentCount++;
                 else
-                    failedCount += batch.Length;
+                    failedCount++;
             }
 
             return new EmailSendResult(true, sentCount, failedCount, null);

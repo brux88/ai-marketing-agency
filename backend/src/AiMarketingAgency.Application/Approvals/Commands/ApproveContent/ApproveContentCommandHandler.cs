@@ -1,9 +1,12 @@
 using AiMarketingAgency.Application.Common;
 using AiMarketingAgency.Application.Common.Interfaces;
+using AiMarketingAgency.Application.Email;
+using AiMarketingAgency.Application.Newsletter;
 using AiMarketingAgency.Domain.Entities;
 using AiMarketingAgency.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace AiMarketingAgency.Application.Approvals.Commands.ApproveContent;
@@ -17,6 +20,7 @@ public class ApproveContentCommandHandler : IRequestHandler<ApproveContentComman
     private readonly IPushNotificationService _pushNotificationService;
     private readonly IEmailSendingService _emailSendingService;
     private readonly ITelegramBotService _telegramBot;
+    private readonly IConfiguration _configuration;
     private readonly ILogger<ApproveContentCommandHandler> _logger;
 
     public ApproveContentCommandHandler(
@@ -27,6 +31,7 @@ public class ApproveContentCommandHandler : IRequestHandler<ApproveContentComman
         IPushNotificationService pushNotificationService,
         IEmailSendingService emailSendingService,
         ITelegramBotService telegramBot,
+        IConfiguration configuration,
         ILogger<ApproveContentCommandHandler> logger)
     {
         _context = context;
@@ -36,6 +41,7 @@ public class ApproveContentCommandHandler : IRequestHandler<ApproveContentComman
         _pushNotificationService = pushNotificationService;
         _emailSendingService = emailSendingService;
         _telegramBot = telegramBot;
+        _configuration = configuration;
         _logger = logger;
     }
 
@@ -87,8 +93,13 @@ public class ApproveContentCommandHandler : IRequestHandler<ApproveContentComman
 
                     if (subscribers.Count > 0)
                     {
+                        var frontendUrl = _configuration["Frontend:Url"] ?? NewsletterLinks.DefaultFrontendUrl;
+                        var htmlTemplate = EmailTemplates.Newsletter(
+                            content.Title, content.Body, "{{UNSUBSCRIBE_URL}}");
                         await _emailSendingService.SendNewsletterAsync(
-                            connector, subscribers, content.Title, content.Body, cancellationToken);
+                            connector, subscribers, content.Title, htmlTemplate,
+                            s => NewsletterLinks.UnsubscribeUrl(frontendUrl, s),
+                            cancellationToken);
                         _logger.LogInformation("Auto-sent newsletter '{Title}' to {Count} subscribers",
                             content.Title, subscribers.Count);
                     }

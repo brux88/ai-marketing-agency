@@ -116,7 +116,7 @@ public class TeamController : ControllerBase
             await _emailService.SendTeamInvitationAsync(
                 request.Email,
                 inviter?.FullName ?? "Un membro del team",
-                tenant?.Name ?? "WePost AI",
+                tenant?.Name ?? "wepostai.com",
                 invitationLink, ct);
         }
         catch { /* log but don't fail the invitation */ }

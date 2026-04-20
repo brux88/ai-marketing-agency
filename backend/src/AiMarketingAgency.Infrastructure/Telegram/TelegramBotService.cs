@@ -238,8 +238,18 @@ public class TelegramBotService : ITelegramBotService
         return projectSpecific.Any() ? projectSpecific : connections.Where(c => c.ProjectId == null).ToList();
     }
 
+    private async Task<bool> AreTelegramNotificationsEnabledAsync(Guid agencyId, CancellationToken ct)
+    {
+        return await _context.Agencies
+            .IgnoreQueryFilters()
+            .Where(a => a.Id == agencyId)
+            .Select(a => a.TelegramNotificationsEnabled)
+            .FirstOrDefaultAsync(ct);
+    }
+
     public async Task NotifyAgencyAsync(Guid agencyId, Guid? projectId, string message, CancellationToken ct = default)
     {
+        if (!await AreTelegramNotificationsEnabledAsync(agencyId, ct)) return;
         var effective = await GetEffectiveConnectionsAsync(agencyId, projectId, ct);
         foreach (var conn in effective)
             await SendMessageAsync(agencyId, projectId, conn.ChatId, message, ct);
@@ -247,6 +257,7 @@ public class TelegramBotService : ITelegramBotService
 
     public async Task NotifyAgencyWithContentAsync(Guid agencyId, Guid? projectId, string message, string? imageUrl, IEnumerable<TelegramInlineButton>? buttons = null, CancellationToken ct = default)
     {
+        if (!await AreTelegramNotificationsEnabledAsync(agencyId, ct)) return;
         var effective = await GetEffectiveConnectionsAsync(agencyId, projectId, ct);
         foreach (var conn in effective)
         {

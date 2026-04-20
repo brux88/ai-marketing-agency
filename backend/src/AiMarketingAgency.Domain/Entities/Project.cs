@@ -54,6 +54,11 @@ public class Project : BaseEntity, ITenantScoped, ISoftDeletable
     public bool NotifyPushOnPublication { get; set; }
     public bool NotifyPushOnApprovalNeeded { get; set; }
 
+    // Notifications fired when someone subscribes to the project newsletter.
+    public bool NotifyEmailOnSubscribed { get; set; } = true;
+    public bool NotifyPushOnSubscribed { get; set; } = true;
+    public bool NotifyTelegramOnSubscribed { get; set; } = true;
+
     // Navigation
     public Agency Agency { get; set; } = null!;
     public Tenant Tenant { get; set; } = null!;

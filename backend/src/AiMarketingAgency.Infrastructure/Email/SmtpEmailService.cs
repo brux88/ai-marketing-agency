@@ -7,11 +7,14 @@ namespace AiMarketingAgency.Infrastructure.Email;
 
 public class SmtpEmailService : IEmailSendingService
 {
+    private const string UnsubscribePlaceholder = "{{UNSUBSCRIBE_URL}}";
+
     public async Task<EmailSendResult> SendNewsletterAsync(
         EmailConnector config,
         List<NewsletterSubscriber> recipients,
         string subject,
-        string htmlBody,
+        string htmlBodyTemplate,
+        Func<NewsletterSubscriber, string> unsubscribeUrlFactory,
         CancellationToken ct)
     {
         var sentCount = 0;
@@ -32,10 +35,11 @@ public class SmtpEmailService : IEmailSendingService
                 ct.ThrowIfCancellationRequested();
                 try
                 {
+                    var personalHtml = htmlBodyTemplate.Replace(UnsubscribePlaceholder, unsubscribeUrlFactory(subscriber));
                     using var message = new MailMessage(from, new MailAddress(subscriber.Email, subscriber.Name))
                     {
                         Subject = subject,
-                        Body = htmlBody,
+                        Body = personalHtml,
                         IsBodyHtml = true
                     };
                     await client.SendMailAsync(message, ct);

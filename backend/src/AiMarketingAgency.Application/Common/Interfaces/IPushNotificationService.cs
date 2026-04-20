@@ -5,6 +5,7 @@ public enum PushEventType
     ContentGenerated,
     ContentPublished,
     ApprovalNeeded,
+    NewSubscriber,
 }
 
 public interface IPushNotificationService

@@ -1,4 +1,5 @@
 using AiMarketingAgency.Application.Common.Interfaces;
+using AiMarketingAgency.Application.Email;
 using MailKit.Net.Smtp;
 using MailKit.Security;
 using Microsoft.Extensions.Logging;
@@ -21,35 +22,35 @@ public class TransactionalEmailService : ITransactionalEmailService
     public async Task SendEmailConfirmationAsync(string toEmail, string fullName, string confirmationLink, CancellationToken ct = default)
     {
         var html = EmailTemplates.EmailConfirmation(fullName, confirmationLink);
-        await SendAsync(_options.NoReplyEmail, _options.NoReplyPassword, toEmail, "Conferma il tuo indirizzo email - WePost AI", html, ct);
+        await SendAsync(_options.NoReplyEmail, _options.NoReplyPassword, toEmail, "Conferma il tuo indirizzo email - wepostai.com", html, ct);
         _logger.LogInformation("Confirmation email sent to {Email}", toEmail);
     }
 
     public async Task SendPasswordResetAsync(string toEmail, string fullName, string resetLink, CancellationToken ct = default)
     {
         var html = EmailTemplates.PasswordReset(fullName, resetLink);
-        await SendAsync(_options.NoReplyEmail, _options.NoReplyPassword, toEmail, "Reimposta la tua password - WePost AI", html, ct);
+        await SendAsync(_options.NoReplyEmail, _options.NoReplyPassword, toEmail, "Reimposta la tua password - wepostai.com", html, ct);
         _logger.LogInformation("Password reset email sent to {Email}", toEmail);
     }
 
     public async Task SendWelcomeAsync(string toEmail, string fullName, CancellationToken ct = default)
     {
         var html = EmailTemplates.Welcome(fullName);
-        await SendAsync(_options.NoReplyEmail, _options.NoReplyPassword, toEmail, "Benvenuto su WePost AI!", html, ct);
+        await SendAsync(_options.NoReplyEmail, _options.NoReplyPassword, toEmail, "Benvenuto su wepostai.com", html, ct);
         _logger.LogInformation("Welcome email sent to {Email}", toEmail);
     }
 
     public async Task SendAccountDeletionConfirmationAsync(string toEmail, string fullName, string confirmationLink, CancellationToken ct = default)
     {
         var html = EmailTemplates.AccountDeletionConfirmation(fullName, confirmationLink);
-        await SendAsync(_options.NoReplyEmail, _options.NoReplyPassword, toEmail, "Conferma eliminazione account - WePost AI", html, ct);
+        await SendAsync(_options.NoReplyEmail, _options.NoReplyPassword, toEmail, "Conferma eliminazione account - wepostai.com", html, ct);
         _logger.LogInformation("Account deletion confirmation email sent to {Email}", toEmail);
     }
 
     public async Task SendTeamInvitationAsync(string toEmail, string inviterName, string teamName, string invitationLink, CancellationToken ct = default)
     {
         var html = EmailTemplates.TeamInvitation(inviterName, teamName, invitationLink);
-        await SendAsync(_options.NoReplyEmail, _options.NoReplyPassword, toEmail, $"Invito al team {teamName} - WePost AI", html, ct);
+        await SendAsync(_options.NoReplyEmail, _options.NoReplyPassword, toEmail, $"Invito al team {teamName} - wepostai.com", html, ct);
         _logger.LogInformation("Team invitation email sent to {Email}", toEmail);
     }
 

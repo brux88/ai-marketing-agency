@@ -11,6 +11,6 @@ public class TransactionalEmailOptions
     public string NoReplyPassword { get; set; } = string.Empty;
     public string SupportEmail { get; set; } = string.Empty;
     public string SupportPassword { get; set; } = string.Empty;
-    public string SenderName { get; set; } = "WePost AI";
+    public string SenderName { get; set; } = "wepostai.com";
     public string FrontendBaseUrl { get; set; } = string.Empty;
 }
