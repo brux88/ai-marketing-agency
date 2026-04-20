@@ -181,6 +181,25 @@ public class AgenciesController : ControllerBase
         return Ok(ApiResponse<object>.Ok(new { reset = contentIds.Count }));
     }
 
+    [HttpPut("{id:guid}/notification-settings")]
+    public async Task<ActionResult<ApiResponse<object>>> UpdateNotificationSettings(
+        Guid id,
+        [FromBody] UpdateAgencyNotificationSettingsRequest request,
+        CancellationToken ct)
+    {
+        var agency = await _context.Agencies.FirstOrDefaultAsync(a => a.Id == id, ct);
+        if (agency == null) return NotFound();
+
+        if (request.NotificationEmail != null) agency.NotificationEmail = request.NotificationEmail;
+        if (request.TelegramNotificationsEnabled.HasValue) agency.TelegramNotificationsEnabled = request.TelegramNotificationsEnabled.Value;
+        if (request.NotifyEmailOnSubscribed.HasValue) agency.NotifyEmailOnSubscribed = request.NotifyEmailOnSubscribed.Value;
+        if (request.NotifyPushOnSubscribed.HasValue) agency.NotifyPushOnSubscribed = request.NotifyPushOnSubscribed.Value;
+        if (request.NotifyTelegramOnSubscribed.HasValue) agency.NotifyTelegramOnSubscribed = request.NotifyTelegramOnSubscribed.Value;
+
+        await _context.SaveChangesAsync(ct);
+        return Ok(ApiResponse<object>.Ok(null));
+    }
+
     [HttpPost("{id:guid}/logo-upload")]
     [RequestSizeLimit(5 * 1024 * 1024)]
     public async Task<ActionResult<ApiResponse<object>>> UploadLogo(
@@ -210,6 +229,12 @@ public record UpdateApprovalModeRequest(ApprovalMode ApprovalMode, int AutoAppro
 public record UpdateDefaultLlmRequest(Guid? DefaultLlmProviderKeyId, Guid? ImageLlmProviderKeyId);
 public record UpdateImageSettingsRequest(bool EnableLogoOverlay, int LogoOverlayPosition, string? LogoUrl, int LogoOverlayMode = 0, string? BrandBannerColor = null);
 public record ResetAnalyticsRequest(string Password);
+public record UpdateAgencyNotificationSettingsRequest(
+    string? NotificationEmail = null,
+    bool? TelegramNotificationsEnabled = null,
+    bool? NotifyEmailOnSubscribed = null,
+    bool? NotifyPushOnSubscribed = null,
+    bool? NotifyTelegramOnSubscribed = null);
 
 public class AgencyCostStatsDto
 {

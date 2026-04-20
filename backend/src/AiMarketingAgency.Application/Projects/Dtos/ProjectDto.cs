@@ -42,4 +42,8 @@ public class ProjectDto
     public bool NotifyPushOnGeneration { get; set; }
     public bool NotifyPushOnPublication { get; set; }
     public bool NotifyPushOnApprovalNeeded { get; set; }
+
+    public bool NotifyEmailOnSubscribed { get; set; }
+    public bool NotifyPushOnSubscribed { get; set; }
+    public bool NotifyTelegramOnSubscribed { get; set; }
 }

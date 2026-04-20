@@ -41,7 +41,12 @@ public class GetAgencyByIdQueryHandler : IRequestHandler<GetAgencyByIdQuery, Age
                 IsActive = a.IsActive,
                 CreatedAt = a.CreatedAt,
                 ContentSourcesCount = a.ContentSources.Count(cs => cs.IsActive),
-                GeneratedContentsCount = a.GeneratedContents.Count
+                GeneratedContentsCount = a.GeneratedContents.Count,
+                NotificationEmail = a.NotificationEmail,
+                TelegramNotificationsEnabled = a.TelegramNotificationsEnabled,
+                NotifyEmailOnSubscribed = a.NotifyEmailOnSubscribed,
+                NotifyPushOnSubscribed = a.NotifyPushOnSubscribed,
+                NotifyTelegramOnSubscribed = a.NotifyTelegramOnSubscribed,
             })
             .FirstOrDefaultAsync(cancellationToken);
     }

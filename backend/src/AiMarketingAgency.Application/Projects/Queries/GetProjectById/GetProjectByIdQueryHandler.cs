@@ -53,6 +53,9 @@ public class GetProjectByIdQueryHandler : IRequestHandler<GetProjectByIdQuery, P
                 NotifyPushOnGeneration = p.NotifyPushOnGeneration,
                 NotifyPushOnPublication = p.NotifyPushOnPublication,
                 NotifyPushOnApprovalNeeded = p.NotifyPushOnApprovalNeeded,
+                NotifyEmailOnSubscribed = p.NotifyEmailOnSubscribed,
+                NotifyPushOnSubscribed = p.NotifyPushOnSubscribed,
+                NotifyTelegramOnSubscribed = p.NotifyTelegramOnSubscribed,
             })
             .FirstOrDefaultAsync(cancellationToken);
     }

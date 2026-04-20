@@ -26,4 +26,10 @@ public class AgencyDto
     public DateTime CreatedAt { get; set; }
     public int ContentSourcesCount { get; set; }
     public int GeneratedContentsCount { get; set; }
+
+    public string? NotificationEmail { get; set; }
+    public bool TelegramNotificationsEnabled { get; set; }
+    public bool NotifyEmailOnSubscribed { get; set; }
+    public bool NotifyPushOnSubscribed { get; set; }
+    public bool NotifyTelegramOnSubscribed { get; set; }
 }
