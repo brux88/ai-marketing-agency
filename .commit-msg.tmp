@@ -1,0 +1,22 @@
+Wire FCM push dispatch + Devices API + project push toggles UI
+
+Backend:
+- Add /api/v1/devices/{register,unregister} endpoints for Flutter to
+  store/revoke FCM tokens (scoped to current tenant + user).
+- Dispatch push events at the same callsites as email notifications:
+  AgentJobProcessor (ContentGenerated), PublishContentCommandHandler
+  and CalendarPublishBackgroundService (ContentPublished),
+  ApproveContentCommandHandler (ApprovalNeeded).
+- FcmPushNotificationService now stamps TenantId on newly-registered
+  device tokens via ITenantContext.
+- Extend ProjectDto + GetProjectByIdQueryHandler and the
+  /email-notifications PUT endpoint/request to accept
+  NotifyPushOn{Generation,Publication,ApprovalNeeded} flags.
+
+Frontend:
+- Rename the email-notifications card to "Notifiche" and add a Push
+  mobile section with toggles for the three events.
+- Add the three push flags to the Project type.
+
+All three push flags are opt-in (default false). Frontend keeps sending
+them on each save so persistence is deterministic.
