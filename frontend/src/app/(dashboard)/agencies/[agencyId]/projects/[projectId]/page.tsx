@@ -633,7 +633,17 @@ export default function ProjectDetailPage() {
               </TabsTrigger>
             </TabsList>
             <TabsContent value="social" className="mt-4">
-              <ContentSection title="Social" icon={Share2} items={socials} formatDate={formatDate} onClick={setEditingContent} onDelete={handleDeleteContent} onSchedule={handleScheduleContent} isScheduling={scheduleContent.isPending} />
+              <SocialContentByPlatform
+                agencyId={agencyId as string}
+                projectId={projectId as string}
+                items={socials}
+                enabledPlatforms={project?.enabledSocialPlatforms ?? null}
+                formatDate={formatDate}
+                onClick={setEditingContent}
+                onDelete={handleDeleteContent}
+                onSchedule={handleScheduleContent}
+                isScheduling={scheduleContent.isPending}
+              />
             </TabsContent>
             <TabsContent value="blog" className="mt-4">
               <ContentSection title="Blog" icon={PenLine} items={blogs} formatDate={formatDate} onClick={setEditingContent} onDelete={handleDeleteContent} onSchedule={handleScheduleContent} isScheduling={scheduleContent.isPending} />
@@ -853,6 +863,159 @@ function ContentSection({
         </>
       )}
     </div>
+  );
+}
+
+const SOCIAL_PLATFORM_META: Record<string, { label: string; aliases: string[] }> = {
+  facebook: { label: "Facebook", aliases: ["facebook", "fb"] },
+  instagram: { label: "Instagram", aliases: ["instagram", "ig"] },
+  linkedin: { label: "LinkedIn", aliases: ["linkedin"] },
+  twitter: { label: "X / Twitter", aliases: ["twitter", "x"] },
+  tiktok: { label: "TikTok", aliases: ["tiktok"] },
+  youtube: { label: "YouTube", aliases: ["youtube", "yt"] },
+};
+
+function normalizePlatform(raw?: string | null): string | null {
+  if (!raw) return null;
+  const key = raw.trim().toLowerCase();
+  if (!key) return null;
+  for (const [canonical, meta] of Object.entries(SOCIAL_PLATFORM_META)) {
+    if (meta.aliases.includes(key)) return canonical;
+  }
+  return key;
+}
+
+function platformLabel(canonical: string): string {
+  return SOCIAL_PLATFORM_META[canonical]?.label ?? canonical[0]?.toUpperCase() + canonical.slice(1);
+}
+
+function SocialContentByPlatform({
+  agencyId,
+  projectId,
+  items,
+  enabledPlatforms,
+  formatDate,
+  onClick,
+  onDelete,
+  onSchedule,
+  isScheduling,
+}: {
+  agencyId: string;
+  projectId: string;
+  items: GeneratedContent[];
+  enabledPlatforms?: string | null;
+  formatDate: (iso: string) => string;
+  onClick: (c: GeneratedContent) => void;
+  onDelete: (c: GeneratedContent) => void;
+  onSchedule?: (c: GeneratedContent) => void;
+  isScheduling?: boolean;
+}) {
+  const { data: calendarEntries } = useQuery({
+    queryKey: ["project-calendar", agencyId, projectId],
+    queryFn: async () => {
+      const res = await apiClient.get<ApiResponse<CalendarEntryListItem[]>>(
+        `/api/v1/agencies/${agencyId}/projects/${projectId}/calendar`
+      );
+      return res.data ?? [];
+    },
+  });
+
+  const platformsFromProject = (enabledPlatforms ?? "")
+    .split(",")
+    .map((p) => normalizePlatform(p))
+    .filter((p): p is string => Boolean(p));
+
+  const contentToPlatforms = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    (calendarEntries ?? []).forEach((e) => {
+      const p = normalizePlatform(e.platform);
+      if (!p) return;
+      if (!map.has(e.contentId)) map.set(e.contentId, new Set());
+      map.get(e.contentId)!.add(p);
+    });
+    return map;
+  }, [calendarEntries]);
+
+  const platforms = useMemo(() => {
+    const set = new Set<string>(platformsFromProject);
+    contentToPlatforms.forEach((ps) => ps.forEach((p) => set.add(p)));
+    return Array.from(set);
+  }, [platformsFromProject, contentToPlatforms]);
+
+  const itemsByPlatform = useMemo(() => {
+    const map: Record<string, GeneratedContent[]> = {};
+    platforms.forEach((p) => (map[p] = []));
+    const unscheduled: GeneratedContent[] = [];
+    items.forEach((item) => {
+      const ps = contentToPlatforms.get(item.id);
+      if (!ps || ps.size === 0) {
+        unscheduled.push(item);
+        return;
+      }
+      ps.forEach((p) => {
+        if (!map[p]) map[p] = [];
+        map[p].push(item);
+      });
+    });
+    return { map, unscheduled };
+  }, [items, platforms, contentToPlatforms]);
+
+  if (platforms.length === 0 && itemsByPlatform.unscheduled.length === items.length) {
+    return (
+      <ContentSection
+        title="Social"
+        icon={Share2}
+        items={items}
+        formatDate={formatDate}
+        onClick={onClick}
+        onDelete={onDelete}
+        onSchedule={onSchedule}
+        isScheduling={isScheduling}
+      />
+    );
+  }
+
+  return (
+    <Tabs defaultValue={platforms[0] ?? "unscheduled"}>
+      <TabsList className="flex-wrap h-auto">
+        {platforms.map((p) => (
+          <TabsTrigger key={p} value={p}>
+            {platformLabel(p)}
+            <Badge variant="secondary" className="ml-1">{itemsByPlatform.map[p]?.length ?? 0}</Badge>
+          </TabsTrigger>
+        ))}
+        <TabsTrigger value="unscheduled">
+          Non pianificati
+          <Badge variant="secondary" className="ml-1">{itemsByPlatform.unscheduled.length}</Badge>
+        </TabsTrigger>
+      </TabsList>
+      {platforms.map((p) => (
+        <TabsContent key={p} value={p} className="mt-4">
+          <ContentSection
+            title={platformLabel(p)}
+            icon={Share2}
+            items={itemsByPlatform.map[p] ?? []}
+            formatDate={formatDate}
+            onClick={onClick}
+            onDelete={onDelete}
+            onSchedule={onSchedule}
+            isScheduling={isScheduling}
+          />
+        </TabsContent>
+      ))}
+      <TabsContent value="unscheduled" className="mt-4">
+        <ContentSection
+          title="Non pianificati"
+          icon={Share2}
+          items={itemsByPlatform.unscheduled}
+          formatDate={formatDate}
+          onClick={onClick}
+          onDelete={onDelete}
+          onSchedule={onSchedule}
+          isScheduling={isScheduling}
+        />
+      </TabsContent>
+    </Tabs>
   );
 }
 
