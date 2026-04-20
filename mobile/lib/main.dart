@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'api/api_client.dart';
@@ -9,7 +10,8 @@ import 'screens/home_shell.dart';
 import 'theme/brand.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  final binding = WidgetsFlutterBinding.ensureInitialized();
+  FlutterNativeSplash.preserve(widgetsBinding: binding);
 
   await initializeDateFormatting('it_IT', null);
   await NotificationService().initialize();
@@ -28,7 +30,7 @@ class WePostAIApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'weposteai',
+      title: 'wepostai',
       debugShowCheckedModeBanner: false,
       theme: BrandTheme.light(),
       home: FutureBuilder<String?>(
@@ -38,6 +40,7 @@ class WePostAIApp extends StatelessWidget {
             return const Scaffold(
                 body: Center(child: CircularProgressIndicator()));
           }
+          FlutterNativeSplash.remove();
           if (snap.data != null) {
             // Already logged in: (re)register FCM token with backend.
             NotificationService().registerAfterLogin();

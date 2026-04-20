@@ -59,7 +59,7 @@ export function Logo({
           border: `2px solid ${inverted ? "rgba(250,250,247,.2)" : "var(--color-line)"}`,
           background: inverted ? "var(--color-ink)" : "transparent",
         }}
-        aria-label="weposteai.com"
+        aria-label="wepostai.com"
       >
         <span
           className="font-serif leading-none"
@@ -97,9 +97,9 @@ export function Logo({
       <span
         className={cn("font-serif leading-none inline-flex items-baseline", className)}
         style={{ color: inkColor, letterSpacing: "-0.04em" }}
-        aria-label="weposteai.com"
+        aria-label="wepostai.com"
       >
-        <span className={sz.text}>weposte</span>
+        <span className={sz.text}>wepost</span>
         <em
           className={sz.text}
           style={{ color: mutedColor, fontStyle: "italic" }}
@@ -114,7 +114,7 @@ export function Logo({
   return (
     <span
       className={cn("inline-flex items-center", sz.gap, className)}
-      aria-label="weposteai.com"
+      aria-label="wepostai.com"
     >
       <BrandMark
         size={sz.mark}
@@ -126,7 +126,7 @@ export function Logo({
         className="font-serif leading-none inline-flex items-baseline"
         style={{ color: inkColor, letterSpacing: "-0.04em" }}
       >
-        <span className={sz.text}>weposte</span>
+        <span className={sz.text}>wepost</span>
         <em
           className={sz.text}
           style={{ color: mutedColor, fontStyle: "italic" }}

@@ -27,7 +27,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
       <main className="flex-1">{children}</main>
       <footer className="border-t py-8">
         <div className="max-w-7xl mx-auto px-4 text-center text-muted-foreground text-sm">
-          &copy; 2026 weposteai.com &mdash; Powered by AI Agents
+          &copy; 2026 wepostai.com &mdash; Powered by AI Agents
         </div>
       </footer>
     </div>

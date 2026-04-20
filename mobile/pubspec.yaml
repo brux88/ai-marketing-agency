@@ -22,6 +22,7 @@ dependencies:
   cached_network_image: ^3.4.1
   badges: ^3.1.2
   timeago: ^3.7.0
+  flutter_native_splash: ^2.4.6
 
 dev_dependencies:
   flutter_test:
@@ -33,9 +34,18 @@ flutter_launcher_icons:
   android: true
   ios: true
   image_path: "assets/app_icon.png"
-  adaptive_icon_background: "#6366F1"
-  adaptive_icon_foreground: "assets/app_icon.png"
+  adaptive_icon_background: "#222222"
+  adaptive_icon_foreground: "assets/app_icon_foreground.png"
   remove_alpha_ios: true
+
+flutter_native_splash:
+  color: "#FBFAF5"
+  image: assets/splash.png
+  android_12:
+    color: "#FBFAF5"
+    image: assets/splash.png
+  android: true
+  ios: true
 
 flutter:
   uses-material-design: true

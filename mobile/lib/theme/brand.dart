@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// weposteai brand palette — mirrors frontend/src/app/globals.css tokens.
+/// wepostai brand palette — mirrors frontend/src/app/globals.css tokens.
 /// Hex values are sRGB approximations of the original oklch() tokens.
 class BrandColors {
   static const Color ink = Color(0xFF222222);
@@ -191,7 +191,7 @@ class BrandTheme {
   }
 }
 
-/// "weposte" in normal weight + "ai.com" italic muted — the weposteai wordmark.
+/// "wepost" in normal weight + "ai.com" italic muted — the wepostai wordmark.
 class BrandWordmark extends StatelessWidget {
   final double fontSize;
   final Color? color;
@@ -217,7 +217,7 @@ class BrandWordmark extends StatelessWidget {
           height: 1,
         ),
         children: [
-          const TextSpan(text: 'weposte'),
+          const TextSpan(text: 'wepost'),
           TextSpan(
             text: 'ai.com',
             style: TextStyle(

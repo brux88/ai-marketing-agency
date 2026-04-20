@@ -115,7 +115,7 @@ class NotificationService {
   }
 
   Future<void> _handleForegroundMessage(RemoteMessage message) async {
-    final title = message.notification?.title ?? 'weposteai';
+    final title = message.notification?.title ?? 'wepostai';
     final body = message.notification?.body ?? '';
     await showLocalNotification(
       id: message.messageId?.hashCode ?? DateTime.now().millisecondsSinceEpoch,
@@ -130,9 +130,9 @@ class NotificationService {
     String? body,
   }) async {
     const androidDetails = AndroidNotificationDetails(
-      'weposteai_channel',
-      'weposteai',
-      channelDescription: 'weposteai notifications',
+      'wepostai_channel',
+      'wepostai',
+      channelDescription: 'wepostai notifications',
       importance: Importance.high,
       priority: Priority.high,
     );

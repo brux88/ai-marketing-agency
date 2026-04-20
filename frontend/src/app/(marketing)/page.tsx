@@ -126,7 +126,7 @@ const blogPosts = [
   {
     title: "Come l'AI sta rivoluzionando il content marketing",
     excerpt: "Scopri come gli agenti AI possono generare contenuti di qualita mantenendo il tono di voce del tuo brand.",
-    category: "weposteai.com",
+    category: "wepostai.com",
     date: "15 Apr 2026",
     href: "/blog/ai-content-marketing",
   },
@@ -345,7 +345,7 @@ export default function LandingPage() {
           <div className="text-center mb-12">
             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">Gestisci tutto dal tuo smartphone</h2>
             <p className="text-muted-foreground mt-3 max-w-2xl mx-auto">
-              Scarica l&apos;app weposteai.com per iOS e Android. Approva contenuti, avvia generazioni AI e monitora le performance ovunque tu sia.
+              Scarica l&apos;app wepostai.com per iOS e Android. Approva contenuti, avvia generazioni AI e monitora le performance ovunque tu sia.
             </p>
           </div>
           <div className="grid sm:grid-cols-3 gap-6 max-w-3xl mx-auto">
