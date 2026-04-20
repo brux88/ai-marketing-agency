@@ -82,23 +82,12 @@ public class MetaPublisher : ISocialPublishingService
             ["access_token"] = accessToken
         };
 
-        var resolvedIgImageUrl = ResolveAbsoluteImageUrl(content.ImageUrl);
-        if (string.IsNullOrEmpty(resolvedIgImageUrl) && !string.IsNullOrEmpty(content.ImageUrl))
-        {
-            var localPath = ResolveLocalImagePath(content.ImageUrl);
-            if (localPath != null && File.Exists(localPath))
-            {
-                _logger?.LogInformation("Instagram: overlay image is local, uploading to Facebook to get public URL");
-                resolvedIgImageUrl = await UploadToFacebookForUrlAsync(accessToken, localPath, ct);
-            }
-        }
-        if (string.IsNullOrEmpty(resolvedIgImageUrl) && !string.IsNullOrEmpty(content.OriginalImageUrl))
-            resolvedIgImageUrl = ResolveAbsoluteImageUrl(content.OriginalImageUrl);
+        var resolvedIgImageUrl = await ResolveInstagramImageUrlAsync(content, accessToken, ct);
         if (string.IsNullOrEmpty(resolvedIgImageUrl))
         {
             return new PublishResult(false, null, null,
-                "Instagram richiede un'immagine con URL pubblico. L'immagine generata è locale e 'PublicBaseUrl' non è configurato. " +
-                "Imposta 'PublicBaseUrl' in appsettings.json (es. URL ngrok) per abilitare la pubblicazione di immagini su Instagram.");
+                "Instagram richiede un'immagine con URL pubblico raggiungibile. " +
+                "Verifica che l'immagine esista o configura 'PublicBaseUrl' in appsettings.json.");
         }
         createParams["image_url"] = resolvedIgImageUrl;
 
@@ -203,6 +192,62 @@ public class MetaPublisher : ISocialPublishingService
         using var doc = JsonDocument.Parse(responseBody);
         var postId = doc.RootElement.GetProperty("id").GetString();
         return new PublishResult(true, postId, $"https://www.facebook.com/{postId}", null);
+    }
+
+    // Instagram requires a publicly fetchable image URL. Our own server URLs are sometimes
+    // unreachable from Meta's crawler (file was deleted, CDN cache, redeploys). For robustness
+    // we always re-host images hosted on our server onto Facebook first. External URLs
+    // (DALL-E, Azure Blob, etc.) are used as-is.
+    private async Task<string?> ResolveInstagramImageUrlAsync(GeneratedContent content, string accessToken, CancellationToken ct)
+    {
+        async Task<string?> TryCandidateAsync(string? url)
+        {
+            if (string.IsNullOrWhiteSpace(url)) return null;
+
+            if (Uri.TryCreate(url, UriKind.Absolute, out var abs)
+                && (abs.Scheme == "http" || abs.Scheme == "https"))
+            {
+                var publicBaseUrl = _configuration?["PublicBaseUrl"]?.TrimEnd('/');
+                if (!string.IsNullOrWhiteSpace(publicBaseUrl)
+                    && url.StartsWith(publicBaseUrl, StringComparison.OrdinalIgnoreCase))
+                {
+                    // URL points at our own server — re-host through Facebook for reliability
+                    var localPath = TryLocateLocalFile(url, publicBaseUrl);
+                    if (localPath != null && File.Exists(localPath))
+                    {
+                        _logger?.LogInformation("Instagram: re-hosting server-local image via Facebook for reliable fetch");
+                        return await UploadToFacebookForUrlAsync(accessToken, localPath, ct);
+                    }
+                    _logger?.LogWarning("Instagram: stored image URL points at our server but local file is missing: {Url}", url);
+                    return null;
+                }
+                return url;
+            }
+
+            // Relative path — try to locate local file and re-host via Facebook
+            var local = ResolveLocalImagePath(url);
+            if (local != null && File.Exists(local))
+            {
+                _logger?.LogInformation("Instagram: overlay image is local, uploading to Facebook to get public URL");
+                return await UploadToFacebookForUrlAsync(accessToken, local, ct);
+            }
+
+            return ResolveAbsoluteImageUrl(url);
+        }
+
+        var primary = await TryCandidateAsync(content.ImageUrl);
+        if (!string.IsNullOrEmpty(primary)) return primary;
+
+        _logger?.LogWarning("Instagram: primary image {Url} unreachable, falling back to OriginalImageUrl", content.ImageUrl);
+        return await TryCandidateAsync(content.OriginalImageUrl);
+    }
+
+    private static string? TryLocateLocalFile(string absoluteUrl, string publicBaseUrl)
+    {
+        if (!absoluteUrl.StartsWith(publicBaseUrl, StringComparison.OrdinalIgnoreCase)) return null;
+        var path = absoluteUrl[publicBaseUrl.Length..].TrimStart('/');
+        var webRoot = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+        return Path.Combine(webRoot, path.Replace('/', Path.DirectorySeparatorChar));
     }
 
     private async Task<string?> UploadToFacebookForUrlAsync(string accessToken, string localPath, CancellationToken ct)
