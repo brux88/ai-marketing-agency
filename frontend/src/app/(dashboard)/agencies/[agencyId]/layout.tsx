@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { usePathname, useParams } from "next/navigation";
 import { useEffect } from "react";
-import { Settings, LayoutDashboard, FolderKanban, Users, Send, BarChart3, Mail } from "lucide-react";
+import { Settings, LayoutDashboard, FolderKanban, Users, Send, BarChart3, Mail, Share2 } from "lucide-react";
 import { useNotifications } from "@/lib/providers/notification-provider";
 
 const tabs = [
   { href: "", label: "Overview", icon: LayoutDashboard },
   { href: "/projects", label: "Progetti", icon: FolderKanban },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/social", label: "Social", icon: Share2 },
   { href: "/telegram", label: "Telegram", icon: Send },
   { href: "/newsletter", label: "Newsletter", icon: Mail },
   { href: "/team", label: "Team", icon: Users },

@@ -9,9 +9,22 @@ class ApiClient {
   static const _storage = FlutterSecureStorage();
 
   static Future<String?> get token => _storage.read(key: 'access_token');
+  static Future<String?> get refreshToken => _storage.read(key: 'refresh_token');
+
+  static Future<void> setTokens(String accessToken, String? refreshToken) async {
+    await _storage.write(key: 'access_token', value: accessToken);
+    if (refreshToken != null) {
+      await _storage.write(key: 'refresh_token', value: refreshToken);
+    }
+  }
+
   static Future<void> setToken(String token) =>
       _storage.write(key: 'access_token', value: token);
-  static Future<void> clearToken() => _storage.delete(key: 'access_token');
+
+  static Future<void> clearToken() async {
+    await _storage.delete(key: 'access_token');
+    await _storage.delete(key: 'refresh_token');
+  }
 
   static Future<Map<String, String>> _headers() async {
     final t = await token;
@@ -21,38 +34,68 @@ class ApiClient {
     };
   }
 
-  static Future<dynamic> get(String path) async {
-    final res =
-        await http.get(Uri.parse('$baseUrl$path'), headers: await _headers());
+  static bool _refreshing = false;
+
+  static Future<bool> _tryRefresh() async {
+    if (_refreshing) return false;
+    _refreshing = true;
+    try {
+      final rt = await refreshToken;
+      if (rt == null || rt.isEmpty) return false;
+      final res = await http.post(
+        Uri.parse('$baseUrl/api/v1/auth/refresh'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'refreshToken': rt}),
+      );
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        final body = jsonDecode(res.body);
+        final data = body['data'];
+        if (data != null) {
+          await setTokens(
+            data['accessToken'] as String,
+            data['refreshToken'] as String?,
+          );
+          return true;
+        }
+      }
+      await clearToken();
+      return false;
+    } catch (_) {
+      return false;
+    } finally {
+      _refreshing = false;
+    }
+  }
+
+  static Future<dynamic> _send(
+    Future<http.Response> Function(Map<String, String> headers) sender,
+  ) async {
+    var res = await sender(await _headers());
+    if (res.statusCode == 401 && await _tryRefresh()) {
+      res = await sender(await _headers());
+    }
     return _handle(res);
   }
 
-  static Future<dynamic> post(String path,
-      [Map<String, dynamic>? body]) async {
-    final res = await http.post(
-      Uri.parse('$baseUrl$path'),
-      headers: await _headers(),
-      body: body == null ? null : jsonEncode(body),
-    );
-    return _handle(res);
-  }
+  static Future<dynamic> get(String path) =>
+      _send((h) => http.get(Uri.parse('$baseUrl$path'), headers: h));
 
-  static Future<dynamic> put(String path, Map<String, dynamic> body) async {
-    final res = await http.put(
-      Uri.parse('$baseUrl$path'),
-      headers: await _headers(),
-      body: jsonEncode(body),
-    );
-    return _handle(res);
-  }
+  static Future<dynamic> post(String path, [Map<String, dynamic>? body]) =>
+      _send((h) => http.post(
+            Uri.parse('$baseUrl$path'),
+            headers: h,
+            body: body == null ? null : jsonEncode(body),
+          ));
 
-  static Future<dynamic> delete(String path) async {
-    final res = await http.delete(
-      Uri.parse('$baseUrl$path'),
-      headers: await _headers(),
-    );
-    return _handle(res);
-  }
+  static Future<dynamic> put(String path, Map<String, dynamic> body) =>
+      _send((h) => http.put(
+            Uri.parse('$baseUrl$path'),
+            headers: h,
+            body: jsonEncode(body),
+          ));
+
+  static Future<dynamic> delete(String path) =>
+      _send((h) => http.delete(Uri.parse('$baseUrl$path'), headers: h));
 
   static dynamic _handle(http.Response res) {
     if (res.statusCode >= 200 && res.statusCode < 300) {

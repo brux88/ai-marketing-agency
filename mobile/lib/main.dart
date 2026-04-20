@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'api/api_client.dart';
 import 'services/app_state.dart';
 import 'services/notification_service.dart';
@@ -9,7 +10,7 @@ import 'screens/home_shell.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize local notifications (FCM requires Firebase config files)
+  await initializeDateFormatting('it_IT', null);
   await NotificationService().initialize();
 
   runApp(

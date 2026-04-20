@@ -55,8 +55,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
   Future<Map<String, List<_CalendarEntry>>> _load() async {
     final res = await ApiClient.get(
         '/api/v1/agencies/${widget.agency.id}/calendar');
-    final entries = (res['data'] as List)
-        .map((j) => _CalendarEntry.fromJson(j))
+    final list = (res?['data'] as List?) ?? const [];
+    final entries = list
+        .map((j) => _CalendarEntry.fromJson(j as Map<String, dynamic>))
         .toList()
       ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
 

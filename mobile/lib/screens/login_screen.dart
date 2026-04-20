@@ -27,7 +27,10 @@ class _LoginScreenState extends State<LoginScreen> {
         'email': _email.text.trim(),
         'password': _pwd.text,
       });
-      await ApiClient.setToken(res['data']['accessToken']);
+      await ApiClient.setTokens(
+        res['data']['accessToken'],
+        res['data']['refreshToken'] as String?,
+      );
       if (!mounted) return;
       context.read<AppState>().fetchUnreadCount();
       Navigator.pushReplacement(
