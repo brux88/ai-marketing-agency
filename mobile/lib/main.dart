@@ -50,9 +50,12 @@ class WePostAIApp extends StatelessWidget {
             return const Scaffold(
                 body: Center(child: CircularProgressIndicator()));
           }
-          return snap.data != null
-              ? const HomeShell()
-              : const LoginScreen();
+          if (snap.data != null) {
+            // Already logged in: (re)register FCM token with backend.
+            NotificationService().registerAfterLogin();
+            return const HomeShell();
+          }
+          return const LoginScreen();
         },
       ),
     );

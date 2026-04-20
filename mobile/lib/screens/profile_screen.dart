@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
+import '../services/notification_service.dart';
 import 'login_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -103,6 +104,7 @@ class ProfileScreen extends StatelessWidget {
       ),
     );
     if (confirmed == true && context.mounted) {
+      await NotificationService().unregisterBeforeLogout();
       await ApiClient.clearToken();
       if (context.mounted) {
         Navigator.pushAndRemoveUntil(

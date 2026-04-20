@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../api/api_client.dart';
 import '../services/app_state.dart';
+import '../services/notification_service.dart';
 import 'home_shell.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -31,6 +32,8 @@ class _LoginScreenState extends State<LoginScreen> {
         res['data']['accessToken'],
         res['data']['refreshToken'] as String?,
       );
+      // Register FCM token (fire-and-forget; doesn't block login)
+      NotificationService().registerAfterLogin();
       if (!mounted) return;
       context.read<AppState>().fetchUnreadCount();
       Navigator.pushReplacement(
