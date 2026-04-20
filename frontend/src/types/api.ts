@@ -123,6 +123,7 @@ export interface GeneratedContent {
   aiGenerationCostUsd?: number | null;
   aiImageCostUsd?: number | null;
   isScheduled?: boolean;
+  scheduledAt?: string | null;
 }
 
 export enum ApprovalMode {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
 import { schedulesApi } from "@/lib/api/schedules.api";
 import type { ApiResponse, GeneratedContent, ContentSchedule } from "@/types/api";
@@ -10,9 +10,23 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ChevronLeft, ChevronRight, CalendarDays, Clock, Eye, ChevronUp } from "lucide-react";
+import { ChevronLeft, ChevronRight, CalendarDays, Clock, Eye, ChevronUp, CalendarClock, Trash2 } from "lucide-react";
 import { useState, useMemo } from "react";
+import { toast } from "sonner";
 import { resolveImageUrl } from "@/lib/utils";
+
+interface CalendarEntry {
+  id: string;
+  contentId: string;
+  contentTitle: string;
+  contentType: string;
+  platform?: string | null;
+  scheduledAt: string;
+  publishedAt?: string | null;
+  status: string;
+  errorMessage?: string | null;
+  postUrl?: string | null;
+}
 
 const DAYS = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"];
 const MONTHS = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"];
@@ -69,6 +83,7 @@ function colorForProject(projectId: string | null | undefined, projectIndex: Map
 
 export default function CalendarPage() {
   const { agencyId } = useParams();
+  const queryClient = useQueryClient();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
@@ -87,8 +102,25 @@ export default function CalendarPage() {
     queryFn: () => schedulesApi.list(agencyId as string),
   });
 
+  const { data: calendarRes } = useQuery({
+    queryKey: ["agency-calendar", agencyId],
+    queryFn: () => apiClient.get<ApiResponse<CalendarEntry[]>>(`/api/v1/agencies/${agencyId}/calendar`),
+  });
+
+  const removeEntry = useMutation({
+    mutationFn: (entryId: string) =>
+      apiClient.delete(`/api/v1/agencies/${agencyId}/calendar/${entryId}`),
+    onSuccess: () => {
+      toast.success("Programmazione rimossa");
+      queryClient.invalidateQueries({ queryKey: ["agency-calendar", agencyId] });
+      queryClient.invalidateQueries({ queryKey: ["content", agencyId] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const contents = data?.data || [];
   const schedules = (schedulesRes?.data || []) as ContentSchedule[];
+  const calendarEntries = calendarRes?.data || [];
   const projectIndex = useMemo(() => new Map<string, number>(), [schedules.length]);
 
   const getContentsForDate = (date: Date) =>
@@ -99,8 +131,12 @@ export default function CalendarPage() {
     return schedules.filter((s) => s.isActive && (s.days & flag) !== 0);
   };
 
+  const getCalendarEntriesForDate = (date: Date) =>
+    calendarEntries.filter((e) => isSameDay(new Date(e.scheduledAt), date));
+
   const selectedContents = selectedDate ? getContentsForDate(selectedDate) : [];
   const selectedSchedules = selectedDate ? getSchedulesForDate(selectedDate) : [];
+  const selectedEntries = selectedDate ? getCalendarEntriesForDate(selectedDate) : [];
 
   const prevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
   const nextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
@@ -153,6 +189,7 @@ export default function CalendarPage() {
                 if (!date) return <div key={i} className="h-28 bg-muted/20" />;
                 const dayContents = getContentsForDate(date);
                 const daySchedules = getSchedulesForDate(date);
+                const dayEntries = getCalendarEntriesForDate(date);
                 const isToday = isSameDay(date, today);
                 const isSelected = selectedDate && isSameDay(date, selectedDate);
                 const isWeekend = date.getDay() === 0 || date.getDay() === 6;
@@ -172,22 +209,31 @@ export default function CalendarPage() {
                       {date.getDate()}
                     </div>
                     <div className="space-y-0.5 overflow-hidden">
-                      {daySchedules.slice(0, 2).map((s) => (
+                      {dayEntries.slice(0, 2).map((e) => (
+                        <div key={e.id} className="flex items-center gap-1" title={`${e.contentTitle} · ${new Date(e.scheduledAt).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" })}`}>
+                          <CalendarClock className="size-2.5 shrink-0 text-amber-600" />
+                          <span className="text-[10px] truncate">{new Date(e.scheduledAt).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" })} {e.contentTitle}</span>
+                        </div>
+                      ))}
+                      {dayEntries.length > 2 && (
+                        <span className="text-[10px] text-muted-foreground">+{dayEntries.length - 2} programm.</span>
+                      )}
+                      {daySchedules.slice(0, 1).map((s) => (
                         <div key={s.id} className="flex items-center gap-1" title={`${s.name} · ${s.timeOfDay}`}>
                           <div className={`size-1.5 rounded-full shrink-0 ${colorForProject(s.projectId, projectIndex)}`} />
                           <span className="text-[10px] truncate">{s.timeOfDay} {s.name}</span>
                         </div>
                       ))}
-                      {daySchedules.length > 2 && (
-                        <span className="text-[10px] text-muted-foreground">+{daySchedules.length - 2} sched.</span>
+                      {daySchedules.length > 1 && (
+                        <span className="text-[10px] text-muted-foreground">+{daySchedules.length - 1} sched.</span>
                       )}
-                      {dayContents.slice(0, 1).map((c) => (
-                        <div key={c.id} className="flex items-center gap-1">
-                          <div className={`size-1.5 rounded-full shrink-0 ${contentTypeColors[c.contentType] || "bg-gray-400"}`} />
-                          <span className="text-[10px] truncate">{c.title}</span>
+                      {dayContents.length > 0 && dayEntries.length === 0 && daySchedules.length === 0 && (
+                        <div className="flex items-center gap-1">
+                          <div className={`size-1.5 rounded-full shrink-0 ${contentTypeColors[dayContents[0].contentType] || "bg-gray-400"}`} />
+                          <span className="text-[10px] truncate">{dayContents[0].title}</span>
                         </div>
-                      ))}
-                      {dayContents.length > 1 && (
+                      )}
+                      {dayContents.length > 1 && dayEntries.length === 0 && daySchedules.length === 0 && (
                         <span className="text-[10px] text-muted-foreground">+{dayContents.length - 1} contenuti</span>
                       )}
                     </div>
@@ -201,6 +247,56 @@ export default function CalendarPage() {
 
       {/* Selected date details */}
       {selectedDate && (
+        <>
+          {selectedEntries.length > 0 && (
+            <Card>
+              <CardContent className="pt-6">
+                <h3 className="font-semibold mb-3 flex items-center gap-2">
+                  <CalendarClock className="size-4 text-amber-600" />
+                  Pubblicazioni programmate ({selectedEntries.length})
+                </h3>
+                <div className="space-y-2">
+                  {selectedEntries.map((e) => (
+                    <div key={e.id} className="flex items-center gap-3 p-3 rounded-lg border">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-medium truncate">{e.contentTitle}</span>
+                          <Badge variant="outline" className="text-[10px]">{e.contentType}</Badge>
+                          {e.platform && <Badge variant="outline" className="text-[10px]">{e.platform}</Badge>}
+                          <Badge variant="outline" className="text-[10px]">{e.status}</Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {new Date(e.scheduledAt).toLocaleString("it-IT", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                          {e.publishedAt && ` · Pubblicato: ${new Date(e.publishedAt).toLocaleString("it-IT", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}`}
+                        </p>
+                        {e.postUrl && (
+                          <a href={e.postUrl} target="_blank" rel="noreferrer" className="text-xs text-primary hover:underline">
+                            Apri post →
+                          </a>
+                        )}
+                      </div>
+                      {e.status !== "Published" && (
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          className="text-destructive shrink-0"
+                          onClick={() => {
+                            if (confirm("Eliminare questa pubblicazione programmata?")) {
+                              removeEntry.mutate(e.id);
+                            }
+                          }}
+                          disabled={removeEntry.isPending}
+                          title="Elimina programmazione"
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <Card>
             <CardContent className="pt-6">
@@ -255,6 +351,7 @@ export default function CalendarPage() {
             </CardContent>
           </Card>
         </div>
+        </>
       )}
     </div>
   );

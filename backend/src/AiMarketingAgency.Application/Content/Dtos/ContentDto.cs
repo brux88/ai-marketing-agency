@@ -28,4 +28,5 @@ public class ContentDto
     public string? VideoUrl { get; set; }
     public Guid? ProjectId { get; set; }
     public bool IsScheduled { get; set; }
+    public DateTime? ScheduledAt { get; set; }
 }

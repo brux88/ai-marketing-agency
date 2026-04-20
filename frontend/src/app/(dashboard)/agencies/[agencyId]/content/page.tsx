@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PenLine, Loader2, FileText, Star, Search, TrendingUp, Sparkles, CheckCircle2, ImageIcon, X, Edit3, Calendar, Images } from "lucide-react";
+import { PenLine, Loader2, FileText, Star, Search, TrendingUp, Sparkles, CheckCircle2, ImageIcon, X, Edit3, Calendar, Images, CalendarClock } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { ContentEditDialog } from "@/components/agency/content-edit-dialog";
@@ -69,6 +69,11 @@ export default function ContentPage() {
   const formatDate = (iso: string) => {
     const d = new Date(iso);
     return d.toLocaleString("it-IT", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  };
+
+  const formatScheduledAt = (iso: string) => {
+    const d = new Date(iso);
+    return d.toLocaleString("it-IT", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
   };
 
   const filterButtons: { value: ContentFilter; label: string }[] = [
@@ -178,6 +183,11 @@ export default function ContentPage() {
                       {content.autoApproved && (
                         <Badge variant="secondary">
                           <CheckCircle2 className="size-3" /> Auto
+                        </Badge>
+                      )}
+                      {content.isScheduled && content.scheduledAt && (
+                        <Badge variant="outline" className="border-amber-500/40 text-amber-700 dark:text-amber-400">
+                          <CalendarClock className="size-3" /> {formatScheduledAt(content.scheduledAt)}
                         </Badge>
                       )}
                       <Badge variant={status.variant}>{status.label}</Badge>

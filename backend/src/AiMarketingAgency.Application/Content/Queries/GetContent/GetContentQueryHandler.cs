@@ -56,7 +56,12 @@ public class GetContentQueryHandler : IRequestHandler<GetContentQuery, List<Cont
                 c.ImageUrls,
                 c.VideoUrl,
                 c.ProjectId,
-                IsScheduled = c.CalendarEntries.Any(e => e.Status == Domain.Enums.CalendarEntryStatus.Scheduled)
+                IsScheduled = c.CalendarEntries.Any(e => e.Status == Domain.Enums.CalendarEntryStatus.Scheduled),
+                ScheduledAt = c.CalendarEntries
+                    .Where(e => e.Status == Domain.Enums.CalendarEntryStatus.Scheduled)
+                    .OrderBy(e => e.ScheduledAt)
+                    .Select(e => (DateTime?)e.ScheduledAt)
+                    .FirstOrDefault()
             })
             .ToListAsync(cancellationToken);
 
@@ -85,7 +90,8 @@ public class GetContentQueryHandler : IRequestHandler<GetContentQuery, List<Cont
             ImageUrls = DeserializeImages(r.ImageUrls),
             VideoUrl = r.VideoUrl,
             ProjectId = r.ProjectId,
-            IsScheduled = r.IsScheduled
+            IsScheduled = r.IsScheduled,
+            ScheduledAt = r.ScheduledAt
         }).ToList();
     }
 
