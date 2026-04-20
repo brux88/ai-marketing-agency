@@ -16,15 +16,18 @@ public class FcmPushNotificationService : IPushNotificationService
     private static FirebaseApp? _app;
 
     private readonly IAppDbContext _context;
+    private readonly ITenantContext _tenantContext;
     private readonly ILogger<FcmPushNotificationService> _logger;
     private readonly IConfiguration _configuration;
 
     public FcmPushNotificationService(
         IAppDbContext context,
+        ITenantContext tenantContext,
         IConfiguration configuration,
         ILogger<FcmPushNotificationService> logger)
     {
         _context = context;
+        _tenantContext = tenantContext;
         _configuration = configuration;
         _logger = logger;
         EnsureInitialized();
@@ -191,6 +194,7 @@ public class FcmPushNotificationService : IPushNotificationService
         {
             _context.UserDeviceTokens.Add(new UserDeviceToken
             {
+                TenantId = _tenantContext.TenantId,
                 UserId = userId,
                 FcmToken = fcmToken,
                 Platform = platform,

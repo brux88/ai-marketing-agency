@@ -14,6 +14,7 @@ public class ApproveContentCommandHandler : IRequestHandler<ApproveContentComman
     private readonly ITenantContext _tenantContext;
     private readonly INotificationService _notificationService;
     private readonly IEmailNotificationService _emailNotificationService;
+    private readonly IPushNotificationService _pushNotificationService;
     private readonly IEmailSendingService _emailSendingService;
     private readonly ITelegramBotService _telegramBot;
     private readonly ILogger<ApproveContentCommandHandler> _logger;
@@ -23,6 +24,7 @@ public class ApproveContentCommandHandler : IRequestHandler<ApproveContentComman
         ITenantContext tenantContext,
         INotificationService notificationService,
         IEmailNotificationService emailNotificationService,
+        IPushNotificationService pushNotificationService,
         IEmailSendingService emailSendingService,
         ITelegramBotService telegramBot,
         ILogger<ApproveContentCommandHandler> logger)
@@ -31,6 +33,7 @@ public class ApproveContentCommandHandler : IRequestHandler<ApproveContentComman
         _tenantContext = tenantContext;
         _notificationService = notificationService;
         _emailNotificationService = emailNotificationService;
+        _pushNotificationService = pushNotificationService;
         _emailSendingService = emailSendingService;
         _telegramBot = telegramBot;
         _logger = logger;
@@ -121,6 +124,21 @@ public class ApproveContentCommandHandler : IRequestHandler<ApproveContentComman
                     await _emailNotificationService.SendEmailNotificationAsync(
                         content.AgencyId, content.ProjectId, subject, htmlBody, cancellationToken);
                 }
+
+                await _pushNotificationService.SendToProjectAsync(
+                    content.AgencyId,
+                    content.ProjectId,
+                    PushEventType.ApprovalNeeded,
+                    "Contenuto approvato",
+                    content.Title,
+                    new Dictionary<string, string>
+                    {
+                        ["agencyId"] = content.AgencyId.ToString(),
+                        ["projectId"] = content.ProjectId.Value.ToString(),
+                        ["contentId"] = content.Id.ToString(),
+                        ["event"] = "content.approved",
+                    },
+                    cancellationToken);
             }
         }
         catch (Exception ex)

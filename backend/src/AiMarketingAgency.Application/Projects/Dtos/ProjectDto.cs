@@ -38,4 +38,8 @@ public class ProjectDto
     public bool NotifyEmailOnPublication { get; set; }
     public bool NotifyEmailOnApprovalNeeded { get; set; }
     public string? NotificationEmail { get; set; }
+
+    public bool NotifyPushOnGeneration { get; set; }
+    public bool NotifyPushOnPublication { get; set; }
+    public bool NotifyPushOnApprovalNeeded { get; set; }
 }

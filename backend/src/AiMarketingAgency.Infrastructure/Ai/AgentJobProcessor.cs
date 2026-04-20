@@ -22,6 +22,7 @@ public class AgentJobProcessor : IAgentJobProcessor
     private readonly ILlmKeyVault _keyVault;
     private readonly INotificationService _notificationService;
     private readonly IEmailNotificationService _emailNotificationService;
+    private readonly IPushNotificationService _pushNotificationService;
     private readonly ITelegramBotService _telegramBot;
     private readonly ILogger<AgentJobProcessor> _logger;
 
@@ -35,6 +36,7 @@ public class AgentJobProcessor : IAgentJobProcessor
         ILlmKeyVault keyVault,
         INotificationService notificationService,
         IEmailNotificationService emailNotificationService,
+        IPushNotificationService pushNotificationService,
         ITelegramBotService telegramBot,
         ILogger<AgentJobProcessor> logger)
     {
@@ -47,6 +49,7 @@ public class AgentJobProcessor : IAgentJobProcessor
         _keyVault = keyVault;
         _notificationService = notificationService;
         _emailNotificationService = emailNotificationService;
+        _pushNotificationService = pushNotificationService;
         _telegramBot = telegramBot;
         _logger = logger;
     }
@@ -447,6 +450,29 @@ public class AgentJobProcessor : IAgentJobProcessor
                             """;
                         await _emailNotificationService.SendEmailNotificationAsync(
                             job.AgencyId, job.ProjectId, subject, htmlBody, ct);
+                    }
+
+                    if (job.ProjectId.HasValue)
+                    {
+                        var pushTitle = notifyProject != null
+                            ? $"Nuovi contenuti · {notifyProject.Name}"
+                            : "Nuovi contenuti generati";
+                        var pushBody = createdContents.Count == 1
+                            ? createdContents[0].Title
+                            : $"{createdContents.Count} contenuti pronti per la revisione";
+                        await _pushNotificationService.SendToProjectAsync(
+                            job.AgencyId,
+                            job.ProjectId,
+                            PushEventType.ContentGenerated,
+                            pushTitle,
+                            pushBody,
+                            new Dictionary<string, string>
+                            {
+                                ["agencyId"] = job.AgencyId.ToString(),
+                                ["projectId"] = job.ProjectId.Value.ToString(),
+                                ["event"] = "content.generated",
+                            },
+                            ct);
                     }
                 }
             }

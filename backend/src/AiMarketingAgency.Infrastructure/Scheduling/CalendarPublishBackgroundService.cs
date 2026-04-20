@@ -130,6 +130,24 @@ public class CalendarPublishBackgroundService : BackgroundService
                                 await emailNotifier.SendEmailNotificationAsync(
                                     entry.AgencyId, projectId, subject, htmlBody, ct);
                             }
+
+                            var pushNotifier = scope.ServiceProvider.GetRequiredService<IPushNotificationService>();
+                            await pushNotifier.SendToProjectAsync(
+                                entry.AgencyId,
+                                projectId,
+                                PushEventType.ContentPublished,
+                                $"Pubblicato su {entry.Platform.Value}",
+                                contentTitle,
+                                new Dictionary<string, string>
+                                {
+                                    ["agencyId"] = entry.AgencyId.ToString(),
+                                    ["projectId"] = projectId.Value.ToString(),
+                                    ["contentId"] = entry.ContentId.ToString(),
+                                    ["platform"] = entry.Platform.Value.ToString(),
+                                    ["event"] = "content.published",
+                                    ["postUrl"] = result.PostUrl ?? string.Empty,
+                                },
+                                ct);
                         }
                     }
                     catch (Exception notifyEx)

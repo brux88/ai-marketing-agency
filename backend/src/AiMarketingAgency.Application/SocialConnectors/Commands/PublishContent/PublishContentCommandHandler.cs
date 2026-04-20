@@ -13,6 +13,7 @@ public class PublishContentCommandHandler : IRequestHandler<PublishContentComman
     private readonly ISocialPublishingServiceFactory _factory;
     private readonly INotificationService _notificationService;
     private readonly IEmailNotificationService _emailNotificationService;
+    private readonly IPushNotificationService _pushNotificationService;
     private readonly ILogger<PublishContentCommandHandler> _logger;
 
     public PublishContentCommandHandler(
@@ -20,12 +21,14 @@ public class PublishContentCommandHandler : IRequestHandler<PublishContentComman
         ISocialPublishingServiceFactory factory,
         INotificationService notificationService,
         IEmailNotificationService emailNotificationService,
+        IPushNotificationService pushNotificationService,
         ILogger<PublishContentCommandHandler> logger)
     {
         _context = context;
         _factory = factory;
         _notificationService = notificationService;
         _emailNotificationService = emailNotificationService;
+        _pushNotificationService = pushNotificationService;
         _logger = logger;
     }
 
@@ -122,6 +125,23 @@ public class PublishContentCommandHandler : IRequestHandler<PublishContentComman
                         await _emailNotificationService.SendEmailNotificationAsync(
                             content.AgencyId, content.ProjectId, emailSubject, emailHtml, cancellationToken);
                     }
+
+                    await _pushNotificationService.SendToProjectAsync(
+                        content.AgencyId,
+                        content.ProjectId,
+                        PushEventType.ContentPublished,
+                        $"Pubblicato su {request.Platform}",
+                        content.Title,
+                        new Dictionary<string, string>
+                        {
+                            ["agencyId"] = content.AgencyId.ToString(),
+                            ["projectId"] = content.ProjectId.Value.ToString(),
+                            ["contentId"] = content.Id.ToString(),
+                            ["platform"] = request.Platform.ToString(),
+                            ["event"] = "content.published",
+                            ["postUrl"] = result.PostUrl ?? string.Empty,
+                        },
+                        cancellationToken);
                 }
             }
             catch (Exception notifyEx)

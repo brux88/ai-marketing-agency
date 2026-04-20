@@ -48,12 +48,18 @@ function ProjectEmailNotificationsCard({
   const [onGeneration, setOnGeneration] = useState(project?.notifyEmailOnGeneration ?? false);
   const [onPublication, setOnPublication] = useState(project?.notifyEmailOnPublication ?? false);
   const [onApproval, setOnApproval] = useState(project?.notifyEmailOnApprovalNeeded ?? false);
+  const [pushOnGeneration, setPushOnGeneration] = useState(project?.notifyPushOnGeneration ?? false);
+  const [pushOnPublication, setPushOnPublication] = useState(project?.notifyPushOnPublication ?? false);
+  const [pushOnApproval, setPushOnApproval] = useState(project?.notifyPushOnApprovalNeeded ?? false);
 
   useEffect(() => {
     setEmail(project?.notificationEmail ?? "");
     setOnGeneration(project?.notifyEmailOnGeneration ?? false);
     setOnPublication(project?.notifyEmailOnPublication ?? false);
     setOnApproval(project?.notifyEmailOnApprovalNeeded ?? false);
+    setPushOnGeneration(project?.notifyPushOnGeneration ?? false);
+    setPushOnPublication(project?.notifyPushOnPublication ?? false);
+    setPushOnApproval(project?.notifyPushOnApprovalNeeded ?? false);
   }, [project]);
 
   const save = useMutation({
@@ -63,10 +69,13 @@ function ProjectEmailNotificationsCard({
         notifyEmailOnPublication: onPublication,
         notifyEmailOnApprovalNeeded: onApproval,
         notificationEmail: email || null,
+        notifyPushOnGeneration: pushOnGeneration,
+        notifyPushOnPublication: pushOnPublication,
+        notifyPushOnApprovalNeeded: pushOnApproval,
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["project", agencyId, projectId] });
-      toast.success("Impostazioni email salvate");
+      toast.success("Impostazioni notifiche salvate");
     },
     onError: () => toast.error("Errore nel salvataggio"),
   });
@@ -76,7 +85,7 @@ function ProjectEmailNotificationsCard({
       <CardHeader>
         <CardTitle className="text-base flex items-center gap-2">
           <Mail className="size-4" />
-          Notifiche Email
+          Notifiche
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -92,7 +101,8 @@ function ProjectEmailNotificationsCard({
             Lascia vuoto per non ricevere notifiche email
           </p>
         </div>
-        <div className="space-y-3">
+        <div className="space-y-2">
+          <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Email</div>
           <div className="flex items-center justify-between">
             <Label className="cursor-pointer">Generazione contenuti</Label>
             <Switch checked={onGeneration} onCheckedChange={setOnGeneration} />
@@ -104,6 +114,24 @@ function ProjectEmailNotificationsCard({
           <div className="flex items-center justify-between">
             <Label className="cursor-pointer">Contenuti da approvare</Label>
             <Switch checked={onApproval} onCheckedChange={setOnApproval} />
+          </div>
+        </div>
+        <div className="space-y-2 pt-2 border-t">
+          <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Push mobile</div>
+          <p className="text-xs text-muted-foreground">
+            Ricevi notifiche push sull&apos;app mobile. Richiede aver installato e fatto login sull&apos;app.
+          </p>
+          <div className="flex items-center justify-between">
+            <Label className="cursor-pointer">Generazione contenuti</Label>
+            <Switch checked={pushOnGeneration} onCheckedChange={setPushOnGeneration} />
+          </div>
+          <div className="flex items-center justify-between">
+            <Label className="cursor-pointer">Pubblicazione</Label>
+            <Switch checked={pushOnPublication} onCheckedChange={setPushOnPublication} />
+          </div>
+          <div className="flex items-center justify-between">
+            <Label className="cursor-pointer">Contenuti approvati</Label>
+            <Switch checked={pushOnApproval} onCheckedChange={setPushOnApproval} />
           </div>
         </div>
         <Button size="sm" onClick={() => save.mutate()} disabled={save.isPending}>

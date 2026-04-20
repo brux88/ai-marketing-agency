@@ -164,6 +164,9 @@ public class ProjectsController : ControllerBase
         project.NotifyEmailOnPublication = request.NotifyEmailOnPublication;
         project.NotifyEmailOnApprovalNeeded = request.NotifyEmailOnApprovalNeeded;
         project.NotificationEmail = request.NotificationEmail;
+        if (request.NotifyPushOnGeneration.HasValue) project.NotifyPushOnGeneration = request.NotifyPushOnGeneration.Value;
+        if (request.NotifyPushOnPublication.HasValue) project.NotifyPushOnPublication = request.NotifyPushOnPublication.Value;
+        if (request.NotifyPushOnApprovalNeeded.HasValue) project.NotifyPushOnApprovalNeeded = request.NotifyPushOnApprovalNeeded.Value;
         await _context.SaveChangesAsync(ct);
         return Ok(ApiResponse<object>.Ok(null));
     }
@@ -498,7 +501,10 @@ public record UpdateProjectEmailNotificationsRequest(
     bool NotifyEmailOnGeneration,
     bool NotifyEmailOnPublication,
     bool NotifyEmailOnApprovalNeeded,
-    string? NotificationEmail);
+    string? NotificationEmail,
+    bool? NotifyPushOnGeneration = null,
+    bool? NotifyPushOnPublication = null,
+    bool? NotifyPushOnApprovalNeeded = null);
 
 public class ProjectCostStatsDto
 {

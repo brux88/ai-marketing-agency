@@ -259,6 +259,9 @@ export interface Project {
   notifyEmailOnPublication?: boolean;
   notifyEmailOnApprovalNeeded?: boolean;
   notificationEmail?: string | null;
+  notifyPushOnGeneration?: boolean;
+  notifyPushOnPublication?: boolean;
+  notifyPushOnApprovalNeeded?: boolean;
 }
 
 export enum SocialPlatform {

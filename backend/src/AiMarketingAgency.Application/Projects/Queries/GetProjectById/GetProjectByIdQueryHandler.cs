@@ -49,7 +49,10 @@ public class GetProjectByIdQueryHandler : IRequestHandler<GetProjectByIdQuery, P
                 NotifyEmailOnGeneration = p.NotifyEmailOnGeneration,
                 NotifyEmailOnPublication = p.NotifyEmailOnPublication,
                 NotifyEmailOnApprovalNeeded = p.NotifyEmailOnApprovalNeeded,
-                NotificationEmail = p.NotificationEmail
+                NotificationEmail = p.NotificationEmail,
+                NotifyPushOnGeneration = p.NotifyPushOnGeneration,
+                NotifyPushOnPublication = p.NotifyPushOnPublication,
+                NotifyPushOnApprovalNeeded = p.NotifyPushOnApprovalNeeded,
             })
             .FirstOrDefaultAsync(cancellationToken);
     }
