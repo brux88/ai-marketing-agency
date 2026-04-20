@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../services/notification_service.dart';
+import '../theme/brand.dart';
 import 'login_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -23,18 +24,9 @@ class ProfileScreen extends StatelessWidget {
               padding: const EdgeInsets.all(24),
               child: Column(
                 children: [
-                  CircleAvatar(
-                    radius: 40,
-                    backgroundColor: cs.primaryContainer,
-                    child: Icon(Icons.person,
-                        size: 40, color: cs.onPrimaryContainer),
-                  ),
+                  const BrandMarkIcon(size: 72),
                   const SizedBox(height: 16),
-                  Text('WePostAI',
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleLarge
-                          ?.copyWith(fontWeight: FontWeight.bold)),
+                  const BrandWordmark(fontSize: 26),
                   const SizedBox(height: 4),
                   Text('Gestisci le tue campagne',
                       style: Theme.of(context)

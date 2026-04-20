@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../api/api_client.dart';
 import '../services/app_state.dart';
 import '../services/notification_service.dart';
+import '../theme/brand.dart';
 import 'home_shell.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -55,26 +56,10 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(18),
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                  ),
-                ),
-                child: const Icon(Icons.send_rounded, size: 40, color: Colors.white),
-              ),
-              const SizedBox(height: 16),
-              Text('WePostAI',
-                  style: Theme.of(context)
-                      .textTheme
-                      .headlineMedium
-                      ?.copyWith(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
+              const BrandMarkIcon(size: 80),
+              const SizedBox(height: 20),
+              const BrandWordmark(fontSize: 36),
+              const SizedBox(height: 10),
               Text('Accedi al tuo account',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                       color: cs.onSurfaceVariant)),
