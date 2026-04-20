@@ -124,20 +124,27 @@ var webRootPath = app.Environment.WebRootPath ?? Path.Combine(app.Environment.Co
 Directory.CreateDirectory(Path.Combine(webRootPath, "generated-images"));
 app.UseStaticFiles();
 
-// Handle CORS preflight for public endpoints (any origin)
+// Short-circuit CORS preflight for public endpoints so any origin can
+// subscribe to newsletters etc. The actual POST/GET responses get their
+// CORS headers from the endpoint-level [EnableCors("AllowPublic")] policy
+// — do NOT set them here too, or the browser sees duplicate/mismatched
+// Access-Control-Allow-Origin values and rejects the response.
 app.Use(async (context, next) =>
 {
-    if (context.Request.Path.StartsWithSegments("/api/v1/public"))
+    if (context.Request.Method == "OPTIONS" &&
+        context.Request.Path.StartsWithSegments("/api/v1/public"))
     {
-        context.Response.Headers["Access-Control-Allow-Origin"] = "*";
+        var origin = context.Request.Headers["Origin"].ToString();
+        var reqHeaders = context.Request.Headers["Access-Control-Request-Headers"].ToString();
+        context.Response.Headers["Access-Control-Allow-Origin"] =
+            string.IsNullOrEmpty(origin) ? "*" : origin;
         context.Response.Headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS";
-        context.Response.Headers["Access-Control-Allow-Headers"] = "Content-Type";
-
-        if (context.Request.Method == "OPTIONS")
-        {
-            context.Response.StatusCode = 204;
-            return;
-        }
+        context.Response.Headers["Access-Control-Allow-Headers"] =
+            string.IsNullOrEmpty(reqHeaders) ? "Content-Type" : reqHeaders;
+        context.Response.Headers["Access-Control-Max-Age"] = "600";
+        context.Response.Headers["Vary"] = "Origin";
+        context.Response.StatusCode = 204;
+        return;
     }
 
     await next();
