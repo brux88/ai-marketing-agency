@@ -18,11 +18,12 @@ class _ContentScreenState extends State<ContentScreen>
   late TabController _tabController;
   late Future<List<GeneratedContent>> _future;
 
-  // contentType values: 1=SocialPost, 2=Blog, 3=Newsletter
+  // contentType values (backend enum): 1=BlogPost, 2=SocialPost, 3=Newsletter,
+  // 4=Report, 5=Video, 6=Carousel, 7=Infographic
   static const _tabs = [
     _TabDef(null, 'Tutti', Icons.dashboard_outlined),
-    _TabDef(1, 'Social', Icons.share_outlined),
-    _TabDef(2, 'Blog', Icons.article_outlined),
+    _TabDef(2, 'Social', Icons.share_outlined),
+    _TabDef(1, 'Blog', Icons.article_outlined),
     _TabDef(3, 'Newsletter', Icons.email_outlined),
   ];
 
@@ -130,11 +131,19 @@ class _ContentScreenState extends State<ContentScreen>
   String _contentTypeLabel(int? t) {
     switch (t) {
       case 1:
-        return 'Social';
-      case 2:
         return 'Blog';
+      case 2:
+        return 'Social';
       case 3:
         return 'Newsletter';
+      case 4:
+        return 'Report';
+      case 5:
+        return 'Video';
+      case 6:
+        return 'Carousel';
+      case 7:
+        return 'Infografica';
       default:
         return '';
     }
@@ -143,11 +152,19 @@ class _ContentScreenState extends State<ContentScreen>
   IconData _contentTypeIcon(int? t) {
     switch (t) {
       case 1:
-        return Icons.share;
-      case 2:
         return Icons.article;
+      case 2:
+        return Icons.share;
       case 3:
         return Icons.email;
+      case 4:
+        return Icons.assessment;
+      case 5:
+        return Icons.videocam;
+      case 6:
+        return Icons.view_carousel;
+      case 7:
+        return Icons.insights;
       default:
         return Icons.description;
     }
@@ -156,11 +173,19 @@ class _ContentScreenState extends State<ContentScreen>
   Color _contentTypeColor(int? t) {
     switch (t) {
       case 1:
-        return Colors.indigo;
-      case 2:
         return Colors.teal;
+      case 2:
+        return Colors.indigo;
       case 3:
         return Colors.deepPurple;
+      case 4:
+        return Colors.brown;
+      case 5:
+        return Colors.red;
+      case 6:
+        return Colors.orange;
+      case 7:
+        return Colors.cyan;
       default:
         return Colors.grey;
     }

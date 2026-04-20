@@ -55,12 +55,20 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
 
   String _contentTypeLabel(int ct) {
     switch (ct) {
-      case 0:
-        return 'Blog';
       case 1:
-        return 'Social';
+        return 'Blog';
       case 2:
+        return 'Social';
+      case 3:
         return 'Newsletter';
+      case 4:
+        return 'Report';
+      case 5:
+        return 'Video';
+      case 6:
+        return 'Carousel';
+      case 7:
+        return 'Infografica';
       default:
         return 'Altro';
     }
