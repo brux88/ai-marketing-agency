@@ -51,6 +51,9 @@ function ProjectEmailNotificationsCard({
   const [pushOnGeneration, setPushOnGeneration] = useState(project?.notifyPushOnGeneration ?? false);
   const [pushOnPublication, setPushOnPublication] = useState(project?.notifyPushOnPublication ?? false);
   const [pushOnApproval, setPushOnApproval] = useState(project?.notifyPushOnApprovalNeeded ?? false);
+  const [emailOnSubscribed, setEmailOnSubscribed] = useState(project?.notifyEmailOnSubscribed ?? true);
+  const [pushOnSubscribed, setPushOnSubscribed] = useState(project?.notifyPushOnSubscribed ?? true);
+  const [telegramOnSubscribed, setTelegramOnSubscribed] = useState(project?.notifyTelegramOnSubscribed ?? true);
 
   useEffect(() => {
     setEmail(project?.notificationEmail ?? "");
@@ -60,6 +63,9 @@ function ProjectEmailNotificationsCard({
     setPushOnGeneration(project?.notifyPushOnGeneration ?? false);
     setPushOnPublication(project?.notifyPushOnPublication ?? false);
     setPushOnApproval(project?.notifyPushOnApprovalNeeded ?? false);
+    setEmailOnSubscribed(project?.notifyEmailOnSubscribed ?? true);
+    setPushOnSubscribed(project?.notifyPushOnSubscribed ?? true);
+    setTelegramOnSubscribed(project?.notifyTelegramOnSubscribed ?? true);
   }, [project]);
 
   const save = useMutation({
@@ -72,6 +78,9 @@ function ProjectEmailNotificationsCard({
         notifyPushOnGeneration: pushOnGeneration,
         notifyPushOnPublication: pushOnPublication,
         notifyPushOnApprovalNeeded: pushOnApproval,
+        notifyEmailOnSubscribed: emailOnSubscribed,
+        notifyPushOnSubscribed: pushOnSubscribed,
+        notifyTelegramOnSubscribed: telegramOnSubscribed,
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["project", agencyId, projectId] });
@@ -132,6 +141,24 @@ function ProjectEmailNotificationsCard({
           <div className="flex items-center justify-between">
             <Label className="cursor-pointer">Contenuti approvati</Label>
             <Switch checked={pushOnApproval} onCheckedChange={setPushOnApproval} />
+          </div>
+        </div>
+        <div className="space-y-2 pt-2 border-t">
+          <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Iscrizione newsletter</div>
+          <p className="text-xs text-muted-foreground">
+            Quando qualcuno si iscrive alla newsletter di questo progetto.
+          </p>
+          <div className="flex items-center justify-between">
+            <Label className="cursor-pointer">Email</Label>
+            <Switch checked={emailOnSubscribed} onCheckedChange={setEmailOnSubscribed} />
+          </div>
+          <div className="flex items-center justify-between">
+            <Label className="cursor-pointer">Push mobile</Label>
+            <Switch checked={pushOnSubscribed} onCheckedChange={setPushOnSubscribed} />
+          </div>
+          <div className="flex items-center justify-between">
+            <Label className="cursor-pointer">Telegram</Label>
+            <Switch checked={telegramOnSubscribed} onCheckedChange={setTelegramOnSubscribed} />
           </div>
         </div>
         <Button size="sm" onClick={() => save.mutate()} disabled={save.isPending}>

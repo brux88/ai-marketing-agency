@@ -4,6 +4,7 @@ import '../models.dart';
 import 'telegram_screen.dart';
 import 'api_keys_screen.dart';
 import 'social_connectors_screen.dart';
+import 'agency_notification_settings_screen.dart';
 
 class AgencySettingsScreen extends StatefulWidget {
   final Agency agency;
@@ -167,6 +168,19 @@ class _AgencySettingsScreenState extends State<AgencySettingsScreen> {
                               MaterialPageRoute(
                                   builder: (_) => SocialConnectorsScreen(
                                       agency: widget.agency))),
+                        ),
+                        ListTile(
+                          leading: const Icon(Icons.notifications_outlined),
+                          title: const Text('Notifiche'),
+                          subtitle: const Text(
+                              'Email, Telegram e iscrizioni newsletter'),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) =>
+                                      AgencyNotificationSettingsScreen(
+                                          agency: widget.agency))),
                         ),
                       ],
                     ),

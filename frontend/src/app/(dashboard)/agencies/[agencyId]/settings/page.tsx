@@ -6,13 +6,14 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { agenciesApi } from "@/lib/api/agencies.api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Mic2, Target, Rss, Brain, Shield, ImageIcon } from "lucide-react";
+import { Mic2, Target, Rss, Brain, Shield, ImageIcon, Bell } from "lucide-react";
 import { EditBrandVoiceDialog } from "@/components/agency/settings/edit-brand-voice-dialog";
 import { EditTargetAudienceDialog } from "@/components/agency/settings/edit-target-audience-dialog";
 import { EditApprovalModeDialog } from "@/components/agency/settings/edit-approval-mode-dialog";
 import { EditDefaultLlmDialog } from "@/components/agency/settings/edit-default-llm-dialog";
 import { EditContentSourcesDialog } from "@/components/agency/settings/edit-content-sources-dialog";
 import { EditImageSettingsDialog } from "@/components/agency/settings/edit-image-settings-dialog";
+import { EditNotificationSettingsDialog } from "@/components/agency/settings/edit-notification-settings-dialog";
 
 const sections = [
   { key: "brandVoice", title: "Brand Voice", desc: "Tono, stile e parole chiave del brand", icon: Mic2, color: "text-blue-600 bg-blue-100 dark:bg-blue-950" },
@@ -21,6 +22,7 @@ const sections = [
   { key: "defaultLlm", title: "Provider LLM", desc: "Configurazione AI e modelli", icon: Brain, color: "text-amber-600 bg-amber-100 dark:bg-amber-950" },
   { key: "approvalMode", title: "Approvazione", desc: "Modalita di approvazione contenuti", icon: Shield, color: "text-red-600 bg-red-100 dark:bg-red-950" },
   { key: "imageSettings", title: "Logo Overlay", desc: "Applica logo alle immagini generate", icon: ImageIcon, color: "text-pink-600 bg-pink-100 dark:bg-pink-950" },
+  { key: "notifications", title: "Notifiche", desc: "Email, push e Telegram a livello agenzia", icon: Bell, color: "text-cyan-600 bg-cyan-100 dark:bg-cyan-950" },
 ];
 
 export default function AgencySettingsPage() {
@@ -113,6 +115,12 @@ export default function AgencySettingsPage() {
           />
           <EditImageSettingsDialog
             open={editDialog === "imageSettings"}
+            onOpenChange={(open) => !open && setEditDialog(null)}
+            agency={agency}
+            onSaved={handleSaved}
+          />
+          <EditNotificationSettingsDialog
+            open={editDialog === "notifications"}
             onOpenChange={(open) => !open && setEditDialog(null)}
             agency={agency}
             onSaved={handleSaved}

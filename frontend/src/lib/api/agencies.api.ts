@@ -50,4 +50,21 @@ export const agenciesApi = {
     const res = await apiClient.post<ApiResponse<{ reset: number }>>(`/api/v1/agencies/${id}/reset-analytics`, { password });
     return res.data;
   },
+
+  updateNotificationSettings: async (
+    id: string,
+    data: {
+      notificationEmail?: string | null;
+      telegramNotificationsEnabled?: boolean;
+      notifyEmailOnSubscribed?: boolean;
+      notifyPushOnSubscribed?: boolean;
+      notifyTelegramOnSubscribed?: boolean;
+    },
+  ) => {
+    const res = await apiClient.put<ApiResponse<null>>(
+      `/api/v1/agencies/${id}/notification-settings`,
+      data,
+    );
+    return res;
+  },
 };

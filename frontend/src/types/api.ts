@@ -42,6 +42,11 @@ export interface Agency {
   logoOverlayPosition?: number;
   logoOverlayMode?: number;
   brandBannerColor?: string | null;
+  notificationEmail?: string | null;
+  telegramNotificationsEnabled?: boolean;
+  notifyEmailOnSubscribed?: boolean;
+  notifyPushOnSubscribed?: boolean;
+  notifyTelegramOnSubscribed?: boolean;
 }
 
 export enum LogoPosition {
@@ -262,6 +267,9 @@ export interface Project {
   notifyPushOnGeneration?: boolean;
   notifyPushOnPublication?: boolean;
   notifyPushOnApprovalNeeded?: boolean;
+  notifyEmailOnSubscribed?: boolean;
+  notifyPushOnSubscribed?: boolean;
+  notifyTelegramOnSubscribed?: boolean;
 }
 
 export enum SocialPlatform {

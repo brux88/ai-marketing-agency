@@ -2,27 +2,19 @@ import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models.dart';
 
-class ProjectSettingsScreen extends StatefulWidget {
+class AgencyNotificationSettingsScreen extends StatefulWidget {
   final Agency agency;
-  final Project project;
-  const ProjectSettingsScreen({
-    super.key,
-    required this.agency,
-    required this.project,
-  });
+  const AgencyNotificationSettingsScreen({super.key, required this.agency});
 
   @override
-  State<ProjectSettingsScreen> createState() => _ProjectSettingsScreenState();
+  State<AgencyNotificationSettingsScreen> createState() =>
+      _AgencyNotificationSettingsScreenState();
 }
 
-class _ProjectSettingsScreenState extends State<ProjectSettingsScreen> {
+class _AgencyNotificationSettingsScreenState
+    extends State<AgencyNotificationSettingsScreen> {
   final _emailCtrl = TextEditingController();
-  bool _emailOnGeneration = false;
-  bool _emailOnPublication = false;
-  bool _emailOnApproval = false;
-  bool _pushOnGeneration = false;
-  bool _pushOnPublication = false;
-  bool _pushOnApproval = false;
+  bool _telegramEnabled = true;
   bool _emailOnSubscribed = true;
   bool _pushOnSubscribed = true;
   bool _telegramOnSubscribed = true;
@@ -43,21 +35,15 @@ class _ProjectSettingsScreenState extends State<ProjectSettingsScreen> {
 
   Future<void> _load() async {
     try {
-      final res = await ApiClient.get(
-          '/api/v1/agencies/${widget.agency.id}/projects/${widget.project.id}');
-      final p = res['data'] as Map<String, dynamic>;
+      final res = await ApiClient.get('/api/v1/agencies/${widget.agency.id}');
+      final a = (res['data'] ?? res) as Map<String, dynamic>;
       if (!mounted) return;
       setState(() {
-        _emailCtrl.text = (p['notificationEmail'] as String?) ?? '';
-        _emailOnGeneration = p['notifyEmailOnGeneration'] ?? false;
-        _emailOnPublication = p['notifyEmailOnPublication'] ?? false;
-        _emailOnApproval = p['notifyEmailOnApprovalNeeded'] ?? false;
-        _pushOnGeneration = p['notifyPushOnGeneration'] ?? false;
-        _pushOnPublication = p['notifyPushOnPublication'] ?? false;
-        _pushOnApproval = p['notifyPushOnApprovalNeeded'] ?? false;
-        _emailOnSubscribed = p['notifyEmailOnSubscribed'] ?? true;
-        _pushOnSubscribed = p['notifyPushOnSubscribed'] ?? true;
-        _telegramOnSubscribed = p['notifyTelegramOnSubscribed'] ?? true;
+        _emailCtrl.text = (a['notificationEmail'] as String?) ?? '';
+        _telegramEnabled = a['telegramNotificationsEnabled'] ?? true;
+        _emailOnSubscribed = a['notifyEmailOnSubscribed'] ?? true;
+        _pushOnSubscribed = a['notifyPushOnSubscribed'] ?? true;
+        _telegramOnSubscribed = a['notifyTelegramOnSubscribed'] ?? true;
         _loading = false;
       });
     } catch (e) {
@@ -74,15 +60,10 @@ class _ProjectSettingsScreenState extends State<ProjectSettingsScreen> {
     try {
       final email = _emailCtrl.text.trim();
       await ApiClient.put(
-        '/api/v1/agencies/${widget.agency.id}/projects/${widget.project.id}/email-notifications',
+        '/api/v1/agencies/${widget.agency.id}/notification-settings',
         {
-          'notifyEmailOnGeneration': _emailOnGeneration,
-          'notifyEmailOnPublication': _emailOnPublication,
-          'notifyEmailOnApprovalNeeded': _emailOnApproval,
           'notificationEmail': email.isEmpty ? null : email,
-          'notifyPushOnGeneration': _pushOnGeneration,
-          'notifyPushOnPublication': _pushOnPublication,
-          'notifyPushOnApprovalNeeded': _pushOnApproval,
+          'telegramNotificationsEnabled': _telegramEnabled,
           'notifyEmailOnSubscribed': _emailOnSubscribed,
           'notifyPushOnSubscribed': _pushOnSubscribed,
           'notifyTelegramOnSubscribed': _telegramOnSubscribed,
@@ -101,9 +82,7 @@ class _ProjectSettingsScreenState extends State<ProjectSettingsScreen> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.project.name),
-      ),
+      appBar: AppBar(title: const Text('Notifiche agenzia')),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
@@ -117,9 +96,10 @@ class _ProjectSettingsScreenState extends State<ProjectSettingsScreen> {
                       children: [
                         Row(
                           children: [
-                            Icon(Icons.mail_outline, color: cs.primary),
+                            Icon(Icons.notifications_outlined,
+                                color: cs.primary),
                             const SizedBox(width: 8),
-                            Text('Notifiche',
+                            Text('Notifiche agenzia',
                                 style: Theme.of(context)
                                     .textTheme
                                     .titleMedium
@@ -127,14 +107,14 @@ class _ProjectSettingsScreenState extends State<ProjectSettingsScreen> {
                           ],
                         ),
                         const SizedBox(height: 16),
-                        Text('Email destinatario',
+                        Text('Email notifiche agenzia',
                             style: Theme.of(context).textTheme.labelMedium),
                         const SizedBox(height: 6),
                         TextField(
                           controller: _emailCtrl,
                           keyboardType: TextInputType.emailAddress,
                           decoration: InputDecoration(
-                            hintText: 'nome@esempio.com',
+                            hintText: 'admin@esempio.com',
                             border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(10)),
                             isDense: true,
@@ -144,74 +124,28 @@ class _ProjectSettingsScreenState extends State<ProjectSettingsScreen> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Lascia vuoto per non ricevere notifiche email',
+                          'Destinatario delle notifiche a livello agenzia. Lascia vuoto per non ricevere email.',
                           style: Theme.of(context)
                               .textTheme
                               .bodySmall
                               ?.copyWith(color: cs.onSurfaceVariant),
                         ),
-                        const SizedBox(height: 20),
-                        _sectionLabel('Email', cs),
+                        const SizedBox(height: 16),
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
-                          title: const Text('Generazione contenuti'),
-                          value: _emailOnGeneration,
+                          title: const Text('Notifiche Telegram abilitate'),
+                          subtitle: const Text(
+                              'Interruttore generale per tutte le notifiche Telegram dell\'agenzia.'),
+                          value: _telegramEnabled,
                           onChanged: (v) =>
-                              setState(() => _emailOnGeneration = v),
-                        ),
-                        SwitchListTile(
-                          contentPadding: EdgeInsets.zero,
-                          title: const Text('Pubblicazione'),
-                          value: _emailOnPublication,
-                          onChanged: (v) =>
-                              setState(() => _emailOnPublication = v),
-                        ),
-                        SwitchListTile(
-                          contentPadding: EdgeInsets.zero,
-                          title: const Text('Contenuti da approvare'),
-                          value: _emailOnApproval,
-                          onChanged: (v) =>
-                              setState(() => _emailOnApproval = v),
-                        ),
-                        const SizedBox(height: 8),
-                        const Divider(),
-                        const SizedBox(height: 8),
-                        _sectionLabel('Push mobile', cs),
-                        Text(
-                          'Ricevi notifiche push su questo dispositivo. Richiede login attivo.',
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodySmall
-                              ?.copyWith(color: cs.onSurfaceVariant),
-                        ),
-                        const SizedBox(height: 4),
-                        SwitchListTile(
-                          contentPadding: EdgeInsets.zero,
-                          title: const Text('Generazione contenuti'),
-                          value: _pushOnGeneration,
-                          onChanged: (v) =>
-                              setState(() => _pushOnGeneration = v),
-                        ),
-                        SwitchListTile(
-                          contentPadding: EdgeInsets.zero,
-                          title: const Text('Pubblicazione'),
-                          value: _pushOnPublication,
-                          onChanged: (v) =>
-                              setState(() => _pushOnPublication = v),
-                        ),
-                        SwitchListTile(
-                          contentPadding: EdgeInsets.zero,
-                          title: const Text('Contenuti approvati'),
-                          value: _pushOnApproval,
-                          onChanged: (v) =>
-                              setState(() => _pushOnApproval = v),
+                              setState(() => _telegramEnabled = v),
                         ),
                         const SizedBox(height: 8),
                         const Divider(),
                         const SizedBox(height: 8),
                         _sectionLabel('Iscrizione newsletter', cs),
                         Text(
-                          'Quando qualcuno si iscrive alla newsletter di questo progetto.',
+                          'Quando qualcuno si iscrive a una newsletter dell\'agenzia.',
                           style: Theme.of(context)
                               .textTheme
                               .bodySmall
