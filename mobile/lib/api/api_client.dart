@@ -34,11 +34,18 @@ class ApiClient {
     };
   }
 
-  static bool _refreshing = false;
+  static Future<bool>? _refreshInFlight;
 
-  static Future<bool> _tryRefresh() async {
-    if (_refreshing) return false;
-    _refreshing = true;
+  static Future<bool> _tryRefresh() {
+    final existing = _refreshInFlight;
+    if (existing != null) return existing;
+    final future = _doRefresh();
+    _refreshInFlight = future;
+    future.whenComplete(() => _refreshInFlight = null);
+    return future;
+  }
+
+  static Future<bool> _doRefresh() async {
     try {
       final rt = await refreshToken;
       if (rt == null || rt.isEmpty) return false;
@@ -62,8 +69,6 @@ class ApiClient {
       return false;
     } catch (_) {
       return false;
-    } finally {
-      _refreshing = false;
     }
   }
 

@@ -21,7 +21,7 @@ class _SocialConnectorsScreenState extends State<SocialConnectorsScreen> {
 
   Future<List<Map<String, dynamic>>> _loadConnectors() async {
     final res = await ApiClient.get(
-        '/api/v1/agencies/${widget.agency.id}/social-connectors');
+        '/api/v1/agencies/${widget.agency.id}/connectors');
     return (res['data'] as List).cast<Map<String, dynamic>>();
   }
 
