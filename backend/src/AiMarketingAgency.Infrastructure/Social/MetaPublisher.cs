@@ -95,6 +95,26 @@ public class MetaPublisher : ISocialPublishingService
             new FormUrlEncodedContent(createParams), ct);
         var createBody = await createResponse.Content.ReadAsStringAsync(ct);
 
+        // Meta's crawler sometimes fails to fetch otherwise-public URLs (Azure Blob, CDNs).
+        // Error 9004 / sub-error 2207052 = "Only photo or video can be accepted as media type",
+        // which Meta returns when it can't read the remote media. Fall back to re-hosting the
+        // image on Facebook (which gives us a fb CDN URL Meta always trusts) and retry once.
+        if (!createResponse.IsSuccessStatusCode && IsMediaUnreachableError(createBody))
+        {
+            _logger?.LogWarning(
+                "Instagram rejected image {Url} with fetch error; re-hosting via Facebook and retrying",
+                resolvedIgImageUrl);
+
+            var rehosted = await RehostRemoteImageViaFacebookAsync(resolvedIgImageUrl, accessToken, ct);
+            if (!string.IsNullOrEmpty(rehosted) && !string.Equals(rehosted, resolvedIgImageUrl, StringComparison.OrdinalIgnoreCase))
+            {
+                createParams["image_url"] = rehosted;
+                createResponse = await _httpClient.PostAsync(createUrl,
+                    new FormUrlEncodedContent(createParams), ct);
+                createBody = await createResponse.Content.ReadAsStringAsync(ct);
+            }
+        }
+
         if (!createResponse.IsSuccessStatusCode)
             return new PublishResult(false, null, null, $"Instagram create error: {createBody}");
 
@@ -300,6 +320,75 @@ public class MetaPublisher : ISocialPublishingService
         catch (Exception ex)
         {
             _logger?.LogWarning(ex, "Failed to upload overlay image to Facebook for Instagram");
+        }
+        return null;
+    }
+
+    private static bool IsMediaUnreachableError(string responseBody)
+    {
+        if (string.IsNullOrEmpty(responseBody)) return false;
+        return responseBody.Contains("2207052", StringComparison.Ordinal)
+            || responseBody.Contains("\"code\":9004", StringComparison.Ordinal)
+            || responseBody.Contains("Only photo or video can be accepted", StringComparison.OrdinalIgnoreCase)
+            || responseBody.Contains("Media Fetch Failure", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private async Task<string?> RehostRemoteImageViaFacebookAsync(string remoteUrl, string accessToken, CancellationToken ct)
+    {
+        try
+        {
+            var downloadResp = await _httpClient.GetAsync(remoteUrl, ct);
+            if (!downloadResp.IsSuccessStatusCode)
+            {
+                _logger?.LogWarning("Could not download remote image for rehost: {Status}", downloadResp.StatusCode);
+                return null;
+            }
+            var bytes = await downloadResp.Content.ReadAsByteArrayAsync(ct);
+            var contentType = downloadResp.Content.Headers.ContentType?.MediaType ?? "image/png";
+            var fileName = Path.GetFileName(new Uri(remoteUrl).LocalPath);
+            if (string.IsNullOrWhiteSpace(fileName)) fileName = "image.png";
+
+            var meResp = await _httpClient.GetAsync(
+                $"https://graph.facebook.com/v19.0/me?fields=id&access_token={accessToken}", ct);
+            var meBody = await meResp.Content.ReadAsStringAsync(ct);
+            if (!meResp.IsSuccessStatusCode) return null;
+            using var meDoc = JsonDocument.Parse(meBody);
+            var pageId = meDoc.RootElement.GetProperty("id").GetString();
+            if (string.IsNullOrEmpty(pageId)) return null;
+
+            var uploadUrl = $"https://graph.facebook.com/v19.0/{pageId}/photos";
+            using var form = new MultipartFormDataContent();
+            form.Add(new StringContent(accessToken), "access_token");
+            form.Add(new StringContent("false"), "published");
+            var imageContent = new ByteArrayContent(bytes);
+            imageContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
+            form.Add(imageContent, "source", fileName);
+
+            var uploadResp = await _httpClient.PostAsync(uploadUrl, form, ct);
+            var uploadBody = await uploadResp.Content.ReadAsStringAsync(ct);
+            if (!uploadResp.IsSuccessStatusCode)
+            {
+                _logger?.LogWarning("Rehost upload to Facebook failed: {Body}", uploadBody);
+                return null;
+            }
+            using var uploadDoc = JsonDocument.Parse(uploadBody);
+            var photoId = uploadDoc.RootElement.GetProperty("id").GetString();
+
+            var imgResp = await _httpClient.GetAsync(
+                $"https://graph.facebook.com/v19.0/{photoId}?fields=images&access_token={accessToken}", ct);
+            var imgBody = await imgResp.Content.ReadAsStringAsync(ct);
+            if (!imgResp.IsSuccessStatusCode) return null;
+            using var imgDoc = JsonDocument.Parse(imgBody);
+            if (imgDoc.RootElement.TryGetProperty("images", out var images) && images.GetArrayLength() > 0)
+            {
+                var src = images[0].GetProperty("source").GetString();
+                _logger?.LogInformation("Rehosted Instagram image via Facebook CDN: {Url}", src);
+                return src;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "RehostRemoteImageViaFacebookAsync failed for {Url}", remoteUrl);
         }
         return null;
     }

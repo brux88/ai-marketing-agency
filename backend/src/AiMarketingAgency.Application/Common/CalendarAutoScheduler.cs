@@ -82,15 +82,15 @@ public static class CalendarAutoScheduler
                                    && e.Status != CalendarEntryStatus.Failed, ct);
                 if (alreadyScheduled) continue;
 
-                var scheduledCountForPlatform = await context.CalendarEntries
+                var existingSlots = await context.CalendarEntries
                     .IgnoreQueryFilters()
-                    .CountAsync(e => e.AgencyId == content.AgencyId
-                                     && e.Platform == platform
-                                     && e.Status == CalendarEntryStatus.Scheduled, ct);
+                    .Where(e => e.AgencyId == content.AgencyId
+                                && e.Platform == platform
+                                && e.Status == CalendarEntryStatus.Scheduled)
+                    .Select(e => e.ScheduledAt)
+                    .ToListAsync(ct);
 
-                var scheduledAt = scheduledCountForPlatform < maxPerPlatform
-                    ? ComputeNextSlot(matchingSchedule, 0)
-                    : ComputeNextSlot(matchingSchedule, scheduledCountForPlatform / maxPerPlatform);
+                var scheduledAt = ComputeNextAvailableSlot(matchingSchedule, maxPerPlatform, existingSlots);
 
                 context.CalendarEntries.Add(new EditorialCalendarEntry
                 {
@@ -226,6 +226,55 @@ public static class CalendarAutoScheduler
         });
         await context.SaveChangesAsync(ct);
         return true;
+    }
+
+    private static DateTime ComputeNextAvailableSlot(
+        ContentSchedule schedule,
+        int maxPerDay,
+        List<DateTime> existingScheduledUtc)
+    {
+        try
+        {
+            var tz = TimeZoneInfo.FindSystemTimeZoneById(schedule.TimeZone);
+            var nowUtc = DateTime.UtcNow;
+            var nowLocal = TimeZoneInfo.ConvertTimeFromUtc(nowUtc, tz);
+
+            var countsByLocalDate = existingScheduledUtc
+                .Select(utc => TimeZoneInfo
+                    .ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), tz)
+                    .Date)
+                .GroupBy(d => d)
+                .ToDictionary(g => g.Key, g => g.Count());
+
+            for (int i = 0; i <= 60; i++)
+            {
+                var candidate = nowLocal.Date.AddDays(i);
+                var dayFlag = candidate.DayOfWeek switch
+                {
+                    System.DayOfWeek.Monday => DayOfWeekFlag.Monday,
+                    System.DayOfWeek.Tuesday => DayOfWeekFlag.Tuesday,
+                    System.DayOfWeek.Wednesday => DayOfWeekFlag.Wednesday,
+                    System.DayOfWeek.Thursday => DayOfWeekFlag.Thursday,
+                    System.DayOfWeek.Friday => DayOfWeekFlag.Friday,
+                    System.DayOfWeek.Saturday => DayOfWeekFlag.Saturday,
+                    System.DayOfWeek.Sunday => DayOfWeekFlag.Sunday,
+                    _ => DayOfWeekFlag.None
+                };
+                if (!schedule.Days.HasFlag(dayFlag)) continue;
+
+                var candidateLocal = candidate.Add(schedule.TimeOfDay.ToTimeSpan());
+                if (i == 0 && candidateLocal <= nowLocal) continue;
+
+                countsByLocalDate.TryGetValue(candidate, out var existingOnDay);
+                if (existingOnDay >= Math.Max(1, maxPerDay)) continue;
+
+                return TimeZoneInfo.ConvertTimeToUtc(
+                    DateTime.SpecifyKind(candidateLocal, DateTimeKind.Unspecified), tz);
+            }
+        }
+        catch { }
+
+        return DateTime.UtcNow.AddDays(1);
     }
 
     private static DateTime ComputeNextSlot(ContentSchedule schedule, int slotOffset)
