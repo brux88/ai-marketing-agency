@@ -75,6 +75,15 @@ export function AppSidebar() {
           <div className="text-sm min-w-0">
             <p className="font-medium truncate">{user?.fullName}</p>
             <p className="text-sidebar-foreground/60 text-xs truncate">{user?.email}</p>
+            <p
+              className="text-sidebar-foreground/40 text-[10px] font-mono truncate"
+              title={`Build ${process.env.NEXT_PUBLIC_APP_BUILD_DATE ?? ""}`}
+            >
+              v{process.env.NEXT_PUBLIC_APP_VERSION ?? "?"}
+              {process.env.NEXT_PUBLIC_APP_COMMIT
+                ? ` · ${process.env.NEXT_PUBLIC_APP_COMMIT}`
+                : ""}
+            </p>
           </div>
           <ThemeToggle />
         </div>
