@@ -1,3 +1,4 @@
+using AiMarketingAgency.Application.Common;
 using AiMarketingAgency.Application.Common.Interfaces;
 using AiMarketingAgency.Application.Schedules.Commands.CreateSchedule;
 using AiMarketingAgency.Domain.Entities;
@@ -166,7 +167,6 @@ public class SchedulerBackgroundService : BackgroundService
             .Where(c => c.ContentType == ContentType.Newsletter)
             .ToList();
 
-        var futureSlots = ComputeFutureSlots(schedule, 20);
         int entriesCreated = 0;
 
         foreach (var platform in platforms)
@@ -185,38 +185,32 @@ public class SchedulerBackgroundService : BackgroundService
 
             if (unscheduled.Count == 0) continue;
 
-            var nowBatch = unscheduled.Take(maxPerPlatform).ToList();
-            var remainder = unscheduled.Skip(maxPerPlatform).ToList();
+            // Track per-platform existing scheduled slots; append as we add new entries
+            // so multiple contents in the same batch don't all land on the same day.
+            var existingSlots = await context.CalendarEntries
+                .IgnoreQueryFilters()
+                .Where(e => e.AgencyId == schedule.AgencyId
+                            && e.Platform == platform
+                            && e.Status == CalendarEntryStatus.Scheduled)
+                .Select(e => e.ScheduledAt)
+                .ToListAsync(ct);
 
-            foreach (var content in nowBatch)
+            foreach (var content in unscheduled)
             {
+                var slot = CalendarAutoScheduler.ComputeNextAvailableSlot(
+                    schedule, maxPerPlatform, existingSlots);
+
                 context.CalendarEntries.Add(new EditorialCalendarEntry
                 {
                     TenantId = schedule.TenantId,
                     AgencyId = schedule.AgencyId,
                     ContentId = content.Id,
                     Platform = platform,
-                    ScheduledAt = DateTime.UtcNow,
+                    ScheduledAt = slot,
                     Status = CalendarEntryStatus.Scheduled
                 });
+                existingSlots.Add(slot);
                 entriesCreated++;
-            }
-
-            var slotIndex = 0;
-            foreach (var content in remainder)
-            {
-                if (slotIndex >= futureSlots.Count) break;
-                context.CalendarEntries.Add(new EditorialCalendarEntry
-                {
-                    TenantId = schedule.TenantId,
-                    AgencyId = schedule.AgencyId,
-                    ContentId = content.Id,
-                    Platform = platform,
-                    ScheduledAt = futureSlots[slotIndex],
-                    Status = CalendarEntryStatus.Scheduled
-                });
-                entriesCreated++;
-                slotIndex++;
             }
         }
 
@@ -232,38 +226,33 @@ public class SchedulerBackgroundService : BackgroundService
                 unscheduledNewsletters.Add(c);
         }
 
-        var nlNow = unscheduledNewsletters.Take(maxPerPlatform).ToList();
-        var nlRemainder = unscheduledNewsletters.Skip(maxPerPlatform).ToList();
-
-        foreach (var nl in nlNow)
+        if (unscheduledNewsletters.Count > 0)
         {
-            context.CalendarEntries.Add(new EditorialCalendarEntry
-            {
-                TenantId = schedule.TenantId,
-                AgencyId = schedule.AgencyId,
-                ContentId = nl.Id,
-                Platform = null,
-                ScheduledAt = DateTime.UtcNow,
-                Status = CalendarEntryStatus.Scheduled
-            });
-            entriesCreated++;
-        }
+            var existingNlSlots = await context.CalendarEntries
+                .IgnoreQueryFilters()
+                .Where(e => e.AgencyId == schedule.AgencyId
+                            && e.Platform == null
+                            && e.Status == CalendarEntryStatus.Scheduled)
+                .Select(e => e.ScheduledAt)
+                .ToListAsync(ct);
 
-        var nlSlot = 0;
-        foreach (var nl in nlRemainder)
-        {
-            if (nlSlot >= futureSlots.Count) break;
-            context.CalendarEntries.Add(new EditorialCalendarEntry
+            foreach (var nl in unscheduledNewsletters)
             {
-                TenantId = schedule.TenantId,
-                AgencyId = schedule.AgencyId,
-                ContentId = nl.Id,
-                Platform = null,
-                ScheduledAt = futureSlots[nlSlot],
-                Status = CalendarEntryStatus.Scheduled
-            });
-            entriesCreated++;
-            nlSlot++;
+                var slot = CalendarAutoScheduler.ComputeNextAvailableSlot(
+                    schedule, maxPerPlatform, existingNlSlots);
+
+                context.CalendarEntries.Add(new EditorialCalendarEntry
+                {
+                    TenantId = schedule.TenantId,
+                    AgencyId = schedule.AgencyId,
+                    ContentId = nl.Id,
+                    Platform = null,
+                    ScheduledAt = slot,
+                    Status = CalendarEntryStatus.Scheduled
+                });
+                existingNlSlots.Add(slot);
+                entriesCreated++;
+            }
         }
 
         if (entriesCreated > 0)
@@ -272,46 +261,6 @@ public class SchedulerBackgroundService : BackgroundService
         _logger.LogInformation(
             "Publication schedule '{Name}': created {Count} calendar entries",
             schedule.Name, entriesCreated);
-    }
-
-    private static List<DateTime> ComputeFutureSlots(ContentSchedule schedule, int maxSlots)
-    {
-        var slots = new List<DateTime>();
-        try
-        {
-            var tz = TimeZoneInfo.FindSystemTimeZoneById(schedule.TimeZone);
-            var nowUtc = DateTime.UtcNow;
-            var nowLocal = TimeZoneInfo.ConvertTimeFromUtc(nowUtc, tz);
-
-            for (int i = 1; i <= 60 && slots.Count < maxSlots; i++)
-            {
-                var candidate = nowLocal.Date.AddDays(i);
-                var dayFlag = candidate.DayOfWeek switch
-                {
-                    System.DayOfWeek.Monday => DayOfWeekFlag.Monday,
-                    System.DayOfWeek.Tuesday => DayOfWeekFlag.Tuesday,
-                    System.DayOfWeek.Wednesday => DayOfWeekFlag.Wednesday,
-                    System.DayOfWeek.Thursday => DayOfWeekFlag.Thursday,
-                    System.DayOfWeek.Friday => DayOfWeekFlag.Friday,
-                    System.DayOfWeek.Saturday => DayOfWeekFlag.Saturday,
-                    System.DayOfWeek.Sunday => DayOfWeekFlag.Sunday,
-                    _ => DayOfWeekFlag.None
-                };
-                if (!schedule.Days.HasFlag(dayFlag)) continue;
-
-                var candidateLocal = candidate.Add(schedule.TimeOfDay.ToTimeSpan());
-                var candidateUtc = TimeZoneInfo.ConvertTimeToUtc(
-                    DateTime.SpecifyKind(candidateLocal, DateTimeKind.Unspecified), tz);
-                slots.Add(candidateUtc);
-            }
-        }
-        catch (Exception)
-        {
-            // Fallback: daily slots
-            for (int i = 1; i <= maxSlots; i++)
-                slots.Add(DateTime.UtcNow.AddDays(i));
-        }
-        return slots;
     }
 
     private static List<SocialPlatform> ParsePlatforms(string? csv)

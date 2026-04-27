@@ -228,10 +228,10 @@ public static class CalendarAutoScheduler
         return true;
     }
 
-    private static DateTime ComputeNextAvailableSlot(
+    public static DateTime ComputeNextAvailableSlot(
         ContentSchedule schedule,
         int maxPerDay,
-        List<DateTime> existingScheduledUtc)
+        IEnumerable<DateTime> existingScheduledUtc)
     {
         try
         {
