@@ -74,6 +74,20 @@ public class CalendarPublishBackgroundService : BackgroundService
                 var contentTitle = entry.Content?.Title ?? "Contenuto";
                 var projectId = entry.Content?.ProjectId;
 
+                // Skip entries pointing to missing or soft-deleted content. Without this guard
+                // the publish handler returns "Content not found" forever and any cron-driven
+                // re-scheduler would keep recreating new entries on top.
+                if (entry.Content is null || entry.Content.IsDeleted)
+                {
+                    entry.Status = CalendarEntryStatus.Failed;
+                    entry.ErrorMessage = "Contenuto eliminato: pubblicazione annullata.";
+                    await context.SaveChangesAsync(ct);
+                    _logger.LogInformation(
+                        "Skipping calendar entry {EntryId}: linked content {ContentId} is missing or deleted",
+                        entry.Id, entry.ContentId);
+                    continue;
+                }
+
                 if (entry.Platform != null)
                 {
                     var result = await mediator.Send(

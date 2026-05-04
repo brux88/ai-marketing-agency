@@ -145,7 +145,8 @@ public class SchedulerBackgroundService : BackgroundService
         var query = context.GeneratedContents
             .IgnoreQueryFilters()
             .Where(c => c.AgencyId == schedule.AgencyId
-                        && c.Status == ContentStatus.Approved);
+                        && c.Status == ContentStatus.Approved
+                        && !c.IsDeleted);
 
         if (schedule.ProjectId.HasValue)
             query = query.Where(c => c.ProjectId == schedule.ProjectId);
