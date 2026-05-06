@@ -175,11 +175,13 @@ public class SchedulerBackgroundService : BackgroundService
             var unscheduled = new List<GeneratedContent>();
             foreach (var c in socialContents)
             {
+                // Include Failed entries so we don't recreate a duplicate on a future day
+                // every time a publish attempt fails. A single content+platform should map
+                // to exactly one calendar entry; manual retry can resurrect a Failed one.
                 var alreadyScheduled = await context.CalendarEntries
                     .IgnoreQueryFilters()
                     .AnyAsync(e => e.ContentId == c.Id
-                                   && e.Platform == platform
-                                   && e.Status != CalendarEntryStatus.Failed, ct);
+                                   && e.Platform == platform, ct);
                 if (!alreadyScheduled)
                     unscheduled.Add(c);
             }
@@ -221,8 +223,7 @@ public class SchedulerBackgroundService : BackgroundService
             var alreadyScheduled = await context.CalendarEntries
                 .IgnoreQueryFilters()
                 .AnyAsync(e => e.ContentId == c.Id
-                               && e.Platform == null
-                               && e.Status != CalendarEntryStatus.Failed, ct);
+                               && e.Platform == null, ct);
             if (!alreadyScheduled)
                 unscheduledNewsletters.Add(c);
         }

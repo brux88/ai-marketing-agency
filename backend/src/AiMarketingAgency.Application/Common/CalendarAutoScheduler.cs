@@ -50,8 +50,7 @@ public static class CalendarAutoScheduler
             var alreadyScheduled = await context.CalendarEntries
                 .IgnoreQueryFilters()
                 .AnyAsync(e => e.ContentId == content.Id
-                               && e.Platform == null
-                               && e.Status != CalendarEntryStatus.Failed, ct);
+                               && e.Platform == null, ct);
             if (!alreadyScheduled)
             {
                 var scheduledAt = ComputeNextSlot(matchingSchedule, 0);
@@ -75,11 +74,14 @@ public static class CalendarAutoScheduler
                 : ParsePlatforms(matchingSchedule.EnabledSocialPlatforms);
             foreach (var platform in platforms)
             {
+                // Treat any existing entry (including Failed ones) as already-scheduled.
+                // Otherwise a single publish failure causes the cron to recreate a new
+                // entry on a future day, accumulating duplicates of the same content
+                // across different days. Manual retry can re-flip Failed -> Scheduled.
                 var alreadyScheduled = await context.CalendarEntries
                     .IgnoreQueryFilters()
                     .AnyAsync(e => e.ContentId == content.Id
-                                   && e.Platform == platform
-                                   && e.Status != CalendarEntryStatus.Failed, ct);
+                                   && e.Platform == platform, ct);
                 if (alreadyScheduled) continue;
 
                 var existingSlots = await context.CalendarEntries
@@ -109,8 +111,7 @@ public static class CalendarAutoScheduler
             var alreadyScheduled = await context.CalendarEntries
                 .IgnoreQueryFilters()
                 .AnyAsync(e => e.ContentId == content.Id
-                               && e.Platform == null
-                               && e.Status != CalendarEntryStatus.Failed, ct);
+                               && e.Platform == null, ct);
             if (!alreadyScheduled)
             {
                 var scheduledAt = ComputeNextSlot(matchingSchedule, 0);
@@ -172,8 +173,7 @@ public static class CalendarAutoScheduler
         if (content.ContentType == ContentType.Newsletter || content.ContentType == ContentType.BlogPost)
         {
             var alreadyScheduledNoPlatform = await context.CalendarEntries
-                .AnyAsync(e => e.ContentId == content.Id && e.Platform == null
-                               && e.Status != CalendarEntryStatus.Failed, ct);
+                .AnyAsync(e => e.ContentId == content.Id && e.Platform == null, ct);
             if (alreadyScheduledNoPlatform) return false;
 
             context.CalendarEntries.Add(new EditorialCalendarEntry
@@ -211,8 +211,7 @@ public static class CalendarAutoScheduler
         if (connector is null || platform is null) return false;
 
         var alreadyScheduled = await context.CalendarEntries
-            .AnyAsync(e => e.ContentId == content.Id && e.Platform == platform
-                           && e.Status != CalendarEntryStatus.Failed, ct);
+            .AnyAsync(e => e.ContentId == content.Id && e.Platform == platform, ct);
         if (alreadyScheduled) return false;
 
         context.CalendarEntries.Add(new EditorialCalendarEntry
