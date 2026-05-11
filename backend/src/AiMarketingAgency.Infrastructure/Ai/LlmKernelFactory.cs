@@ -65,12 +65,21 @@ public class LlmKernelFactory : ILlmKernelFactory
             case LlmProviderType.NanoBanana:
             case LlmProviderType.HiggField:
             case LlmProviderType.Custom:
-                // Use OpenAI-compatible HTTP client for non-natively-supported providers
+                // Use OpenAI-compatible HTTP client for non-natively-supported providers.
+                // Wrap with LlmRetryHandler so Anthropic 529 / generic 429,5xx don't fail
+                // the whole agent job on a single transient hiccup.
                 var baseUrl = string.IsNullOrWhiteSpace(providerKey.BaseUrl)
                     ? GetDefaultBaseUrl(providerKey.ProviderType)
                     : providerKey.BaseUrl;
-                var httpClient = _httpClientFactory.CreateClient($"LlmProvider_{providerKey.Id}");
-                httpClient.BaseAddress = new Uri(baseUrl);
+                var retryHandler = new LlmRetryHandler(_logger)
+                {
+                    InnerHandler = new HttpClientHandler(),
+                };
+                var httpClient = new HttpClient(retryHandler)
+                {
+                    BaseAddress = new Uri(baseUrl),
+                    Timeout = TimeSpan.FromMinutes(5),
+                };
 
                 builder.AddOpenAIChatCompletion(
                     modelId: modelName,
